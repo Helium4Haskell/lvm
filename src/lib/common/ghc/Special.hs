@@ -23,7 +23,7 @@ module Special( doesFileExist
 import Directory  ( doesFileExist )
 import IO         ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
 #if (__GLASGOW_HASKELL__ >= 602)
-import GHC.Handle ( openBinaryFile )
+import System.IO  ( openBinaryFile )
 #else
 import GHC.Handle ( openFileEx, IOModeEx(..))
 #endif
