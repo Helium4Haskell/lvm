@@ -27,7 +27,7 @@
 #include "static.h"
 #include "print.h"
 
-#define VERSION_MAJOR 6
+#define VERSION_MAJOR 7
 #define VERSION_MINOR 0
 
 /*----------------------------------------------------------------------

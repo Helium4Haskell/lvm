@@ -22,7 +22,7 @@ import Lvm
   Magic numbers
 --------------------------------------------------------------}
 lvmMajorVersion,lvmMinorVersion,magic :: Int
-lvmMajorVersion  = 6
+lvmMajorVersion  = 7
 lvmMinorVersion  = 0
 magic            = 0x4C564D58
 

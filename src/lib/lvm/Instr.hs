@@ -291,7 +291,7 @@ instrTable =
     [ ARGCHK 0, PUSHCODE global, PUSHCONT 0, PUSHVAR var
     , PUSHINT 0, PUSHFLOAT 0, PUSHBYTES nil 0, SLIDE 0 0 0, STUB var
     , ALLOCAP 0, PACKAP var 0, PACKNAP var 0, NEWAP 0, NEWNAP 0
-    , ENTER, PUSHCATCH, RAISE, CALL global
+    , ENTER, RETURN, PUSHCATCH, RAISE, CALL global
     , ALLOCCON con, PACKCON con var, NEWCON con
     --, UNPACKCON 0 , TESTCON id [], TESTINT 0 []
     , NOP, NOP, NOP
@@ -305,11 +305,10 @@ instrTable =
     , NOP, NEWAP2, NEWAP3, NEWAP4
     , NOP, NEWNAP2, NEWNAP3, NEWNAP4
     , NEWCON0 con, NEWCON1 con, NEWCON2 con, NEWCON3 con
-    , ENTERCODE global, EVALVAR var, RETURNCON con, RETURNINT 0
+    , ENTERCODE global, EVALVAR var, RETURNCON con, RETURNINT 0, RETURNCON0 con 
     , MATCHCON [], SWITCHCON [], MATCHINT []
-    -- ,PUSHEAGER 0, RETURNCON0 id, INCINT 0
-    , NOP, RETURNCON0 con, NOP
-    , RETURN
+    -- ,PUSHEAGER 0, INCINT 0
+    , NOP, NOP
     ]
   where
     id     = dummyId

@@ -30,6 +30,7 @@
   Ins( NEWNAP, 1 ),     \
   \
   Ins( ENTER, 0 ),      \
+  Ins( RETURN, 0 ),     \
   Ins( CATCH, 0 ),      \
   Ins( RAISE, 0 ),      \
   Ins( CALL, 2 ),       \
@@ -103,14 +104,13 @@
   Ins( EVALVAR, 1 ),    \
   Ins( RETURNCON, 2 ),  \
   Ins( RETURNINT, 1 ),  \
+  Ins( RETURNCON0, 1 ), \
   \
   Ins( MATCHCON, 2 ),   \
   Ins( SWITCHCON, 2 ),  \
   Ins( MATCHINT, 2 ),   \
   Ins( PUSHEAGER, 1 ),  \
-  Ins( RETURNCON0, 1 ), \
   Ins( INCINT, 1 ),     \
-  Ins( RETURN, 0 ),     \
   \
   /* internal instructions */ \
   Ins( PUSHCAF, 1 ),    \
