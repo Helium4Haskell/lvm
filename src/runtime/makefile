@@ -11,6 +11,10 @@
 
 include ../config/makefile
 
+#CCOPT	   = -O2 $(CCOPTS) -g -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
+#LINKOPT    = $(LINKOPTS)
+#CCOPT_FAST = -O3 $(CCOPTS) -g -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
+
 CCOPT	   = -O2 $(CCOPTS)
 LINKOPT    = $(LINKOPTS)
 CCOPT_FAST = -O3 $(CCOPTS)
@@ -27,6 +31,9 @@ SRCS	= main.c stats.c \
 
 OBJS	= $(SRCS:.c=.o)
 
+
+#lvmrun$(EXE): $(OBJS)
+#	$(LINK) -o $@ $(LINKOPT) $(OBJS) -g
 
 lvmrun$(EXE): $(OBJS)
 	$(LINK) -o $@ $(LINKOPT) $(OBJS)
@@ -49,3 +56,4 @@ depend:
 	$(CC) -MM $(CCOPTS) *.c > .depend
 
 include .depend
+

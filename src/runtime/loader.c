@@ -27,6 +27,16 @@
 #include "static.h"
 #include "print.h"
 
+#ifdef TRACE_TRACE
+# define Trace(msg)             { print(msg); print("\n"); }
+# define Trace_i(msg,i)         { print(msg); print(" %i\n", i); }
+# define Trace_i_str(msg,i,str) { print(msg); print(" %i \"%s\"\n", i, str); }
+#else
+# define Trace(msg)
+# define Trace_i(msg,i)
+# define Trace_i_str(msg,i,str)
+#endif
+
 #define VERSION_MAJOR 9
 #define VERSION_MINOR 0
 
@@ -194,11 +204,13 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
         Alloc_record(Rec_name_size);
         Word_read(slen);
         String_read(str,slen);
+        Trace_i_str ("Rec_name/bytes/extern_type", i, str);
         Store_field( rec, Field_name_string, str );
         break;
       }
 
       case Rec_module: {
+        Trace_i ("Rec_module", i);
         Alloc_record(Rec_module_size);
         Store_read( Field_module_name );
         Store_read( Field_module_major );
@@ -207,6 +219,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       }
 
       case Rec_value: {
+        Trace_i ("Rec_value", i);
         Alloc_record(Rec_value_size);
         Store_read( Field_name );
         Store_read( Field_flags );
@@ -214,10 +227,13 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
         Store_read( Field_value_enc );
         Store_read( Field_value_code );
         Store_zero( Field_value_fun );
+        Trace_i ("name", Long_val(Field(rec,Field_value_name)));
+        Trace_i ("code", Long_val(Field(rec,Field_value_code)));
         break;
       }
 
       case Rec_con: {
+        Trace_i ("Rec_con", i);
         Alloc_record(Rec_con_size);
         Store_read( Field_name );
         Store_read( Field_flags );
@@ -227,6 +243,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       }
 
       case Rec_import: {
+        Trace_i ("Rec_import", i);
         Alloc_record(Rec_import_size);
         Store_read( Field_name );
         Store_read( Field_flags );
@@ -238,6 +255,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       }
 
       case Rec_extern: {
+        Trace_i ("Rec_extern", i);
         Alloc_record(Rec_extern_size);
         Store_read( Field_name );
         Store_read( Field_flags );
@@ -256,6 +274,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
         value code;
         char* instrs;
         nat   instrlen = len;
+        Trace_i ("Rec_code", i);
 
         if (!Is_aligned(instrlen)) Rec_raise( "unaligned instructions" );
 
@@ -278,6 +297,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       }
 
       default: {
+        Trace_i ("Rec_unknown", i);
 #ifdef DEBUG
         Rec_raise(( "unknown constant kind" ));
 #endif
@@ -766,7 +786,7 @@ static value* resolve_index( const char* name, const char* instr_name,
   if (Tag_val(*prec) != kind) {
     raise_module( name, "invalid constant record in %s instruction", instr_name );
   }
-
+  Trace_i_str ("resolve_index", idx, instr_name);
   CAMLreturn(prec);
 }
 

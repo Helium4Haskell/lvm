@@ -218,10 +218,12 @@ extern unsigned long max_eager_heap;
 # define Trace(msg)             { print(msg); print("\n"); }
 # define Trace_value(msg,x)     { print( msg ); print( " -- " ); print_value(thread->module,x); print("\n"); }
 # define Trace_value2(msg,x,y)  { print( msg ); print( " -- " ); print_value(thread->module,x); print(" -- "); print_value(thread->module,y); print("\n"); }
+# define Trace_i_i(msg, i, j)   { print( msg ); print(" %i %i\n", i, j); }
 #else
 # define Trace(msg)
 # define Trace_value(msg,x)
 # define Trace_value2(msg,x,y)
+# define Trace_i_i(msg, i, j)
 #endif
 
 #define Trace_enter(msg,x)      Trace_value("enter: " msg,x)
@@ -451,6 +453,7 @@ void evaluate( struct thread_state* thread )
   Optimized Enter instructions
 ----------------------------------------------------------------------*/
     Instr(ENTERCODE): {
+      Trace ("ENTERCODE");
       pc = Code_fixup(*pc);
       Debug_pcstart(pc);
       Safe_check(Val_code(pc));
@@ -463,6 +466,7 @@ void evaluate( struct thread_state* thread )
 
     Instr(EVALVAR): {
       value v     = sp[*pc++];
+      Trace ("EVALVAR");
 
       Assert( v != 0x4 || Is_long(v) || Is_heap_val(v) || Tag_val(v) == Code_tag || Is_atom(v) );
       if ((Is_long(v) || Tag_val(v) <= Con_max_tag) /* && !pending_signal() */) {
@@ -487,9 +491,8 @@ enter:
       /* Safe_signal_check(accu);  -- it will find an ARGCHK sooner or later */
 
 enterloop:
-#ifdef TRACE_STACK
-      Trace_stack("enter");
-#endif
+      Trace_stack("ENTER");
+
       Require( sp > thread->stack );
       Require( sp < thread->stack_top );
       Require( sp < fp );
@@ -616,6 +619,7 @@ enterloop:
 ----------------------------------------------------------------------*/
     Instr(ARGCHK): {
       nat n = *pc++;
+      Trace ("ARGCHK");
       Safe_check(Val_code(pc-2));
       Require( sp <= fp  );
       while (sp + n > fp) {  /* too few arguments? */
@@ -750,12 +754,14 @@ enterloop:
   Exceptions
 ----------------------------------------------------------------------*/
     Instr(CATCH): {
+      Trace ("CATCH");
       Push_frame(frame_catch);
       Next;
     }
 
     Instr(RAISE): {
       value exn;
+      Trace ("RAISE");
 
 raise_exception:
       Require( sp < fp );
@@ -851,11 +857,13 @@ raise_exception:
   RETURN: enter an int or constructor
 ----------------------------------------------------------------------*/
     Instr(RETURNCON0): {
+      Trace ("RETURNCON0");
       Push(Atom(pc[0]));
       goto return_enter;
     }
 
     Instr(RETURNINT):{
+      Trace ("RETURNINT");
       Push(Val_long(pc[0]));
       /* fall through */
     }
@@ -864,6 +872,7 @@ return_enter:
     Instr(RETURN):{
       /* enter a primitive value or constructor */
       register value accu;
+      Trace ("RETURN");
       accu = Popx();
       Require(Is_long(accu) || Tag_val(accu) <= Con_max_tag || Tag_val(accu) > Abstract_tag);
 
@@ -972,8 +981,7 @@ returnloop:
 
       Require( sp + n <= fp );
       Require( tag < Con_max_tag );
-      Trace( "return con" );
-      Trace_stack("returncon");
+      Trace_stack("RETURNCON");
 
 returncon:
       switch(Frame_frame(fp)) {
@@ -1147,6 +1155,7 @@ returncon:
       nat tag = Tag_val(sp[0]);
       nat count = pc[0];
       nat ofs;
+      Trace ("SWITCHCON");
 
       Require( sp < fp );
       Require( Is_long(sp[0]) || (Is_block(sp[0]) && Tag_val(sp[0]) < Con_max_tag ));
@@ -1180,6 +1189,7 @@ returncon:
       nat tag;
       nat n   = pc[0];
       nat ofs = pc[1];
+      Trace ("MATCHCON");
 
       Require( sp < fp );
       Require( Is_long(sp[0]) || (Is_block(sp[0]) && Tag_val(sp[0]) < Con_max_tag ));
@@ -1208,6 +1218,7 @@ returncon:
       long n   = pc[0];
       long ofs = pc[1];
       long i;
+      Trace ("MATCHINT");
 
       for( i = 1; i <= n; i++) {
         if ((long)pc[i*2] == x) { ofs = pc[i*2+1]; Pop(); break; }
@@ -1224,21 +1235,25 @@ returncon:
 ----------------------------------------------------------------------*/
     Instr(PUSHCODE): {
       Push_code_fixup(*pc); pc++; Next;
+      Trace_stack ("PUSHCODE");
     }
 
     Instr(PUSHCAF): {
       Push_caf_fixup(*pc); pc++; Next;
+      Trace_stack ("PUSHCAF");
     }
 
     Instr(PUSHCONT): {
       long ofs = *pc++;
       Push_frame_val( frame_cont, Val_code(pc + ofs) );
+      Trace_stack ("PUSHCONT");
       Next;
     }
 
 #ifdef LVM_EAGER_FRAMES
     Instr(PUSHEAGER): {
       long ofs = *pc++;
+      Trace ("PUSHEAGER");
       Push_frame_val( frame_eager, Val_code(pc+ofs) );
       Next;
     }
@@ -1247,36 +1262,42 @@ returncon:
     Instr(PUSHVAR): {
       Require( sp + *pc < Frame_limit(fp) );
       Push(sp[*pc++]);
+      Trace_stack ("PUSHVAR");
       Next;
     }
 
     Instr(PUSHVAR0): {
       Require( sp < Frame_limit(fp) );
       Push(sp[0]);
+      Trace_stack ("PUSHVAR0");
       Next;
     }
 
     Instr(PUSHVAR1): {
       Require( sp + 1 < Frame_limit(fp) );
       Push(sp[1]);
+      Trace_stack ("PUSHVAR1");
       Next;
     }
 
     Instr(PUSHVAR2): {
       Require( sp + 2 < Frame_limit(fp) );
       Push(sp[2]);
+      Trace_stack ("PUSHVAR2");
       Next;
     }
 
     Instr(PUSHVAR3): {
       Require( sp + 3 < Frame_limit(fp)  );
       Push(sp[3]);
+      Trace_stack ("PUSHVAR3");
       Next;
     }
 
     Instr(PUSHVAR4): {
       Require( sp + 4 < Frame_limit(fp) );
       Push(sp[4]);
+      Trace_stack ("PUSHVAR4");
       Next;
     }
 
@@ -1285,6 +1306,7 @@ returncon:
       Push(sp[*pc++]);
       Require( sp + *pc < Frame_limit(fp) );
       Push(sp[*pc++]);
+      Trace_stack ("PUSHVARS2");
       Next;
     }
 
@@ -1293,6 +1315,7 @@ returncon:
 
     Instr(PUSHINT): {
       Push(Val_long(*pc++));
+      Trace_stack ("PUSHINT");
       Next;
     }
 
@@ -1302,6 +1325,7 @@ returncon:
       value decl = *(Valptr_fixup(*pc++));
       Require(Is_block(decl) && Tag_val(decl) == Rec_bytes);
       Push(Field(decl,Field_bytes_string));
+      Trace_stack ("PUSHSTRING");
       Next;
     }
 
@@ -1311,6 +1335,8 @@ returncon:
       Require( m >= 0 );
       while (n > 0) { sp[n+m-1] = sp[n-1]; n--; };
       Pop_n(m);
+      Trace_i_i ("SLIDE", n, m)
+      Trace_stack ("SLIDE");
       Next;
     }
 
@@ -1319,6 +1345,7 @@ returncon:
       long n = *pc++;
       Require( sp + n <= fp );
       sp[n] = 0;
+      Trace_stack ("STUB");
       Next;
     }
 
@@ -1328,6 +1355,7 @@ returncon:
     Instr(ALLOCAP): {
       value ap;
       nat   size = *pc++;
+      Trace ("ALLOCAP");
       Require( size > 0 );
       Allocate(ap,size,Inv_tag);
       while (size > 0) { size--; Field(ap, size) = 0; }
@@ -1340,6 +1368,7 @@ returncon:
       nat n   = *pc++;
       nat i;
       value ap;
+      Trace ("PACKAP");
       Require( sp + ofs <= fp );
       ap = sp[ofs];
       Require( Wosize_val(ap) == n && Tag_val(ap) == Inv_tag );
@@ -1354,6 +1383,7 @@ returncon:
       nat n   = *pc++;
       nat i;
       value nap;
+      Trace ("PACKNAP");
       Require( sp + ofs <= fp );
       nap = sp[ofs];
       Require( Wosize_val(nap) == n && Tag_val(nap) == Inv_tag );
@@ -1367,6 +1397,7 @@ returncon:
       value ap;
       nat   n;
       nat   i;
+      Trace ("NEWAP");
       #ifdef LVM_EAGER
       // if (sp - thread->stack_lim > min_eager_stack)
       goto eager_ap;
@@ -1384,6 +1415,7 @@ returncon:
       value ap;
       nat   n;
       nat   i;
+      Trace ("NEWNAP");
 
       #ifdef LVM_EAGER
       // if (sp - thread->stack_lim > min_eager_stack)
@@ -1430,6 +1462,7 @@ returncon:
 
     Instr(NEWAP1): {
       value ap;
+      Trace ("NEWAP1");
       Require( sp + 1 <= fp );
       Alloc_small(ap,1,Ap_tag);
       Field(ap,0) = sp[0];
@@ -1439,6 +1472,7 @@ returncon:
 
     Instr(NEWAP2): {
       value ap;
+      Trace ("NEWAP2");
       Require( sp + 2 <= fp );
       Alloc_small(ap,2,Ap_tag);
       Field(ap,0) = sp[0];
@@ -1450,6 +1484,7 @@ returncon:
 
     Instr(NEWAP3): {
       value ap;
+      Trace ("NEWAP3");
       Require( sp + 3 <= fp );
       Alloc_small(ap,3,Ap_tag);
       Field(ap,0) = sp[0];
@@ -1462,6 +1497,7 @@ returncon:
 
     Instr(NEWAP4): {
       value ap;
+      Trace ("NEWAP4");
       Require( sp + 4 <= fp );
       Alloc_small(ap,4,Ap_tag);
       Field(ap,0) = sp[0];
@@ -1476,6 +1512,7 @@ returncon:
 
     Instr(NEWNAP1): {
       value nap;
+      Trace ("NEWNAP1");
       Require( sp + 1 <= fp );
       Alloc_small(nap,1,Nap_tag);
       Field(nap,0) = sp[0];
@@ -1485,6 +1522,7 @@ returncon:
 
     Instr(NEWNAP2): {
       value nap;
+      Trace ("NEWNAP2");
       Require( sp + 2 <= fp );
       Alloc_small(nap,2,Nap_tag);
       Field(nap,0) = sp[0];
@@ -1496,6 +1534,7 @@ returncon:
 
     Instr(NEWNAP3): {
       value nap;
+      Trace ("NEWNAP3");
       Require( sp + 3 <= fp );
       Alloc_small(nap,3,Nap_tag);
       Field(nap,0) = sp[0];
@@ -1508,6 +1547,7 @@ returncon:
 
     Instr(NEWNAP4): {
       value nap;
+      Trace ("NEWNAP4");
       Require( sp + 4 <= fp );
       Alloc_small(nap,4,Nap_tag);
       Field(nap,0) = sp[0];
@@ -1527,6 +1567,7 @@ returncon:
       value v  = sp[0];
       long  i  = Long_val(sp[1]);
       long sz;
+      Trace ("GETFIELD");
       Require( Is_block(v) && Is_long(sp[1]) );
       Con_size_val(sz,v);
       if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
@@ -1540,6 +1581,7 @@ returncon:
       long  i  = Long_val(sp[1]);
       value x  = sp[2];
       long sz;
+      Trace ("SETFIELD");
       Require( Is_block(v) && Is_long(sp[1]) );
       Con_size_val(sz,v);
       if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
@@ -1553,6 +1595,7 @@ returncon:
       long size = Long_val(sp[1]);
       long i;
       value con;
+      Trace ("ALLOC");
       if (size < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
       Alloc_con(con,(nat)size,tag);
       for( i = 0; i < size; i++ ) { Field(con,i) = 0; }
@@ -1566,6 +1609,7 @@ returncon:
       long tag  = Long_val(sp[0]);
       long i;
       value con;
+      Trace ("NEW");
       Pop();
       if (size < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
       Alloc_con(con,(nat)size,tag);
@@ -1576,6 +1620,7 @@ returncon:
     }
 
     Instr(GETTAG): {
+      Trace ("GETTAG");
       Require( Is_block(sp[0]) );
       sp[0] = Val_long( Tag_val(sp[0]) );
       Next;
@@ -1583,6 +1628,7 @@ returncon:
 
     Instr(GETSIZE): {
       long sz;
+      Trace ("GETSIZE");
       Require( Is_block(sp[0]) );
       Con_size_val(sz,sp[0]);
       sp[0] = Val_long( sz );
@@ -1594,6 +1640,7 @@ returncon:
       value v = sp[0];
       long  sz;
       long  i;
+      Trace ("PACK");
       Require( Is_block(v) );
       Con_size_val(sz,v);
       if (n >= sz) { Raise_runtime_exn( Exn_out_of_bounds ); }
@@ -1608,6 +1655,7 @@ returncon:
       value v  = sp[0];
       long  sz;
       long  i;
+      Trace ("UNPACK");
       Require( Is_block(v) );
       Con_size_val(sz,v);
       if (n > sz) { Raise_runtime_exn( Exn_out_of_bounds ); }
@@ -1624,6 +1672,7 @@ returncon:
       value con;
       long  tag = *pc++;
       nat n   = *pc++;
+      Trace ("ALLOCCON");
       if (n == 0) {
         con = Atom(tag);
       }
@@ -1641,6 +1690,7 @@ returncon:
       long n    = *pc++;
       long i;
       value con;
+      Trace ("PACKCON");
       Require( sp + n <= fp && sp + ofs < fp);
       con = sp[ofs];
       Require( Is_block(con) && Tag_val(con) <= Con_max_tag );
@@ -1654,6 +1704,7 @@ returncon:
       nat tag = *pc++;
       nat n   = *pc++;
       nat i;
+      Trace ("NEWCON");
       Require( sp + n <= fp );
       if (n == 0) con = Atom(tag);
              else Allocate(con,n,tag);
@@ -1665,6 +1716,7 @@ returncon:
 
     Instr(NEWCON0): {
       nat tag = *pc++;
+      Trace ("NEWCON0");
       Push(Atom(tag));
       Next;
     }
@@ -1672,6 +1724,7 @@ returncon:
     Instr(NEWCON1): {
       nat tag = *pc++;
       value con;
+      Trace ("NEWCON1");
       Alloc_small(con,1,tag);
       Field(con,0) = sp[0];
       sp[0] = con;
@@ -1681,6 +1734,7 @@ returncon:
     Instr(NEWCON2): {
       nat tag = *pc++;
       value con;
+      Trace ("NEWCON2");
       Alloc_small(con,2,tag);
       Field(con,0) = sp[0];
       Field(con,1) = sp[1];
@@ -1692,6 +1746,7 @@ returncon:
     Instr(NEWCON3): {
       nat tag = *pc++;
       value con;
+      Trace ("NEWCON3");
       Alloc_small(con,3,tag);
       Field(con,0) = sp[0];
       Field(con,1) = sp[1];
@@ -1705,6 +1760,7 @@ returncon:
     Instr(TESTCON): {
       nat tag   = *pc++;
       nat ofs   = *pc++;
+      Trace ("TESTCON");
       Require( Is_block(sp[0]) && Tag_val(sp[0]) <= Con_max_tag );
       if (Tag_val(sp[0]) != tag) pc += ofs;
       Next;
@@ -1713,6 +1769,7 @@ returncon:
     Instr(UNPACKCON): {
       nat n     = *pc++;
       value con = sp[0];
+      Trace ("UNPACKCON");
       Require( Is_block(con) && Tag_val(con) <= Con_max_tag && Wosize_val(con) == n );
       Push_n(n);
       while (n > 0) { n--; sp[n] = Field(con,n); }
@@ -1726,6 +1783,7 @@ returncon:
     Instr(TESTINT): {
       long i   = *pc++;
       nat ofs  = *pc++;
+      Trace ("TESTINT");
       if (sp[0] != Val_long(i)) pc += ofs;
       Next;
     }
@@ -1734,6 +1792,7 @@ returncon:
     #if defined(LVM_CHECK_BOUNDS)
       long i;
     #endif
+      Trace ("ADDINT");
       Require( Is_long(sp[0]) && Is_long(sp[1]) );
     #if defined(LVM_CHECK_BOUNDS)
       i = Long_val(sp[0]) + Long_val(sp[1]);
@@ -1752,11 +1811,13 @@ returncon:
     Instr(SUBINT): {
     #if defined(LVM_CHECK_BOUNDS)
       long i = Long_val(sp[0]) - Long_val(sp[1]);
+      Trace ("SUBINT");
       Pop();
       if (i > Max_long) Raise_arithmetic_exn( Int_overflow );
       if (i < Min_long) Raise_arithmetic_exn( Int_underflow );
       sp[0] = Val_long(i);
     #else
+      Trace ("SUBINT");
       sp[1] = (value)( (long)sp[0] - (long)sp[1] + 1 );
       Pop();
     #endif
@@ -1770,6 +1831,7 @@ returncon:
       long x = Long_val(sp[0]);
       long y = Long_val(sp[1]);
       long r = x*y;
+      Trace ("MULINT");
       Pop();
       /* has the result overflowed a long? */
       if (x != 0 && y != 0 &&  (x > Max_half_long || y > Max_half_long)) { /* cheap test */
@@ -1787,6 +1849,7 @@ returncon:
 
       sp[0] = Val_long( r );
     #else
+      Trace ("MULINT");
       sp[1] = Val_long( Long_val(sp[0]) * Long_val(sp[1]) );
       Pop();
     #endif
@@ -1799,6 +1862,7 @@ returncon:
     */
     Instr(QUOTINT): {
       long divisor = Long_val(sp[1]);
+      Trace ("QUOTINT");
       if (divisor == 0) Raise_arithmetic_exn( Int_zerodivide );
       sp[1] = Val_long( Long_val(sp[0]) / divisor );
       Pop();
@@ -1807,6 +1871,7 @@ returncon:
 
     Instr(REMINT): {
       long divisor = Long_val(sp[1]);
+      Trace ("REMINT");
       if (divisor == 0) Raise_arithmetic_exn( Int_zerodivide );
       sp[1] = Val_long( Long_val(sp[0]) % divisor );
       Pop();
@@ -1821,6 +1886,7 @@ returncon:
       long divisor = Long_val(sp[1]);
       long div;
       long mod;
+      Trace ("DIVINT");
 
       if (divisor == 0) { Raise_arithmetic_exn( Int_zerodivide );}
       div = Long_val(sp[0]) / divisor;
@@ -1841,6 +1907,7 @@ returncon:
       /* modulo is always positive */
       long divisor = Long_val(sp[1]);
       long mod;
+      Trace ("MODINT");
 
       if (divisor == 0) { Raise_arithmetic_exn( Int_zerodivide ); }
       mod = Long_val(sp[0]) % divisor;
@@ -1859,10 +1926,12 @@ returncon:
     Instr(NEGINT): {
     #if defined(LVM_CHECK_BOUNDS)
       long i = - Long_val(sp[0]);
+      Trace ("NEGINT");
       if (i > Max_long) Raise_arithmetic_exn( Int_overflow );
       if (i < Min_long) Raise_arithmetic_exn( Int_underflow );
       sp[0] = Val_long(i);
     #else
+      Trace ("NEGINT");
       sp[0] = (value)(2 - (long)sp[0]);
     #endif
       Next;
@@ -1871,10 +1940,12 @@ returncon:
     Instr(INCINT): {
     #if defined(LVM_CHECK_BOUNDS)
       long i = Long_val(sp[0]) + (long)(*pc++);
+      Trace ("INCINT");
       if (i > Max_long) Raise_arithmetic_exn( Int_overflow );
       if (i < Min_long) Raise_arithmetic_exn( Int_underflow );
       sp[0] = Val_long(i);
     #else
+      Trace ("INCINT");
       sp[0] = (value)( (long)sp[0] + 2*(long)(*pc++) );
     #endif
       Next;
@@ -1884,36 +1955,42 @@ returncon:
   Bitwise integer operations
 ----------------------------------------------------------------------*/
     Instr(ANDINT): {
+      Trace ("ANDINT");
       sp[1] = (value)( (long)sp[0] & (long)sp[1] );
       Pop();
       Next;
     }
 
     Instr(XORINT): {
+      Trace ("XORINT");
       sp[1] = (value)( ((long)sp[0] ^ (long)sp[1]) | 1 );
       Pop();
       Next;
     }
 
     Instr(ORINT): {
+      Trace ("ORINT");
       sp[1] = (value)( (long)sp[0] | (long)sp[1] );
       Pop();
       Next;
     }
 
     Instr(SHRINT): {
+      Trace ("SHRINT");
       sp[1] = (value)( ((long)sp[0] >> Long_val(sp[1])) | 1);
       Pop();
       Next;
     }
 
     Instr(SHLINT): {
+      Trace ("SHLINT");
       sp[1] = (value)( (((long)sp[0]-1) << Long_val(sp[1])) | 1);
       Pop();
       Next;
     }
 
     Instr(SHRNAT): {
+      Trace ("SHRNAT");
       sp[1] = (value)( ((unsigned long)sp[0] >> Long_val(sp[1]))| 1);
       Pop();
       Next;
@@ -1943,6 +2020,7 @@ returncon:
       value v;
       value decl = *(Valptr_fixup(*pc++));
       nat n      = *pc++;
+      Trace ("CALL");
       Require( Is_block(decl) && Tag_val(decl) == Rec_extern );
 
       /* check number of arguments */
