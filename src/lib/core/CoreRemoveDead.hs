@@ -48,8 +48,10 @@ coreRemoveDead mod
     -- Retain main$ even though it is private and not used
     -- It cannot be public because it would be imported and clash
     -- in other modules
-    used  = Set.insert (DeclKindValue, idFromString "main$") 
-                (foldlStrict usageDecl Set.empty (moduleDecls mod))
+    used  = foldlStrict usageDecl alwaysUsed (moduleDecls mod)
+
+    alwaysUsed = Set.fromList $ map (\name -> (DeclKindValue,idFromString name)) $
+                 ["main$","main"]
     
 ----------------------------------------------------------------
 -- Is a declaration used?
