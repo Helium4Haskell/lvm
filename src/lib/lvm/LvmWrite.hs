@@ -18,11 +18,12 @@ import Byte
 import Instr
 import Lvm
 
+
 {--------------------------------------------------------------
   Magic numbers
 --------------------------------------------------------------}
 lvmMajorVersion,lvmMinorVersion,magic :: Int
-lvmMajorVersion  = 8
+lvmMajorVersion  = 9
 lvmMinorVersion  = 0
 magic            = 0x4C564D58
 
@@ -73,7 +74,6 @@ emitLvmModule mod
       ; mapM_ emitDImport  (listFromMap (imports mod))
       ; mapM_ emitDValue   (values mod)
       ; mapM_ emitDCustom  (listFromMap (customs mod))
-      ; mapM_ emitCode     (values mod)
       ; return idxName
       }
 
@@ -87,10 +87,12 @@ flags Public    = 1
 flags Private   = 0
 flags other     = error "LvmWrite.flags: invalid access mode"
 
+
 emitDValue (id,DValue access mbEnc instrs custom)
   | isImport access = emitImport id recValue access
   | otherwise       = do{ idxEnc <- maybe (return 0) (findIndex) mbEnc
-                        ; emitNamedBlock id recValue [flags access,arity,idxEnc] custom
+                        ; idxCode <- emitInstrs instrs
+                        ; emitNamedBlock id recValue [flags access,arity,idxEnc,idxCode] custom
                         }
   where
     arity = case instrs of
@@ -142,17 +144,12 @@ emitModule name major minor
 {--------------------------------------------------------------
   emit instructions
 --------------------------------------------------------------}
-emitInstrs :: (Id,LvmValue) -> Emit Bytes
-emitInstrs (id,DValue access mbEnc instrs custom)
-  = do{ idx      <- findIndex id
-      ; rinstrs  <- mapM resolve instrs
+emitInstrs :: [Instr] -> Emit Index
+emitInstrs instrs
+  = do{ rinstrs <- mapM resolve instrs
       ; let codes = concatMap emit rinstrs
-      ; return (block ([idx,4 + length codes*4,0] ++ codes))
+      ; emitBlock Nothing recCode (block codes) []
       }
-
-
-emitInstrs other
-  = return nil
 
 emitCode :: (Id,LvmValue) -> Emit Index
 emitCode (id,DValue access mbEnc instrs custom)
@@ -397,36 +394,39 @@ emitCustom custom
 {--------------------------------------------------------------
   Emit Monad
 --------------------------------------------------------------}
-newtype Emit a  = Emit (State -> (a,State))
-data State      = State !Int (IdMap Index) [Bytes]
+newtype Emit a  = Emit (Env -> State -> (a,State))
+data State      = State !Int Env [Bytes]
+type Env        = IdMap Index
 
 instance Functor Emit where
-  fmap f (Emit e)   = Emit (\st -> case e st of
-                                     (x,stx) -> (f x,stx))
+  fmap f (Emit e)   = Emit (\env st -> case e env st of
+                                         (x,stx) -> (f x,stx))
 
 instance Monad Emit where
-  return x          = Emit (\st -> (x,st))
-  (Emit e) >>= f    = Emit (\st -> case e st of
-                                     (x,stx) -> case f x of
-                                                  Emit ef -> ef stx)
+  return x          = Emit (\env st -> (x,st))
+  (Emit e) >>= f    = Emit (\env st -> case e env st of
+                                         (x,stx) -> case f x of
+                                                      Emit ef -> ef env stx)
 
 runEmit :: Emit a -> (a,[Bytes])
 runEmit (Emit e)
-  = case e (State 0 emptyMap []) of
-      (x,State _ _ bbs) -> (x,reverse bbs)
+  = let (x,State _ env bbs) = e env (State 0 emptyMap [])  -- yes, a recursive, lazy, env :-)
+    in (x,reverse bbs)
 
 emitPrimBlock :: Maybe Id -> Bytes -> Emit Index
 emitPrimBlock mid bs
-  = Emit (\(State count map bbs) ->
+  = Emit (\env (State count map bbs) ->
             let index = count+1
             in (index, State index (maybe map (\id -> insertMap id index map) mid) (bs:bbs)))
 
+-- a nice lazy formulation, we can calculate all indices before writing the bytes.
 findIndex :: Id -> Emit Index
 findIndex id
-  = Emit (\st@(State count map bbs) ->
-          case lookupMap id map of
-            Nothing  -> error ("LvmWrite.findIndex: undeclared identifier: " ++ show (stringFromId id))
-            Just idx -> (idx,st))
+  = Emit (\env st ->
+          (case lookupMap id env of
+             Nothing  -> (error ("LvmWrite.findIndex: undeclared identifier: " ++ show (stringFromId id)))
+             Just idx -> (idx)
+          , st))
 
 
 

@@ -30,6 +30,10 @@ import LvmWrite   ( lvmWriteFile )
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
+message s
+  = return () 
+  -- = putStr s
+
 main
   = do{ [arg] <- getArgs
       ; compile arg
@@ -37,30 +41,33 @@ main
 
 compile src
   = do{ path              <- getLvmPath
-      ; putStrLn ("search path: " ++ show (map showFile path))
+      ; messageLn ("search path: " ++ show (map showFile path))
       ; source            <- searchPath path ".core" src
-      ; putStrLn ("compiling  : " ++ showFile source)
+      ; messageLn ("compiling  : " ++ showFile source)
 
       ; (coremod,imports) <- coreParse source
       ; nameSupply        <- newNameSupply
 
-      ; putStrLn ("generating code")
+      ; messageLn ("generating code")
       ; let asmmod        = coreToAsm nameSupply coremod
             lvmmod        = asmToLvm  asmmod
             target        = (reverse (drop 5 (reverse source)) ++ ".lvm")
 
-      ; putHeader "core"; putDoc (corePretty coremod)
-      ; putHeader "assembler"; putDoc (asmPretty asmmod)
-      ; putHeader "instructions"; putDoc (lvmPretty lvmmod)
+      ; messageDoc "core"         (corePretty coremod)
+      ; messageDoc "assembler"    (asmPretty asmmod)
+      ; messageDoc "instructions" (lvmPretty lvmmod)
 
-      ; putStrLn  ("writing    : " ++ showFile target)
+      ; messageLn  ("writing    : " ++ showFile target)
       ; lvmWriteFile target lvmmod
 
-      ; putStrLn   "\ndone."
+      ; messageLn   "\ndone."
       }
   where
-    putHeader h = putStr $ unlines $ ["",line, h, line]
-    line        = replicate 40 '-'
+    messageLn s    = do{ message s; message "\n" }
+    messageDoc h d = do{ message (unlines $ ["",line, h, line])
+                       ; message (show d)
+                       }
+    line           = replicate 40 '-'
 
     showFile fname
       = map (\c -> if (c == '\\') then '/' else c) fname

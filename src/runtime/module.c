@@ -34,7 +34,7 @@ value find_code( value module, const char* codename )
       const char* name = Name_field(v,Field_name);
       if (strcmp(codename,name) == 0)
       {
-        return Field(Field(v,Field_value_code),Field_code_fun);
+        return Field(v,Field_value_fun);
       }
     }
   }
@@ -69,7 +69,7 @@ value find_qualified_code( value module, const char* modname, const char* name )
 /*---------------------------------------------------------
   find value declaration from pc
 ---------------------------------------------------------*/
-static void find_decl_in_module( value module, opcode_t* pc, value* _rec, nat* _ofs )
+static void find_decl_of_code_in_module( value module, opcode_t* pc, value* _rec, nat* _ofs )
 {
   CAMLparam1(module);
   CAMLlocal3(records,rec,code);
@@ -83,13 +83,13 @@ static void find_decl_in_module( value module, opcode_t* pc, value* _rec, nat* _
   for( i = 1; i <= Count_records(records); i++ )
   {
     rec = Record(records,i);
-    if (Tag_val(rec) == Rec_code) {
+    if (Tag_val(rec) == Rec_value) {
       nat len;
-      code = Code_code(rec);
+      code = Code_value(rec);
       len  = Wosize_val(code); /* in bytes! */
       if ((char*)pc >= (char*)code && (char*)pc <= (char*)code + len) {
         /* found */
-        if (_rec) *_rec = Field(rec,Field_code_value);
+        if (_rec) *_rec = rec;
         if (_ofs) *_ofs = (char*)pc - (char*)code;
         CAMLreturn0;
       }
@@ -125,7 +125,7 @@ static void find_decl_of_code( value module, value valpc, value* _module, value*
   /* walk through all known modules & records */
   mod = module;
   do{
-    find_decl_in_module( mod, pc, _rec, _ofs  );
+    find_decl_of_code_in_module( mod, pc, _rec, _ofs  );
     if (*_rec != 0) {
       /* found */
       if (_module) *_module = mod;

@@ -107,9 +107,12 @@ enum rec_fields {
   Field_flags,
   Field_arity,
 
-  Field_value_enc   = Field_arity+1,
-  Field_value_code,
-  Field_value_codeptr,
+  Field_value_name  = 0,
+  Field_value_flags,
+  Field_value_arity,
+  Field_value_enc,
+  Field_value_code,     /* points to the Rec_code */
+  Field_value_fun,      /* points to either the Code or Caf value */
   Rec_value_size,
 
   Field_con_tag     = Field_arity+1,
@@ -144,9 +147,7 @@ enum rec_fields {
   Field_bytes_string = 0,
   Rec_bytes_size,
 
-  Field_code_value = 0,
-  Field_code_code,      /* a bytes block containing the instructions */
-  Field_code_fun,       /* a heap block: Caf_tag or Code_tag */
+  Field_code_code = 0,   /* points to a bytes block containing the instructions (as Code_tag) */
   Rec_code_size
 };
 
@@ -188,4 +189,5 @@ bool        is_code_val( value module, value pc );
 
 /* from a Rec_code record to the value that points to the Code_tag block */
 #define Code_code(rec)  (Val_hp(Bytes_val(Field(rec,Field_code_code))))
+#define Code_value(rec) (Code_code(Field(rec,Field_value_code)))
 #endif

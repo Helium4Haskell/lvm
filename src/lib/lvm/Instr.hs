@@ -38,8 +38,8 @@ type Index    = Int
 type Tag      = Int
 type Arity    = Int
 
-data Global   = Global !Id !Index !Arity
-data Con      = Con    !Id !Index !Arity !Tag
+data Global   = Global !Id Index !Arity
+data Con      = Con    !Id Index !Arity !Tag
 data Var      = Var    !Id !Offset !Depth
 
 arityFromCon    (Con id c arity tag) = arity

@@ -122,7 +122,7 @@ static void show_options(void)
   print( " <percent>    number between 0 and 100 followed by an optional '%%' character.\n" );
   print( "              example: lvmrun -hF88%% <file>\n" );
   print( " <path>       a list of directories seperated by ';' (or ':' on unix systems).\n" );
-  print( "              start with a ';' (or ':') to insert the current path in front.\n" );
+  print( "              start or end with a ';' (or ':') to insert the current path.\n" );
   print( "              example: lvmrun -P;/usr/lib/lvm <file>\n" );
   print( "\n" );
   print( "environment variables:\n" );
@@ -161,7 +161,6 @@ static void parse_path( const char* path )
 {
   int len = 0;
   if (path == NULL) return;
-
   if ((path[0] == ';' || path[0] == ':') && lvmpath != NULL)
   {
     len = strlen(lvmpath) + strlen(path);
@@ -171,10 +170,22 @@ static void parse_path( const char* path )
   }
   else {
     len = strlen(path);
-    if (lvmpath != NULL) free((char*)lvmpath);
-    lvmpath = (const char*)malloc( len+1 );
-    if (lvmpath == NULL) options_out_of_memory();
-    strcpy( (char*)lvmpath, path );
+    if ((path[len-1] == ';' || path[len-1] == ':') && lvmpath != NULL)
+    {
+      char* newpath = (char*)malloc(len + strlen(lvmpath) +1);
+      if (newpath == NULL) options_out_of_memory();
+      strcpy( newpath, path );
+      strcat( newpath, lvmpath );
+      free((char*)lvmpath);
+      lvmpath = newpath;
+    }
+    else
+    {
+      if (lvmpath != NULL) free((char*)lvmpath);
+      lvmpath = (const char*)malloc( len+1 );
+      if (lvmpath == NULL) options_out_of_memory();
+      strcpy( (char*)lvmpath, path );
+    }
   }
 }
 
@@ -411,6 +422,7 @@ int main( int argc, const char** argv )
   stat_start_init();
   options_env();
   args = options_cmd_line( argv );
+  parse_path( ".;" ); /* always search current directory first */
   options_check();
 
   init_atoms();

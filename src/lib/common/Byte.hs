@@ -33,7 +33,7 @@ import Standard ( strict )
 type Byte   = Char
 
 data Bytes  = Nil
-            | Cons !Byte !Bytes
+            | Cons Byte   !Bytes    -- Byte is not strict since LvmWrite uses it lazily right now.
             | Cat  !Bytes !Bytes
 
 
@@ -42,7 +42,8 @@ data Bytes  = Nil
 ----------------------------------------------------------------}
 byteFromInt8 :: Int -> Byte
 byteFromInt8 i
-  = toEnum (rem i 256)
+  = toEnum (mod i 256)
+  
 
 
 bytesFromString :: String -> Bytes
@@ -56,9 +57,9 @@ stringFromBytes bs
 bytesFromInt32 :: Int -> Bytes    -- 4 byte big-endian encoding
 bytesFromInt32 i
   = let n0 = if (i < 0) then (max32+i+1) else i
-        n1 = quot n0 256
-        n2 = quot n1 256
-        n3 = quot n2 256
+        n1 = div n0 256
+        n2 = div n1 256
+        n3 = div n2 256
         xs = map byteFromInt8 [n3,n2,n1,n0]
     in bytesFromList xs
 

@@ -27,7 +27,7 @@
 #include "static.h"
 #include "print.h"
 
-#define VERSION_MAJOR 8
+#define VERSION_MAJOR 9
 #define VERSION_MINOR 0
 
 /*----------------------------------------------------------------------
@@ -212,8 +212,8 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
         Store_read( Field_flags );
         Store_read( Field_arity );
         Store_read( Field_value_enc );
-        Store_zero( Field_value_code );
-        Store_zero( Field_value_codeptr );
+        Store_read( Field_value_code );
+        Store_zero( Field_value_fun );
         break;
       }
 
@@ -255,12 +255,11 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       case Rec_code: {
         value code;
         char* instrs;
-        nat   instrlen = len - sizeof(word_t);
+        nat   instrlen = len;
 
         if (!Is_aligned(instrlen)) Rec_raise( "unaligned instructions" );
 
         Alloc_record(Rec_code_size);
-        Store_read( Field_code_value );
 
         /* allocate non-gc'd memory for the instructions */
         code   = alloc_bytes(instrlen+sizeof(header_t));
@@ -272,7 +271,6 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
         Hd_val(instrs) = Make_header(instrlen /* in bytes! */, Code_tag, Caml_white );
         memcpy(instrs, p, instrlen);
         if (is_rev_endian) reverse_endian( (word_t*)instrs, Word_bytes(instrlen) );
-        Store_field(rec,Field_code_fun,(value)(instrs));
 
         /* and increment the read pointer */
         p += Word_bytes(instrlen);
@@ -369,24 +367,22 @@ static void resolve_internal_records( value module )
         long idx = Long_val(Field(rec,Field_value_enc));
         if (idx != 0) Resolve_index(rec,Field_value_enc,Rec_value,idx);
         Resolve_field(rec,Field_name,Rec_name);
+
+        /* resolve the code */
+        Resolve_field(rec,Field_value_code,Rec_code);
+        Field(rec,Field_value_fun) = Code_value(rec);
+
+        /* allocate a CAF if necessary */
+        if (Long_val(Field(rec,Field_value_arity)) == 0) {
+          value caf = alloc_small(1,Caf_tag);
+          Store_field(caf,0,Field(rec,Field_value_fun));
+          Store_field(rec,Field_value_fun,caf);
+        }
+
         break;
       }
 
       case Rec_code: {
-        Resolve_field(rec,Field_code_value,Rec_value);
-
-        /* set a link from the value back to the code */
-        val = Field(rec,Field_code_value);
-        if (Field(val,Field_value_code) != Val_long(0)) raise_module( fname, "ambigious instruction fragments for a single value" );
-        Field(val,Field_value_code) = rec;
-        Field(val,Field_value_codeptr) = (value)&Record(records,i);
-
-        /* allocate a CAF node if necessary */
-        if (Long_val(Field(val,Field_arity)) == 0) {
-          value caf = alloc_small(1,Caf_tag);
-          Store_field(caf,0,Field(rec,Field_code_fun));
-          Store_field(rec,Field_code_fun,caf);
-        }
         break;
       }
 
@@ -727,7 +723,7 @@ static void fixup_ptr( const char* name, opcode_t* opcode, void* fixup )
 static void fixup_code( const char* name, opcode_t* opcode, value val )
 {
   CAMLparam1(val);
-  fixup_ptr( name, opcode, Code_val(Field(Field(val,Field_value_code),Field_code_fun)) );
+  fixup_ptr( name, opcode, Code_val(Code_value(val)) );
   CAMLreturn0;
 }
 
@@ -779,8 +775,18 @@ static value* resolve_con( const char* name, const char* instr_name,
                               opcode_t* opcode, value records )
 {
   CAMLparam1(records);
-  value* prec = resolve_index( name, instr_name, opcode, records, Rec_con );
-  fixup_con( name, opcode, Long_val(Field(*prec,Field_con_tag)) );
+  int32  idx  = (int32)(opcode[0]);
+  value* prec = NULL;
+
+  if (idx <= 0) {
+    /* interpret as direct tag value */
+    fixup_con( name, opcode, -idx );
+  }
+  else {
+    /* lookup the tag from the declaration */
+    prec = resolve_index( name, instr_name, opcode, records, Rec_con );
+    fixup_con( name, opcode, Long_val(Field(*prec,Field_con_tag)) );
+  }
   CAMLreturn(prec);
 }
 
@@ -849,7 +855,7 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
     case RETURNCON:
     case TESTCON:  {
       value* prec = resolve_con( name, "CON", opcode, records );
-      if (Long_val(Field(*prec,Field_arity)) != (long)opcode[1]) {
+      if (prec && Long_val(Field(*prec,Field_arity)) != (long)opcode[1]) {
         raise_module( name, "size doesn't match arity in CON instruction" );
       }
       break;
@@ -875,7 +881,7 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
       value* prec = resolve_index( name, "PUSHCODE", opcode, records, Rec_value );
       if (Long_val(Field(*prec,Field_arity)) == 0) {
         Set_instr(opcode[-1],PUSHCAF);
-        fixup_ptr(name,opcode,(void*)Field(*prec,Field_value_codeptr));
+        fixup_ptr(name,opcode,(void*)prec);
       } else {
         fixup_code(name,opcode,*prec);
       }

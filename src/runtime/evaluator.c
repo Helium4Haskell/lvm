@@ -61,7 +61,7 @@ extern unsigned long max_eager_heap;
 #define Pop_n(n)              {sp+=n;}
 
 #define Push_code_fixup(c)    Push(Val_fixup(c))
-#define Push_caf_fixup(p)     Push( Field(*Valptr_fixup(p),Field_code_fun) )
+#define Push_caf_fixup(p)     Push( Field(*Valptr_fixup(p),Field_value_fun) )
 
 
 #define Push_frame(f)         { Push_n(2); \
