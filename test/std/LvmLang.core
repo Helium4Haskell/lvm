@@ -57,10 +57,19 @@ extern prim_string_length   :: "la"
 data Bytes
 data Int
 data Float
-data Bool       = False
-                | True
+data Bool       = False -- tag 0
+                | True  -- tag 1
 
-data '':[]'' a  = [] | (:) a [a]
+{-
+Be aware that de definition
+data Bool       = True  -- tag 0
+                | False -- tag 1
+is not allowed because the instructions
+eqint, neint etc. assume False has tag 0
+and True has tag 1.
+-}
+
+data '':[]'' a  = '':[]'' | (:) a [a]
 
 data IORes a    = IORes a
 type IO a       = () -> IORes a

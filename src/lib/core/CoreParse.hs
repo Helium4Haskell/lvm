@@ -199,11 +199,16 @@ parseModule
       ; lexeme LexRBRACE
       ; lexeme LexEOF
 
-      ; return (modulePublic exports (Module moduleId 0 0 (concat declss)))
+      ; return
+            ( modulePublic
+                {- don't make everything public -} False
+                exports
+                (Module moduleId 0 0 (concat declss))
+            )
       }
 
-modulePublic :: (IdSet,IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
-modulePublic (exports,exportCons,exportData,exportDataCon,exportMods) mod
+modulePublic :: Bool -> (IdSet,IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
+modulePublic allPublic (exports,exportCons,exportData,exportDataCon,exportMods) mod
   = mod{ moduleDecls = map setPublic (moduleDecls mod) }
   where
     setPublic decl  | declPublic decl = decl{ declAccess = (declAccess decl){ accessPublic = True } }
@@ -211,19 +216,19 @@ modulePublic (exports,exportCons,exportData,exportDataCon,exportMods) mod
 
     declPublic decl
       = case decl of
-          DeclValue{}     -> elemSet (declName decl) exports
-          DeclAbstract{}  -> elemSet (declName decl) exports
-          DeclExtern{}    -> elemSet (declName decl) exports
-          DeclCon{}       -> elemSet (declName decl) exportCons || elemSet (conTypeName decl) exportDataCon
+          DeclValue{}     -> allPublic || elemSet (declName decl) exports
+          DeclAbstract{}  -> allPublic || elemSet (declName decl) exports
+          DeclExtern{}    -> allPublic || elemSet (declName decl) exports
+          DeclCon{}       -> allPublic || elemSet (declName decl) exportCons || elemSet (conTypeName decl) exportDataCon
           DeclCustom{}    -> (declKind decl == customData || declKind decl==customTypeDecl) 
-                             && elemSet (declName decl) exportData
+                             && (allPublic || elemSet (declName decl) exportData)
           DeclImport{}    -> case importKind (declAccess decl) of
-                               DeclKindValue  -> elemSet (declName decl) exports
-                               DeclKindExtern -> elemSet (declName decl) exports
-                               DeclKindCon    -> elemSet (declName decl) exportCons 
-                               DeclKindModule -> elemSet (declName decl) exportMods
+                               DeclKindValue  -> allPublic || elemSet (declName decl) exports
+                               DeclKindExtern -> allPublic || elemSet (declName decl) exports
+                               DeclKindCon    -> allPublic || elemSet (declName decl) exportCons 
+                               DeclKindModule -> allPublic || elemSet (declName decl) exportMods
                                DeclKindCustom id -> (id==idFromString "data" || id==idFromString "typedecl")
-                                                    && elemSet (declName decl) exportData
+                                                    && (allPublic || elemSet (declName decl) exportData)
                                other          -> False
           other           -> False
 
