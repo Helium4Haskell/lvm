@@ -13,7 +13,7 @@ module AsmToLvm( asmToLvm )  where
 
 import Standard ( assert )
 import List     ( partition)
-import Id       ( Id )
+import Id       ( Id, idFromString )
 import IdMap    ( IdMap, emptyMap, lookupMap, extendMap, mapMapWithId, mapFromList )
 import Asm
 import Lvm
@@ -192,7 +192,9 @@ cgPrim env id args
                                      else result (CALL (Global id 0 arity))
       Just instr -> if (isCATCH instr)
                      then case args of
-                            [handler,atom] -> cgAtom env handler ++ [CATCH [EVAL 0 ((cgAtom env atom)++[ENTER])]]
+                            [handler,atom] -> let id = idFromString "@catch@" in
+                                              cgAtom env handler ++ 
+                                              [CATCH [EVAL 0 ((cgAtom env atom)++[ENTER]),VAR id]]
                             other          -> error ("AsmToCode.cgPrim: CATCH expects 2 arguments")
                      else result instr
   where

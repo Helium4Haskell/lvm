@@ -39,7 +39,7 @@ import LvmRead    ( lvmReadFile )       -- read a Lvm file
 ----------------------------------------------------------------
 message s
    = return () 
-   -- = putStr s
+  -- = putStr s
 
 main
   = do{ args <- getArgs
@@ -100,10 +100,10 @@ compile src
             asmopt  = asmOptimize asmmod
             lvmmod  = asmToLvm  asmopt
 
-      ; messageDoc "core"         (corePretty coremod)
+--      ; messageDoc "core"         (corePretty coremod)
 --      ; messageDoc "assembler"    (asmPretty asmmod)
 --      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
---      ; messageDoc "instructions" (lvmPretty lvmmod)
+      ; messageDoc "instructions" (lvmPretty lvmmod)
 
       ; let target  = (reverse (dropWhile (/='.') (reverse source)) ++ "lvm")
       ; messageLn  ("writing    : " ++ showFile target)
