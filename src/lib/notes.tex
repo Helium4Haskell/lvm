@@ -1,0 +1,122 @@
+\documentclass[a4]{article}
+
+\parskip=1ex
+\parindent=0pt
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\begin{document}
+
+\title{The LVM assembler library}
+\maketitle
+
+\section{Library structure}
+
+The Core assembler library consists of:
+
+\begin{itemize}
+\item \code{common}. Common modules, for example for identifiers and binary files.
+\item\code{lvm.}    Low level modules for handling LVM files and instructions.
+\item\code{asm.}    Assembler language, a bit like STG language.
+\item\code{core.}   Core language, enriched lambda calculus.
+\item\code{parsec.} Parser combinator library.
+\end{itemize}
+
+You can plug into the library at the Lvm, Asm or Core level.
+
+\begin{itemize}
+\item Lvm.  The Lvm binary level. You need to generate an \code{Lvm.LvmModule}.
+        This contains things like declared constructors and values.
+        \code{LvmWrite.lvmWriteFile} emits a binary Lvm file.
+        The values contain an instruction stream (\code{Instr}). Fortunately,
+        the libraries \code{InstrResolve} and \code{InstrRewrite} can resolve local
+        variables and perform peephole optimization.
+
+\item Asm.  The assembler level. An \code{Asm.AsmModule} contains Asm expressions,
+        a restricted form of lambda calculus. \code{AsmToLvm.asmToLvm} generates
+        Lvm instructions and converts to an \code{LvmModule}.
+
+\item Core.  The Core level. A \code{Core.CoreModule} contains Core expressions,
+        an enriched lambda calculus. \code{Core.coreToAsm} rewrites this into
+        a \code{AsmModule}.
+\end{itemize}
+
+The module \code{core/Main} implements a simple compiler from Core expressions
+to Lvm modules and illustrates how to call the different modules.
+
+
+\section{The Module library}
+
+Central to all these modules is the \code{lvm/Module.Module} structure. Here
+is the definition:
+\begin{verbatim}
+data Module v   = Module{ moduleName   :: !Id
+                        , versionMajor :: !Int
+                        , versionMinor :: !Int
+
+                        , values       :: [(Id,DValue v)]
+                        , imports      :: IdMap DImport
+                        , constructors :: IdMap DCon
+                        , externs      :: IdMap DExtern
+                        , customs      :: IdMap DCustom
+                        }
+ \end{verbatim}
+
+A module contains the \emph{minimal} information necessary to generate
+a binary LVM file. The field \code{values} contains value declarations,
+i.e. functions or constants. The field \code{imports}
+is a map from identifiers to imported value declarations.
+
+Here are the definitions of the different declaration types.
+\begin{verbatim}
+data DValue v   = DValue  { valueAccess  :: !Access, valueEnc :: !(Maybe Id)
+                          , valueValue :: v, valueCustoms :: !Customs }
+data DImport    = DImport { importAccess :: !Access, importArity :: !Arity }
+data DCon       = DCon    { conAccess    :: !Access, conArity    :: !Arity
+                          , conTag :: !Tag, conCustoms :: !Customs }
+data DExtern    = DExtern { externAccess :: !Access, externArity :: !Arity
+                          , externType   :: !String
+                          , externLink   :: !LinkConv, externCall :: !CallConv
+                          , externLib    :: !String, externName :: !ExternName
+                          , externCustoms :: !Customs }
+
+data Access     = Private
+                | Public
+                | Import { importPublic :: !Bool
+                         , importModule :: !Id, importName :: !Id
+                         , importVerMajor :: !Int, importVerMinor :: !Int }
+\end{verbatim}
+
+Each declaration contains an \code{Access}. Besides public or private, the
+access can also designate this declaration as imported. This is useful for
+constructors and externals -- an implementation has all declarations available
+and doesn't need two kinds of declarations. For values the situation is
+handled differently since (non-inlined) imported values normally don't contain
+their definition. The \code{DImport} declaration is used for those.
+
+The value declaration is parameterized by the actual definition value \code{v}.
+This means that each pass of the compiler can use the \emph{same} module
+structure but each time with different defintion values. Here are the type
+definitions for each major pass.
+\begin{verbatim}
+type LvmModule  = Module [Instr]  -- List of instructions
+type AsmModule  = Module Top      -- Top  == top level Asm expressions
+type CoreModule = Module Expr     -- Expr == Core expressions
+
+coreToAsm   :: CoreModule -> AsmModule
+asmToLvm    :: AsmModule -> LvmModule
+lvmToBytes  :: LvmModule -> Bytes
+\end{verbatim}
+
+\section{Identifiers}
+
+The biggest obstacle to useing these libraries from another front-end
+compiler is the representation of identifiers. The library expects
+two interfaces \code{common/Id} and \code{common/IdMap} to be implemented.
+The default implementations work well but may not be suitable the
+front-end compiler. The compiler needs to provide a wrapper that implements
+both modules in terms of its own representation of identifiers or it
+needs to translate compiler identifiers into library identifiers when
+translating into Core or Asm modules.
+
+\end{document}
