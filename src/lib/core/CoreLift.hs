@@ -1,13 +1,13 @@
-{-*-----------------------------------------------------------------------
+{------------------------------------------------------------------------
   The Core Assembler.
 
   Copyright 2001, Daan Leijen. All rights reserved. This file
   is distributed under the terms of the GHC license. For more
   information, see the file "license.txt", which is included in
   the distribution.
------------------------------------------------------------------------*-}
+------------------------------------------------------------------------}
 
--- $Id$
+--  $Id$
 
 ----------------------------------------------------------------
 -- Do "johnson" style lambda lifting
@@ -116,7 +116,7 @@ liftBindsRec env recs
 
 addLambdas env fv bind@(Bind id (Note (FreeVar _) expr))  
   | isAtomExpr env expr = bind
---  | isValueExpr expr    = Bind id (Note (FreeVar fvset) (Let (NonRec (Bind id (foldlStrict (\e v -> Ap e (Var v)) (Var id) fv))) (Var id)))
+--   | isValueExpr expr    = Bind id (Note (FreeVar fvset) (Let (NonRec (Bind id (foldlStrict (\e v -> Ap e (Var v)) (Var id) fv))) (Var id)))
   | otherwise           = Bind id (Note (FreeVar emptySet) (foldr Lam expr fv))
   where
     fvset = setFromList fv
@@ -125,7 +125,7 @@ addLambdas env fv bind
   = error "CoreLift.addLambdas: no free variable annotation. Do coreFreeVar first?"
 
 insertLifted env ((Bind id expr),fv)
-  = if (isAtomExpr env expr) -- || isValueExpr expr)
+  = if (isAtomExpr env expr) --  || isValueExpr expr)
      then env
      else extendFree env id fv
 

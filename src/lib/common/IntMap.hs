@@ -11,7 +11,7 @@
 --   Workshop on ML, September 1998, pages 77-86.
 ----------------------------------------------------------------
 
--- $Id$
+--  $Id$
 
 module IntMap ( IntMap,
 

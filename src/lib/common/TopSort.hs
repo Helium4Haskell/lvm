@@ -22,7 +22,7 @@
 --  (by David King and John Launchbury ??)
 ----------------------------------------------------------------
 
--- $Id$
+--  $Id$
 
 module TopSort( topSort ) where
 

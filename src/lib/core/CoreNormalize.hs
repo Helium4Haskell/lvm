@@ -1,26 +1,26 @@
-{-*-----------------------------------------------------------------------
+{------------------------------------------------------------------------
   The Core Assembler.
 
   Copyright 2001, Daan Leijen. All rights reserved. This file
   is distributed under the terms of the GHC license. For more
   information, see the file "license.txt", which is included in
   the distribution.
------------------------------------------------------------------------*-}
+------------------------------------------------------------------------}
 
--- $Id$
+--  $Id$
 
 ----------------------------------------------------------------
 -- Normalises Core:
--- * no lambda's, except directly at let-bindings
--- * each Ap argument is atomic & not a call to an instruction or external function
--- * each Ap target is atomic
+--  * no lambda's, except directly at let-bindings
+--  * each Ap argument is atomic & not a call to an instruction or external function
+--  * each Ap target is atomic
 --
 -- an atomic expression is
--- * a Var
--- * a Lit
--- * a Con
--- * a normalised Ap
--- * a normalised Let(Rec) expression 
+--  * a Var
+--  * a Lit
+--  * a Con
+--  * a normalised Ap
+--  * a normalised Let(Rec) expression 
 --
 -- pre: [coreNoShadow, coreSaturate]
 ----------------------------------------------------------------
