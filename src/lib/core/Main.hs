@@ -17,26 +17,25 @@ import PPrint     ( putDoc )
 import Standard   ( getLvmPath, searchPath )
 import Id         ( newNameSupply, stringFromId )
 
-import CorePretty ( corePretty )        -- pretty print core
-import CoreParse  ( coreParse )         -- parse text into core
+import CorePretty ( corePretty )        -- pretty print Core
+import CoreParse  ( coreParse )         -- parse text into Core
 import CoreToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
 
 import AsmPretty  ( asmPretty )         -- pretty print low-level core (Asm)
-import AsmOptimize( asmOptimize )       -- optimize Asm (ie. inlining)
+import AsmOptimize( asmOptimize )       -- optimize Asm (ie. local inlining)
 import AsmToLvm   ( asmToLvm )          -- translate Asm to Lvm instructions
-
 
 import LvmPretty  ( lvmPretty )         -- pretty print instructions (Lvm)
 import LvmWrite   ( lvmWriteFile )      -- write a binary Lvm file
 import LvmImport  ( lvmImport )         -- resolve import declarations
-import LvmRead    ( lvmReadFile )       -- read an lvm file
+import LvmRead    ( lvmReadFile )       -- read a Lvm file
 
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
 message s
   = return () 
-  --= putStr s
+  -- = putStr s
 
 main
   = do{ [arg] <- getArgs
@@ -53,8 +52,11 @@ compile src
       ; source      <- searchPath path ".core" src
       ; messageLn ("compiling  : " ++ showFile source)
 
+      ; messageLn ("parsing")
       ; mod        <- coreParse source
 --      ; messageDoc "parsed"  (corePretty mod)
+
+      ; messageLn ("resolving imports")
       ; coremod    <- lvmImport (findModule path) mod
 
       ; nameSupply  <- newNameSupply
@@ -62,13 +64,13 @@ compile src
       ; let asmmod  = coreToAsm nameSupply coremod
             asmopt  = asmOptimize asmmod
             lvmmod  = asmToLvm  asmopt
-            target  = (reverse (drop 5 (reverse source)) ++ ".lvm")
 
       ; messageDoc "core"         (corePretty coremod)
 --      ; messageDoc "assembler"    (asmPretty asmmod)
---      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
---      ; messageDoc "instructions" (lvmPretty lvmmod)
+      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
+      ; messageDoc "instructions" (lvmPretty lvmmod)
 
+      ; let target  = (reverse (drop 5 (reverse source)) ++ ".lvm")
       ; messageLn  ("writing    : " ++ showFile target)
       ; lvmWriteFile target lvmmod
 

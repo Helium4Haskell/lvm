@@ -394,7 +394,7 @@ emitBlockEx mbId kindId kind bs custom
       ; let bytes = cat bs bcustom
             total = cat (block [kindenc,encodeInt (bytesLength bytes)]) bytes
       ; assert ((bytesLength bytes `mod` 4) == 0) "LvmWrite.emitBlock: unaligned size" $
-        emitPrimBlock (maybe Nothing (\id -> Just (id,kindId)) mbId) total
+        emitPrimBlock (maybe Nothing (\id -> Just (id,kindId)) mbId) kind total
       }
 
 encodeKind :: DeclKind -> Emit Int
@@ -452,17 +452,26 @@ runEmit (Emit e)
   = let (x,State _ env bbs) = e env (State 0 emptyMap [])  -- yes, a recursive, lazy, env :-)
     in (x,reverse bbs)
 
-emitPrimBlock :: Maybe (Id,DeclKind) -> Bytes -> Emit Index
-emitPrimBlock x bs
+emitPrimBlock :: Maybe (Id,DeclKind) -> DeclKind -> Bytes -> Emit Index
+emitPrimBlock x kind bs
   = Emit (\env st@(State count map bbs) ->
-            let (index,count',bbs') = case find count bs bbs of   --try to share records, especially names/modules/kinds
-                                        Nothing  -> (count+1,count+1,bs:bbs)
-                                        Just idx -> (idx,count,bbs)
+            let (index,count',bbs') | sharable kind = case find count bs bbs of   --try to share records
+                                                        Nothing  -> (count+1,count+1,bs:bbs)
+                                                        Just idx -> (idx,count,bbs)
+                                    | otherwise     = (count+1,count+1,bs:bbs)
                 map'                = case x of
-                                        Just (id,kind) -> insertMapWith id [(kind,index)] ((kind,index):) map
-                                        Nothing        -> map
+                                        Just (id,kindid) -> insertMapWith id [(kindid,index)] ((kindid,index):) map
+                                        Nothing          -> map
             in (index, State count' map' bbs')
          )
+sharable kind
+  = case kind of
+      DeclKindBytes       -> True
+      DeclKindName        -> True
+      DeclKindKind        -> True
+      DeclKindExternType  -> True
+      DeclKindModule      -> True   -- dubious when custom values are present!
+      other               -> False
 
 find n x []       = assert (n==0) "LvmWrite.find: count too large" Nothing
 find n x (y:ys)   | x==y       = Just n
