@@ -589,9 +589,9 @@ static value read_module( value parent, const char* modname )
     Store_field( module, Module_next, module );
   }
 
-  Store_field( module, Module_fname,      copy_string(fname) );
-  Store_field( module, Module_major,      Val_long(header.module_major_version) );
-  Store_field( module, Module_minor,      Val_long(header.module_minor_version) );
+  Store_field( module, Module_fname, copy_string(fname) );
+  Store_field( module, Module_major, Val_long(header.module_major_version) );
+  Store_field( module, Module_minor, Val_long(header.module_minor_version) );
 
   records = alloc_fixed( header.records_count );
   Store_field( module, Module_records, records );
@@ -731,7 +731,7 @@ static void fixup_ptr( const char* name, opcode_t* opcode, void* fixup )
 {
 #if defined(FIXUP_OFFSET)
   long offset = Fixup_ptr(fixup);
-  if (offset < -2147483647L || offset > 2147483647L) {
+  if (offset < Min_word_t || offset > Max_word_t) {
     raise_module( name, "can not fixup code references beyond a 4gb memory span" );
   }
   opcode[0] = (opcode_t)offset;
@@ -747,11 +747,11 @@ static void fixup_code( const char* name, opcode_t* opcode, value val )
   CAMLreturn0;
 }
 
-static void fixup_con( const char* name, opcode_t* opcode, long tag )
+static void fixup_con( const char* name, opcode_t* opcode, con_tag_t tag )
 {
-  if (tag < -2147483647L || tag > 2147483647L) {
-    raise_module( name, "tag is too large" );
-  }
+  if (tag < 0)           { raise_module( name, "negative tag (%li)", tag ); }
+  if (  tag > Max_word_t
+     || tag > Max_long)  { raise_module( name, "tag is too large (%li)", tag ); } 
   opcode[0] = (opcode_t)tag;
 }
 

@@ -39,12 +39,14 @@ extern struct inv_block_t inv_block;
                                Restore_after_gc; \
                              }
 
-#define Alloc_con(v,sz,t) { unsigned long consize, contag; \
-                            if (t >= Con_max_tag) { contag = Con_max_tag; consize = sz+1; } \
-                                             else { contag = t; consize = sz; } \
-                            Allocate(v,consize,contag); \
-                            if (t >= Con_max_tag) { Field(v,sz) = Val_long(t); } \
-                          }
+#define Alloc_con(v,consize,contag) { \
+    wsize_t size;  \
+    tag_t   tag;   \
+    if (contag >= Con_max_tag) { tag = Con_max_tag; size = consize+1; } \
+                          else { tag = contag; size = consize; } \
+    Allocate(v,size,tag); \
+    if (contag >= Con_max_tag) { Field(v,consize) = Val_long(contag); } \
+  }
 /*
                             if (t >= Con_max_tag) {\
                                Allocate(v,sz+1,Con_max_tag); \
@@ -129,13 +131,13 @@ extern struct inv_block_t inv_block;
 #endif
 
 #ifdef LVM_UPDATE_INPLACE
-# define Update_alloc_con(v,w,size,tag) { \
-    wsize_t consize; \
-    tag_t   contag;  \
-    if (tag >= Con_max_tag) { contag = Con_max_tag; consize = size + 1; } \
-                       else { contag = tag; consize = size; } \
-    Update_alloc(v,w,consize,contag); \
-    if (tag >= Con_max_tag) { Store_field(w,size,Val_long(tag)); } \
+# define Update_alloc_con(v,w,consize,contag) { \
+    wsize_t size; \
+    tag_t   tag;  \
+    if (contag >= Con_max_tag) { tag = Con_max_tag; size = consize + 1; } \
+                          else { tag = contag; size = consize; } \
+    Update_alloc(v,w,size,tag); \
+    if (contag >= Con_max_tag) { Store_field(w,consize,Val_long(contag)); } \
   }
 #else
 # define Update_alloc_con(v,w,size,tag) { \

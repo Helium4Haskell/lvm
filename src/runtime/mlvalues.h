@@ -89,10 +89,13 @@ typedef opcode_t *  code_t;
 /* Example: Val_long as in "Val from long" or "Val of long". */
 #define Val_long(x)     (((long)(x) << 1) + 1)
 #define Long_val(x)     ((x) >> 1)
-#define Max_long ((1L << (8 * (long)sizeof(value) - 2)) - 1)
-#define Min_long (-(1L << (8 * (long)sizeof(value) - 2)))
-#define Val_int Val_long
-#define Int_val(x) ((int) Long_val(x))
+#define Max_long        ((1L << (8 * (long)sizeof(value) - 2)) - 1)
+#define Min_long        (-(1L << (8 * (long)sizeof(value) - 2)))
+#define Val_int         Val_long
+#define Int_val(x)      ((int) Long_val(x))
+
+#define Min_word_t      (1L << (8*sizeof(word_t) - 1))
+#define Max_word_t      (~0 ^ Min_word_t)
 
 /* Foreign (C) pointers */
 #define Val_ptr(p)  ((value)(p))
@@ -226,6 +229,12 @@ bits  63    10 9     8 7   0
 #define Con_max_tag 239
 
 #define Con_tag_val(t,v)  { (t) = Tag_val(v); if ((t) == Con_max_tag) { (t) = Long_val(Field(v,Wosize_val(v)-1)); }}
+#define Val_con_tag(t)    Val_long(t)
+
+#define Con_tag_size(tag,size,contag,consize) { \
+    if (contag >= Con_max_tag) { tag = Con_max_tag; size = consize+1; } \
+                          else { tag = contag; size = consize; } \
+  }
 
 /* fsize: fields size, doesn't include possible extended tag value at the end */
 #define Fsize_val(v)        (Tag_val(v) == Con_max_tag ? Wosize_val(v)-1 : Wosize_val(v))

@@ -404,7 +404,7 @@ void evaluate( struct thread_state* thread )
     Instr(EVALVAR): {
       value v     = sp[*pc++];
       Assert( Is_long(v) || Is_heap_val(v) || Tag_val(v) == Code_tag || Is_atom(v) );
-      if ((Is_long(v) || Tag_val(v) <= Con_max_tag) /* && !pending_signal() */) {
+      if ((Is_long(v) || Tag_val(v) <= Con_max_tag || Tag_val(v) > Abstract_tag) /* && !pending_signal() */) {
         Trace( "evalvar: already evaluated var" );
         Push(v);
         Next;
@@ -762,22 +762,22 @@ returnloop:
 #define Ensure_con() \
     if (con==0) { \
       wsize_t i; \
-      Assert(n > 0); \
-      Alloc_con(con,n,tag); \
-      for( i = 0; i < n; i++) { Init_field(con,i,sp[i]); } \
+      Assert(consize > 0); \
+      Alloc_con(con,consize,contag); \
+      for( i = 0; i < consize; i++) { Init_field(con,i,sp[i]); } \
     }
     
     Instr(RETURNCON): {
-      con_tag_t tag = *pc++;
-      wsize_t   n   = *pc++;
-      value     con = 0;
-
-      Require( sp + n <= fp );
+      con_tag_t contag  = *pc++;
+      wsize_t   consize = *pc++;
+      value     con     = 0;
+      
+      Require( sp + consize <= fp );
       Trace_stack("RETURNCON");
 
       /* return atomic constructors via RETURN */
-      if (n == 0) {
-        Push(Atom(tag));
+      if (consize == 0 && contag < Con_max_tag) {
+        Push(Atom(contag));
         goto return_enter;
       }
 
@@ -789,16 +789,16 @@ returncon:
 
           if (*pc == Val_instr(SWITCHCON)) {
             /* hooray, we can probably switch immediately without allocation */
-            value*  bp;
-            wsize_t count;
-            long    ofs;
+            value*    bp;
+            con_tag_t count;
+            long      ofs;
             Trace_value( "returncon: continue into switch: ", Val_code(pc) );
 
             /* restore the stack */
-            bp = fp + Frame_size - n;
+            bp = fp + Frame_size - consize;
             fp = Frame_next(fp);
             if (bp != sp) {
-              wsize_t i = n;
+              wsize_t i = consize;
               while (i > 0) { i--; bp[i] = sp[i]; }
               sp  = bp;
             }
@@ -806,17 +806,17 @@ returncon:
             /* interpret the SWITCHCON instruction */
             pc++; 
             count = pc[0];
-            if (tag >= count) {
+            if (contag >= count) {
               /* default case: we have to allocate */
               ofs = pc[1];
               if (ofs==0) { Raise_runtime_exn(Exn_failed_pattern); }
               pc += ofs;
               Ensure_con();
-              Pop_n(n);
+              Pop_n(consize);
               Push(con);
             }
             else {
-              ofs = pc[tag+2];
+              ofs = pc[contag+2];
               if (ofs==0) { Raise_runtime_exn(Exn_failed_pattern); }
               pc += ofs;
             }
@@ -824,17 +824,17 @@ returncon:
           }
           else if (*pc == Val_instr(MATCHCON)){
             /* hurray, we can probably switch immediately without allocation */
-            value*  bp;
-            wsize_t count;
-            wsize_t i;
-            long    ofs;
+            value*    bp;
+            con_tag_t count;
+            con_tag_t i;
+            long      ofs;
             Trace_value( "returncon: continue into match: ", Val_code(pc) );
 
             /* restore the stack */
-            bp = fp + Frame_size - n;
+            bp = fp + Frame_size - consize;
             fp = Frame_next(fp);
             if (bp != sp) {
-              wsize_t i = n;
+              wsize_t i = consize;
               while (i > 0) { i--; bp[i] = sp[i]; }
               sp  = bp;
             }
@@ -844,13 +844,13 @@ returncon:
             count = pc[0];
             ofs   = pc[1];
             for(i = 1; i <= count; i++) {
-              if (pc[i*2] == tag) { ofs = pc[i*2+1]; break; }
+              if (pc[i*2] == contag) { ofs = pc[i*2+1]; break; }
             }
             if (ofs == 0) { Raise_runtime_exn(Exn_failed_pattern); }
             pc += ofs;
             if (i > count) { /* default case: we have to allocate :-( */
               Ensure_con();
-              Pop_n(n);
+              Pop_n(consize);
               Push(con);
             }
             Next;
@@ -873,8 +873,8 @@ returncon:
           value upd = Frame_value(fp);
           if (con == 0) {
             wsize_t i;
-            Update_alloc_con(upd,con,n,tag);
-            for( i = 0; i < n; i++) { Store_field(con,i,sp[i]); } 
+            Update_alloc_con(upd,con,consize,contag);
+            for( i = 0; i < consize; i++) { Store_field(con,i,sp[i]); } 
           } else {
             Indirect(upd,con);
           }
@@ -911,15 +911,15 @@ returncon:
   Matching
 ----------------------------------------------------------------------*/
     Instr(SWITCHCON): {
-      con_tag_t tag;
+      con_tag_t contag;
       con_tag_t count = pc[0];
       long      ofs;
-      Con_tag_val(tag,sp[0]);
+      Con_tag_val(contag,sp[0]);
 
       Require( sp < fp );
-      Require( Is_long(sp[0]) || (Is_block(sp[0]) && Tag_val(sp[0]) < Con_max_tag ));
+      Require( Is_long(sp[0]) || Is_block(sp[0]));
 
-      if (tag >= count) {
+      if (contag >= count) {
         /* default */
         ofs = pc[1];
         if (ofs == 0) { Raise_runtime_exn(Exn_failed_pattern); }
@@ -929,13 +929,13 @@ returncon:
         value   con;
         wsize_t j;
 
-        ofs = pc[tag+2];
+        ofs = pc[contag+2];
         if (ofs == 0) { Raise_runtime_exn(Exn_failed_pattern); }
         pc += ofs;
 
         /* unpack the constructor */
         con = Popx();
-        j   = Wosize_val(con);
+        j   = Fsize_val(con);
         Push_n(j);
         while( j > 0 ) { sp[j-1] = Field(con,j-1); j--; }
       }
@@ -944,20 +944,19 @@ returncon:
     }
 
     Instr(MATCHCON): {
-      long       i;
-      con_tag_t  tag;
-      long       n   = pc[0];
-      long       ofs = pc[1];
-
+      wsize_t    i;
+      con_tag_t  contag;
+      wsize_t    n   = pc[0];
+      long       ofs = pc[1];      
       Require( sp < fp );
-      Require( Is_long(sp[0]) || (Is_block(sp[0]) && Tag_val(sp[0]) < Con_max_tag ));
+      Require( Is_long(sp[0]) || Is_block(sp[0]));
 
-      Con_tag_val(tag,sp[0]);
+      Con_tag_val(contag,sp[0]);
       for( i = 1; i <= n; i++ ) {
-        if ((con_tag_t)pc[i*2] == tag) {
+        if (pc[i*2] == contag) {
           /* we have a match, unpack constructor to the stack */
           value   con = Popx();
-          wsize_t j   = Wosize_val(con);
+          wsize_t j   = Fsize_val(con);
           ofs         = pc[i*2+1];
           Push_n(j);
           while (j > 0) { sp[j-1] = Field(con,j-1); j--; }
@@ -972,10 +971,10 @@ returncon:
 
 
     Instr(MATCHINT): {
-      long x   = Long_val(sp[0]);
-      long n   = pc[0];
-      long ofs = pc[1];
-      long i;
+      long    x   = Long_val(sp[0]);
+      wsize_t n   = pc[0];
+      long    ofs = pc[1];
+      wsize_t i;
       Trace ("MATCHINT");
 
       for( i = 1; i <= n; i++) {
@@ -1271,9 +1270,9 @@ returncon:
   General sums and products
 ----------------------------------------------------------------------*/
     Instr(GETFIELD): {
-      value v  = sp[0];
-      long  i  = Long_val(sp[1]);
-      long sz;
+      value   v  = sp[0];
+      wsize_t i  = Long_val(sp[1]);
+      wsize_t sz;
       Require( Is_block(v) && Is_long(sp[1]) );
       sz = Fsize_val(v);
       if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
@@ -1283,10 +1282,10 @@ returncon:
     }
 
     Instr(SETFIELD): {
-      value v  = sp[0];
-      long  i  = Long_val(sp[1]);
-      value x  = sp[2];
-      long sz;
+      value   v  = sp[0];
+      wsize_t i  = Long_val(sp[1]);
+      value   x  = sp[2];
+      wsize_t sz;
       Require( Is_block(v) && Is_long(sp[1]) );
       sz = Fsize_val(v);
       if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
@@ -1296,68 +1295,68 @@ returncon:
     }
 
     Instr(ALLOC): {
-      con_tag_t tag  = Long_val(sp[0]);
-      wsize_t   size = Long_val(sp[1]);
+      con_tag_t contag  = Long_val(sp[0]);
+      wsize_t   consize = Long_val(sp[1]);
       wsize_t   i;
       value     con;
-      if (size < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
-      Alloc_con(con,size,tag);
-      for( i = 0; i < size; i++ ) { Field(con,i) = 0; }
+      if (consize < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      Alloc_con(con,consize,contag);
+      for( i = 0; i < consize; i++ ) { Init_field_inv(con,i); }
       sp[1] = con;
       Pop();
       Next;
     }
 
     Instr(NEW): {
-      wsize_t   size = *pc++;
-      con_tag_t tag  = Long_val(sp[0]);
+      wsize_t   consize = *pc++;
+      con_tag_t contag  = Long_val(sp[0]);
       wsize_t   i;
       value     con;
       Pop();
-      if (size < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
-      Alloc_con(con,size,tag);
-      for( i = 0; i < size; i++ ) { Field(con,i) = sp[i]; }
-      Pop_n(size);
+      if (consize < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      Alloc_con(con,consize,contag);
+      for( i = 0; i < consize; i++ ) { Store_field(con,i,sp[i]); }
+      Pop_n(consize);
       Push(con);
       Next;
     }
 
     Instr(GETTAG): {
       Require( Is_block(sp[0]) );
-      sp[0] = Val_long( Tag_val(sp[0]) );
+      sp[0] = Val_long( Tag_val(sp[0]) );  /* the real tag, not the contag */
       Next;
     }
 
     Instr(GETSIZE): {
-      wsize_t sz;
+      wsize_t size;
       Require( Is_block(sp[0]) );
-      sz = Fsize_val(sp[0]);
-      sp[0] = Val_long( sz );
+      size = Wosize_val(sp[0]);   /* the real size, not the fields size */
+      sp[0] = Val_long( size );
       Next;
     }
 
     Instr(PACK): {
-      long  n = *pc++;
-      value v = sp[0];
-      long  sz;
-      long  i;
+      wsize_t n = *pc++;
+      value   v = sp[0];
+      wsize_t size;
+      wsize_t i;
       Require( Is_block(v) );
-      sz = Fsize_val(v);
-      if (n >= sz) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      size = Fsize_val(v);
+      if (n >= size) { Raise_runtime_exn( Exn_out_of_bounds ); }
       Pop();
-      for( i = 0; i < n; i++) { Field(v,i) = sp[i]; }
+      for( i = 0; i < n; i++) { Store_field(v,i,sp[i]); }
       Pop_n(n);
       Next;
     }
 
     Instr(UNPACK): {
-      long  n  = *pc++;
-      value v  = sp[0];
-      long  sz;
-      long  i;
+      wsize_t n  = *pc++;
+      value   v  = sp[0];
+      wsize_t size;
+      wsize_t i;
       Require( Is_block(v) );
-      sz = Fsize_val(v);
-      if (n > sz) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      size = Fsize_val(v);
+      if (n > size) { Raise_runtime_exn( Exn_out_of_bounds ); }
       Pop();
       Push_n(n);
       for( i = 0; i < n; i++) { sp[i] = Field(v,i); }
@@ -1369,30 +1368,24 @@ returncon:
 ----------------------------------------------------------------------*/
     Instr(ALLOCCON): {
       value     con;
-      con_tag_t tag = *pc++;
-      wsize_t   n   = *pc++;
-      Trace ("ALLOCCON");
-      if (n == 0) {
-        con = Atom(tag);
-      }
-      else {
-        wsize_t i;
-        Allocate(con,n,tag)
-        for( i = 0; i < n; i++ ) { Field(con,i) = 0; }
-      }
+      con_tag_t contag  = *pc++;
+      wsize_t   consize = *pc++;
+      wsize_t   i;        
+      Alloc_con(con,consize,contag);
+      for( i = 0; i < consize; i++) { Init_field_inv(con,i); }
       Push(con);
       Next;
     }
 
     Instr(PACKCON): {
-      long ofs  = *pc++;
-      long n    = *pc++;
-      long i;
+      long    ofs  = *pc++;
+      wsize_t n    = *pc++;
+      wsize_t i;
       value con;
-      Trace ("PACKCON");
+      
       Require( sp + n <= fp && sp + ofs < fp);
       con = sp[ofs];
-      Require( Is_block(con) && Tag_val(con) <= Con_max_tag );
+      Require( Is_block(con) && Tag_val(con) <= Con_max_tag && Fsize_val(con) >= n);
       for( i = 0; i < n; i++) { Store_field(con,i,sp[i]); }
       Pop_n(n);
       Next;
@@ -1400,38 +1393,53 @@ returncon:
 
     Instr(NEWCON): {
       value     con;
-      con_tag_t tag = *pc++;
-      wsize_t   n   = *pc++;
+      con_tag_t contag  = *pc++;
+      wsize_t   consize = *pc++;
       wsize_t   i;
-      Require( sp + n <= fp );
-      if (n == 0) con = Atom(tag);
-             else Allocate(con,n,tag);
-      for (i = 0; i < n; i++) { Field(con,i) = sp[i]; }
-      sp[n-1] = con;
-      Pop_n(n-1);
+      Require( sp + consize <= fp );
+      Alloc_con(con,consize,contag);
+      for (i = 0; i < consize; i++) { Init_field(con,i,sp[i]); }
+      sp[consize-1] = con;
+      Pop_n(consize-1);
       Next;
     }
 
     Instr(NEWCON0): {
-      con_tag_t tag = *pc++;
-      Push(Atom(tag));
+      con_tag_t contag = *pc++;
+      if (contag < Con_max_tag) {
+        Push(Atom(contag));
+      } else {
+        value con;
+        Alloc_small(con,1,Con_max_tag);
+        Field(con,0) = Val_con_tag(contag);
+        Push(con);
+      }
       Next;
     }
 
     Instr(NEWCON1): {
-      con_tag_t tag = *pc++;
+      con_tag_t contag = *pc++;
       value     con;
-      Alloc_small(con,1,tag);
+      if (contag < Con_max_tag) {        
+        Alloc_small(con,1,contag);
+      } else {
+        Alloc_small(con,2,Con_max_tag);
+        Field(con,1) = Val_con_tag(contag);
+      }
       Field(con,0) = sp[0];
       sp[0] = con;
       Next;
     }
 
     Instr(NEWCON2): {
-      con_tag_t tag = *pc++;
+      con_tag_t contag = *pc++;
       value     con;
-      Trace ("NEWCON2");
-      Alloc_small(con,2,tag);
+      if (contag < Con_max_tag) {        
+        Alloc_small(con,2,contag);
+      } else {
+        Alloc_small(con,3,Con_max_tag);
+        Field(con,2) = Val_con_tag(contag);
+      }
       Field(con,0) = sp[0];
       Field(con,1) = sp[1];
       sp[1] = con;
@@ -1440,10 +1448,14 @@ returncon:
     }
 
     Instr(NEWCON3): {
-      con_tag_t tag = *pc++;
+      con_tag_t contag = *pc++;
       value     con;
-      Trace ("NEWCON3");
-      Alloc_small(con,3,tag);
+      if (contag < Con_max_tag) {        
+        Alloc_small(con,3,contag);
+      } else {
+        Alloc_small(con,4,Con_max_tag);
+        Field(con,3) = Val_con_tag(contag);
+      }
       Field(con,0) = sp[0];
       Field(con,1) = sp[1];
       Field(con,2) = sp[2];
@@ -1454,19 +1466,19 @@ returncon:
 
 
     Instr(TESTCON): {
-      con_tag_t tag = *pc++;
-      long      ofs = *pc++;
-      Trace ("TESTCON");
+      con_tag_t contag0 = *pc++;
+      con_tag_t contag1;
+      long      ofs     = *pc++;
       Require( Is_block(sp[0]) && Tag_val(sp[0]) <= Con_max_tag );
-      if (Tag_val(sp[0]) != tag) pc += ofs;
+      Con_tag_val(contag1,sp[0]);
+      if (contag1 != contag0) pc += ofs;
       Next;
     }
 
     Instr(UNPACKCON): {
       wsize_t n   = *pc++;
       value   con = sp[0];
-      Trace ("UNPACKCON");
-      Require( Is_block(con) && Tag_val(con) <= Con_max_tag && Wosize_val(con) == n );
+      Require( Is_block(con) && Tag_val(con) <= Con_max_tag && Fsize_val(con) == n );
       Push_n(n);
       while (n > 0) { n--; sp[n] = Field(con,n); }
       Next;
