@@ -14,11 +14,13 @@ module Main where
 import System     ( getArgs )
 import PPrint     ( putDoc )
 
-import Standard   ( getLvmPath, searchPath )
+import Standard   ( getLvmPath, searchPath, searchPathMaybe )
 import Id         ( newNameSupply, stringFromId )
 
 import CorePretty ( corePretty )        -- pretty print Core
 import CoreParse  ( coreParseExport, modulePublic )
+import CoreParser ( parseModule )       -- new core syntax
+
                                         -- parse text into Core
 import CoreRemoveDead( coreRemoveDead ) -- remove dead declarations
 import CoreToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
@@ -36,8 +38,8 @@ import LvmRead    ( lvmReadFile )       -- read a Lvm file
 --
 ----------------------------------------------------------------
 message s
-  = return () 
- --  = putStr s
+  -- = return () 
+   = putStr s
 
 main
   = do{ [arg] <- getArgs
@@ -48,24 +50,45 @@ findModule paths id
   = searchPath paths ".lvm" (stringFromId id)
 
 
+findSrc path src
+  = do{ res <- searchPathMaybe path ".core" src
+      ; case res of
+          Just source -> return (Left source)
+          Nothing     -> do{ source <- searchPath path ".cor" src
+                           ; print source
+                           ; return (Right source)
+                           }
+      }
+
+parse path src
+  = do{ res <- findSrc path src 
+      ; case res of
+          Left source -> do{ messageLn ("parsing")
+                           ; (mod, implExps, es) <- coreParseExport source
+                           ; messageDoc "parsed"  (corePretty mod)
+                           ; messageLn ("resolving imports")
+                           ; chasedMod  <- lvmImport (findModule path) mod
+                           ; messageLn ("making exports public")
+                           ; let publicmod = modulePublic implExps es chasedMod
+                           ; return (publicmod,source)
+                           }
+          Right source ->do{ messageLn ("parsing")
+                           ; mod <- parseModule source
+                           ; messageDoc "parsed"  (corePretty mod)
+                           ; messageLn ("resolving imports")
+                           ; chasedMod  <- lvmImport (findModule path) mod
+                           ; return (chasedMod,source)
+                           }
+      }                       
+
 compile src
   = do{ path        <- getLvmPath
       ; messageLn ("search path: " ++ show (map showFile path))
-      ; source      <- searchPath path ".core" src
-      ; messageLn ("compiling  : " ++ showFile source)
-
-      ; messageLn ("parsing")
-      ; (mod, implExps, es) <- coreParseExport source
-      ; messageDoc "parsed"  (corePretty mod)
-
-      ; messageLn ("resolving imports")
-      ; chasedMod  <- lvmImport (findModule path) mod
       
-      ; messageLn ("making exports public")
-      ; let publicmod = modulePublic implExps es chasedMod
-
+      ; (mod,source) <- parse path src
+      
       ; messageLn ("remove dead declarations")
-      ; let coremod = coreRemoveDead publicmod
+      ; let coremod = coreRemoveDead mod
 
       ; nameSupply  <- newNameSupply
       ; messageLn ("generating code")
@@ -78,7 +101,7 @@ compile src
 --      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
 --      ; messageDoc "instructions" (lvmPretty lvmmod)
 
-      ; let target  = (reverse (drop 5 (reverse source)) ++ ".lvm")
+      ; let target  = (reverse (dropWhile (/='.') (reverse source)) ++ "lvm")
       ; messageLn  ("writing    : " ++ showFile target)
       ; lvmWriteFile target lvmmod
 

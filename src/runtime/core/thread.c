@@ -18,7 +18,9 @@
 #include "fail.h"
 #include "module.h"
 #include "signals.h"
+#include "primfloat.h"
 #include "thread.h"
+
 
 extern wsize_t stack_wsize_peak;
 extern wsize_t stack_wsize_total;
@@ -49,8 +51,9 @@ struct thread_state* thread_new( unsigned long stack_init_wsize, unsigned long t
   thread->exn_frame  = NULL;
   for( i = 0; i < Sig_count; i++) thread->save_signals[i] = 0;
 
+  thread->fp_round  = fp_round_near;
   thread->fp_sticky = 0;
-  thread->fp_traps  = 0; /* no fp exception is trapped by default */
+  thread->fp_traps  = fp_trap_mask_default(); /* all fp exceptions are trapped by default */
 
   /* insert into the threads list: this makes the module & stack visible to the GC */
   thread->next = threads;

@@ -18,6 +18,7 @@ module Standard( trace, warning, assert
                , searchPath, searchPathMaybe, getLvmPath
                , fst3, snd3, thd3
                , unsafeCoerce
+               , raiseIO, raiseErr
                ) where
 
 import IOExts  (unsafePerformIO)
@@ -32,6 +33,18 @@ import Special (doesFileExist,unsafeCoerce)
 fst3 (a,b,c)  = a
 snd3 (a,b,c)  = b
 thd3 (a,b,c)  = c
+
+
+----------------------------------------------------------------
+-- errors
+----------------------------------------------------------------
+raiseErr :: String -> a
+raiseErr msg
+  = error msg
+
+raiseIO :: String -> IO a
+raiseIO msg
+  = ioError (userError msg)
 
 ----------------------------------------------------------------
 -- debugging
@@ -90,9 +103,8 @@ instance (Force a,Force b) => Force (a,b) where
 ----------------------------------------------------------------
 searchPath :: [String] -> String -> String -> IO String
 searchPath path ext name = 
-    fmap
-        (maybe (fail ("could not find " ++ show nameext)) id)
-        (searchPathMaybe path ext name)
+    fmap (maybe (fail ("could not find " ++ show nameext)) id)
+         (searchPathMaybe path ext name)
   where
     nameext
       | isPrefixOf (reverse ext) (reverse name)  = name

@@ -16,6 +16,7 @@ module CoreLexer( Token, Lexeme(..), Pos
 
 import Char
 import Standard( foldlStrict )
+import Id      ( Id, idFromString )
 
 -----------------------------------------------------------
 -- Testing

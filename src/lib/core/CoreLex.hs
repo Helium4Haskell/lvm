@@ -9,25 +9,86 @@
 
 -- $Id$
 
-module CoreLex( topLevel, integerOrFloat, stringLiteral ) where
+module CoreLex( topLevel
+              , varid, conid, anyid
+              , reserved, special
+              , integerOrFloat, integer, stringLiteral 
+              ) where
 
-import Char ( digitToInt )
-import Parsec hiding (space,tab)
+import Char  ( digitToInt, isAlphaNum, isLower, isUpper )
+import Set   ( Set, fromList, member )
+import Id    ( Id, idFromString )
 
-type HParser a = Parser a
------------------------------------------------------------
--- 
------------------------------------------------------------   
+import Parsec hiding (space,tab,lower,upper,alphaNum)
 
------------------------------------------------------------
--- 
+
+----------------------------------------------------------
+-- Testing
 -----------------------------------------------------------   
+testOk fname
+  = testEx ("c:\\daan\\runtime\\test\\correct\\corelexer\\" ++ fname ++ ".cor")
+
+testErr fname
+  = testEx ("c:\\daan\\runtime\\test\\error\\corelexer\\" ++ fname ++ ".cor")
+
+testEx fname
+  = do{ result <- parseFromFile ptokens fname
+      ; case result of
+          Left err -> do{ putStr "parse error: "; print err }
+          Right xs -> putStr (unlines xs)
+      }
+
+ptokens :: Parser [String]
+ptokens
+  = topLevel (many token)
+  where
+    token =   do{ x <- integerOrFloat
+                ; case x of Left i  -> return (show i)
+                            Right f -> return (show f) 
+                }
+          <|> showit stringLiteral
+          <|> showit varid
+          <|> showit conid
+     
+    showit p  = do{ x <- p; return (show x) }
+          
+  
 -----------------------------------------------------------
--- 
+-- Reserved
 -----------------------------------------------------------   
------------------------------------------------------------
--- 
------------------------------------------------------------   
+special :: String -> Parser ()
+special name
+  = lexeme (skip (string name) <?> name)
+
+reserved :: String -> Parser ()
+reserved name 
+  = lexeme $ try (
+    do{ string name
+      ; notFollowedBy idchar <?> ("end of " ++ show name)
+      }  
+    <?> name) 
+
+isReserved :: String -> Bool
+isReserved name
+  = Set.member name reservedNames
+
+reservedNames :: Set String
+reservedNames
+  = Set.fromList $
+    [ "module", "where"
+    , "import", "abstract", "extern"
+    , "custom", "val", "con"
+    , "match", "with"
+    , "let", "rec", "in"
+    , "static", "dynamic", "runtime"
+    , "stdcall", "ccall", "instruction"
+    , "decorate"
+    , "private", "public", "nothing"
+    , "type", "data", "forall", "exist"
+    , "case", "of"
+    , "if", "then", "else"
+    ]
+
 
 -----------------------------------------------------------
 -- Numbers
@@ -66,7 +127,7 @@ fractFloat n    = do{ f <- fractExponent n
                     ; return (Right f)
                     }
                     
-fractExponent n = do{ fract <- try fraction -- AFIE (list comprehension [1..6])
+fractExponent n = do{ fract <- try fraction -- "try" due to ".." as in "[1..6]"
                     ; expo  <- option 1.0 exponent'
                     ; return ((fromInteger n + fract)*expo)
                     }
@@ -121,8 +182,73 @@ number base baseDigit
 
 -----------------------------------------------------------
 -- Identifiers
------------------------------------------------------------
+-----------------------------------------------------------   
+anyid :: Parser (Either Id Id)
+anyid
+  =   do{ x <- varid; return (Left x) }
+  <|> do{ x <- conid; return (Right x) }
 
+varid,conid :: Parser Id
+varid  
+  = lexeme (
+    do{ name <- lowerid <|> extid '$'
+      ; return (idFromString name)
+      } 
+    <?> "variable")
+
+conid  
+  = lexeme (
+    do{ name <- upperid <|> extid '@' 
+      ; return (idFromString name)
+      }
+    <?> "constructor")
+
+
+upperid :: Parser String
+upperid
+  = do{ c  <- upper
+      ; cs <- many idchar
+      ; return (c:cs)
+      }
+
+lowerid :: Parser String
+lowerid
+  = try $
+    do{ c  <- lower
+      ; cs <- many idchar
+      ; let name = c:cs
+      ; if (isReserved name)
+         then unexpected ("reserved word " ++ show name)
+         else return name
+      }
+
+idchar :: Parser Char
+idchar
+  = alphanum <|> oneOf "_'"
+
+
+-- extended identifiers
+extid :: Char -> Parser String
+extid start
+  = do{ char start
+      ; xs <- many extchar
+      ; return (foldr (maybe id (:)) "" xs)
+      }
+
+extchar :: Parser (Maybe Char)
+extchar
+  =   do{ c <- extletter; return (Just c) }
+  <|> extescape
+  <?> "identifier character"
+
+extletter
+  = satisfy (\c -> isGraphic c && not (elem c "\\."))
+
+extescape
+  = do{ char '\\'
+      ;     do{ escapeempty; return Nothing }
+        <|> do{ esc <- escape; return (Just esc) }
+      }
 
 -----------------------------------------------------------
 -- Strings
@@ -156,6 +282,7 @@ escapegap       = do{ whitespace
                                        
 escape          = charesc <|> charnum <?> "escape code"
 
+charnum :: Parser Char
 charnum         = do{ code <- decimal 
                               <|> do{ char 'o'; number 8 octDigit }
                               <|> do{ char 'x'; number 16 hexDigit }
@@ -166,7 +293,7 @@ charesc         = choice (map parseEsc escMap)
                 where
                   parseEsc (c,code) = do{ char c; return code }
                   escMap            = zip ("abfnrstv\\\"\'.") 
-                                          ("\a\b\f\n\r\t\v\\\"\'.")
+                                          ("\a\b\f\n\r \t\v\\\"\'.")
 
 
 -----------------------------------------------------------
@@ -191,7 +318,7 @@ topLevel p
 
 whitespace :: Parser ()
 whitespace 
-  = skipMany1 (white <|> linecomment <|> blockcomment <?> "")
+  = skipMany (skip white <|> linecomment <|> blockcomment <?> "")
                                                
 linecomment 
   = do{ try (string "--")
@@ -214,16 +341,19 @@ incomment
     <?> "end of comment"  
     where
       commentchar     = "-{}"
-      contentchar     = space <|> satisfy (\c -> isGraphic c && not (elem c commentchar))
+      contentchar     = white <|> satisfy (\c -> isGraphic c && not (elem c commentchar))
 
 
 -----------------------------------------------------------
 -- Character classes
 -----------------------------------------------------------   
-white   = skip (oneOf " \n\r\t")
-space   = char ' '
-tab     = char '\t'
-graphic = satisfy isGraphic
+white    = oneOf " \n\r\t"
+space    = char ' '
+tab      = char '\t'
+alphanum = satisfy isAlphaNum
+lower    = satisfy isLower
+upper    = satisfy isUpper
+graphic  = satisfy isGraphic
 
 isGraphic c
   =  (code >= 0x21   && code <= 0xD7FF) || (code >= 0xE000 && code <= 0xFFFD)

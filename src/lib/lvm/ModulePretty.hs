@@ -96,7 +96,9 @@ ppAttrsEx hideImp decl
           <> ppCustoms (declCustoms decl)
 
 ppAccess acc
-  = if (accessPublic acc) then text "public" else text "private"
+  = if (accessPublic acc) 
+     then text "public" 
+     else text "private"
 
 ppImportAttr  acc
   = case acc of

@@ -11,6 +11,8 @@
 #ifndef _primfloat_h
 #define _primfloat_h
 
+#include "fail.h" /* just for [exn_arithmetic] */
+
 float_t float_of_string( const char* s );
 
 /*----------------------------------------------------------------------
@@ -32,6 +34,7 @@ long fp_sticky_mask( enum exn_arithmetic ex );
 long fp_get_sticky( void );
 long fp_set_sticky( long sticky );
 
+long fp_trap_mask_default(void);
 long fp_trap_mask( enum exn_arithmetic ex );
 long fp_get_traps( void );
 long fp_set_traps( long traps );
@@ -40,7 +43,7 @@ long fp_set_traps( long traps );
    a signal handler and should always succeed */
 long fp_clear( void );
 void fp_reset( void );
-void fp_save( long* sticky, long* traps );
-void fp_restore( long sticky, long traps );
+void fp_save( long* sticky, long* traps, enum fp_round* round );
+void fp_restore( long sticky, long traps, enum fp_round round );
 
 #endif /* _primfloat_h */

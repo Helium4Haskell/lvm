@@ -12,8 +12,10 @@
 #ifndef _thread_
 #define _thread_
 
-struct thread_state;  /* forward declaration */
-#include "signals.h"  /* just for [Sig_count] */
+struct thread_state;    /* forward declaration */
+#include "primfloat.h"  /* just for [fp_round] */
+#include "signals.h"    /* just for [Sig_count] */
+
 
 /*----------------------------------------------------------------------
    Thread states
@@ -48,8 +50,9 @@ struct thread_state {
   struct  exception_frame* exn_frame;
 
   /* floating point state */
-  long    fp_sticky;
-  long    fp_traps;
+  long          fp_sticky;
+  long          fp_traps;
+  enum fp_round fp_round;
 };
 
 /*----------------------------------------------------------------------

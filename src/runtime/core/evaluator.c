@@ -29,9 +29,9 @@
 
 
 #ifdef DEBUG
-#define TRACE_TRACE
-#define TRACE_INSTR
-#define TRACE_STACK
+#undef TRACE_TRACE
+#undef TRACE_INSTR
+#undef TRACE_STACK
 #undef GC_AT_EACH_INSTR
 #endif
 
@@ -130,7 +130,7 @@
   machine actions
 ----------------------------------------------------------------------*/
 #define Return(r)         { Setup_for_gc; \
-                            fp_save(&thread->fp_sticky,&thread->fp_traps); \
+                            fp_save(&thread->fp_sticky,&thread->fp_traps,&thread->fp_round); \
                             thread->result = (r); \
                             Restore_exception_handler(exn_frame,thread); \
                             return; }
@@ -366,7 +366,7 @@ void evaluate( struct thread_state* thread )
 
   /* restore/initialize floating point state */
   fp_reset();
-  fp_restore(thread->fp_sticky,thread->fp_traps);
+  fp_restore(thread->fp_sticky,thread->fp_traps,thread->fp_round);
 
   /* start execution by entering the value on top of the stack */
   goto enter;

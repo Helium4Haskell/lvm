@@ -161,6 +161,16 @@ long  fp_trap_mask( enum exn_arithmetic ex )
     return fp_trap_masks[ex];
 }
 
+long fp_trap_mask_default(void)
+{
+  enum exn_arithmetic ex;
+  long mask;
+  for( mask=0,ex=0; ex<Fpe_inexact; ex++ ) {
+    mask |= fp_trap_mask(ex);
+  }
+  return mask;
+}
+
 long fp_round_mask( enum fp_round rnd )
 {
   if (rnd < 0 || rnd >= fp_round_count) {
@@ -399,15 +409,15 @@ long fp_get_sticky( void )
 
 long fp_set_sticky( long sticky )
 {
-  volatile fp_reg sw;
-  volatile fp_reg env[_FP_ENV_SIZE];
-  asm_fstenv(env);
-  sw                  = env[_FP_STATUS_REG];
-  env[_FP_STATUS_REG] = (env[1] & ~_FP_STICKY_MASK) | (sticky & _FP_STICKY_MASK);
-  if (sw != env[_FP_STATUS_REG]) { asm_fldenv(env); }
-  return (sw & _FP_STICKY_MASK);
+  long sw = fp_get_sticky();
+  if (sticky!=sw) {
+    volatile fp_reg env[_FP_ENV_SIZE];
+    asm_fstenv(env);
+    env[_FP_STATUS_REG] = (env[_FP_STATUS_REG] & ~_FP_STICKY_MASK) | (sticky & _FP_STICKY_MASK);
+    asm_fldenv(env);      
+  }
+  return sw;
 }
-
 
 static fp_reg fp_control( fp_reg control, fp_reg mask, fp_reg resmask )
 {
@@ -459,24 +469,26 @@ void fp_reset(void)
 }
 
 
-void fp_save( long* sticky, long* traps )
+void fp_save( long* sticky, long* traps, enum fp_round* round )
 {
   Assert(sticky && traps);
   *traps  = fp_get_traps();
   *sticky = fp_get_sticky();
+  *round  = fp_get_round();
 }
 
-void fp_restore( long sticky, long traps )
+void fp_restore( long sticky, long traps, enum fp_round round )
 {
   fp_set_traps(traps);
   fp_set_sticky(sticky);
+  fp_set_round(round);
 }
 
 
 /*----------------------------------------------------------------------
 -- IEEE floating point on standard unix's
 ----------------------------------------------------------------------*/
-#elif defined(HAS_IEEEFP_H)
+#elif defined(HAS_IEEEFP_H) && !defined(OS_CYGWIN)
 
 #ifndef FP_X_DNML
 #define FP_X_DNML 0
@@ -543,17 +555,19 @@ enum fp_round fp_set_round( enum fp_round rnd )
 }
 
 
-void fp_save( long* sticky, long* traps )
+void fp_save( long* sticky, long* traps, enum fp_round* round )
 {
   Assert(sticky && traps);
   *traps  = fp_get_traps();
   *sticky = fp_get_sticky();
+  *round  = fp_get_round();
 }
 
-void fp_restore( long sticky, long traps )
+void fp_restore( long sticky, long traps, enum fp_round round )
 {
   fp_set_traps(traps);
   fp_set_sticky(sticky);
+  fp_set_round(round);
 }
 
 
@@ -623,15 +637,17 @@ long fp_set_sticky( long sticky )
 }
 
 
-void fp_save( long* sticky, long* traps )
+void fp_save( long* sticky, long* traps, enum fp_round* round )
 {
   Assert(sticky && traps);
   *traps = fp_get_traps();
+  *round = fp_get_round();
 }
 
-void fp_restore( long sticky, long traps )
+void fp_restore( long sticky, long traps, enum fp_round round )
 {
   fp_set_traps(traps);
+  fp_set_round(round);
 }
 
 
@@ -700,15 +716,15 @@ enum fp_round fp_set_round( enum fp_round rnd )
 }
 
 
-void fp_save( long* sticky, long* traps )
+void fp_save( long* sticky, long* traps, enum fp_round* round )
 {
-  Assert(sticky && traps);
-  /* nothing to do */
+  Assert(sticky && traps && round);
+  *round = fp_get_round();
 }
 
-void fp_restore( long sticky, long traps )
+void fp_restore( long sticky, long traps, enum fp_round round )
 {
-  /* nothing to do */
+  fp_set_round(round);
 }
 
 #endif
