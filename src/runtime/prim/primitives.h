@@ -29,6 +29,7 @@
   PRIM(fp_floor,"FF") \
   PRIM(fp_round,"FF") \
   PRIM(fp_trunc,"FF") \
+  PRIM(fp_nearest,"FF")  \
   \
   PRIM(fp_round_int,"IF") \
   PRIM(fp_trunc_int,"IF") \
