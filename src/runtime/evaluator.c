@@ -508,7 +508,7 @@ enterloop:
           Push_n(n);
           while( n > 0 ) { n--; sp[n] = Field(accu,n); }
           accu = sp[0];
-          Safe_check_();
+          Safe_check_(); /* a program might loop locally on an Ap, ie. "let x = x in x" */
           goto enterloop;
         }
 
@@ -520,7 +520,7 @@ enterloop:
           Push_n(n-1);  /* overwrite sp[0] */
           while( n > 0) { n--; sp[n] = Field(accu,n); }
           accu = sp[0];
-          Safe_check_(); /* a program might loop locally on a Nap, ie. "let x = x in x" */
+          Safe_check_(); /* a program might loop locally on a Nap, ie. "let x = x in x". Is this True ?? */
           goto enterloop;
         }
 

@@ -207,7 +207,7 @@ const char* find_type_of_code( value module, value valpc )
   nat ofs;
 
   find_decl_of_code( module, valpc, &mod, &decl, &ofs );
-  if (Field(decl,Field_type) != 0) {
+  if (Field(decl,Field_type) != Val_long(0)) {
     strncpy(name,Type_field(decl,Field_type),MAXSTR);
   } else {
     name[0] = '\0';

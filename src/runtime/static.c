@@ -36,7 +36,7 @@ struct prim_info {
 };
 
 static struct prim_info primitives[] = {
-  { "getTickCount", "Lv"   , get_msec_count },
+  { "getTickCount", "l"   , get_msec_count },
 
   PRIM(prim_flag_mask,"ll")
   PRIM(prim_open,"lzl")
