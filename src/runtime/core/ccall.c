@@ -32,6 +32,15 @@ typedef long (CCALL   *fun_c3)(long,long,long);
 typedef long (CCALL   *fun_c4)(long,long,long,long);
 
 typedef double (CCALL *fun_c_dI)(long);
+typedef double (CCALL *fun_c_dd)(double);
+
+typedef double (CCALL *fun_c_dII)(long,long);
+typedef double (CCALL *fun_c_ddI)(double,long);
+typedef double (CCALL *fun_c_ddd)(double,double);
+
+typedef long  (CCALL  *fun_c_Id)(double);
+typedef long  (CCALL  *fun_c_IdI)(double,long);
+typedef long  (CCALL  *fun_c_IdII)(double,long,long);
 
 #ifdef STDCALL
 typedef long (STDCALL *fun_std0)(void);
@@ -45,8 +54,14 @@ typedef long (STDCALL *fun_std4)(long,long,long,long);
   Generic call_extern function
 ----------------------------------------------------------------------*/
 static long long_val( char type, value v, const char* name );
+static double double_val( char type, value v, const char* name );
 static value val_long( char type, long l, const char* name );
 static value val_double( char type, double d, const char* name );
+
+static bool is_float_type( char type )
+{
+  return (type=='d' || type=='F');
+}
 
 value call_extern( value* sp, long arg_count, void* fun
                  , enum call_conv cconv
@@ -55,7 +70,8 @@ value call_extern( value* sp, long arg_count, void* fun
   CAMLparam2(vtype,vname);
   const char* type;
   const char* name;
-  long args[MAX_ARG];
+  long    args[MAX_ARG];
+  float_t float_args[MAX_ARG];
   long i;
 
   Assert( Is_heap_val(vtype) && Tag_val(vtype) == String_tag );
@@ -89,8 +105,8 @@ value call_extern( value* sp, long arg_count, void* fun
 #if (SIZEOF_LONG == 8)
   case '8':
 #endif
-  case 'F':
   case 'd':
+  case 'F':
             break;
   default:  raise_internal( "extern call \"%s\": unsupported return type (%c)", name, type[0] );
   }
@@ -103,6 +119,8 @@ value call_extern( value* sp, long arg_count, void* fun
     arg_count = 0;
   }
   else {
+    int args_idx, float_idx;
+
     /* first do a collection if needed */
     for (i = 0; i < arg_count; i++) {
       if (type[i+1] == 'z' && Is_young(sp[i])) {
@@ -112,19 +130,39 @@ value call_extern( value* sp, long arg_count, void* fun
         break;
       }
     }
+
     /* convert arguments */
+    float_idx = args_idx = 0;
     for (i = 0; i < arg_count; i++) {
-      args[i] = long_val(type[i+1],sp[i],name);
+      if (is_float_type(type[i+1])) {
+        float_args[float_idx] = double_val(type[i+1],sp[i],name);
+        float_idx++;
+      }
+      else {
+        args[args_idx] = long_val(type[i+1],sp[i],name);
+        args_idx++;
+      }
     }
   }
 
-  if (type[0] == 'd' || type[0] == 'F')
+  if (is_float_type(type[0]))
   {
     double result;
     /* generic C call with double result */
     if (cconv == Call_c) {
       switch (arg_count) {
-      case 1:   result = ((fun_c_dI)fun)(args[0]); break;
+      case 1:  if (is_float_type(type[1])) 
+                 result = ((fun_c_dd)fun)(float_args[0]); 
+               else
+                 result = ((fun_c_dI)fun)(args[0]); 
+               break;
+      case 2:  if (is_float_type(type[1]) && is_float_type(type[2]))
+                 result = ((fun_c_ddd)fun)(float_args[0],float_args[1]); 
+               else if (is_float_type(type[1]))
+                 result = ((fun_c_ddI)fun)(float_args[0],args[0]); 
+               else
+                 result = ((fun_c_dII)fun)(args[0],args[1]);                
+               break;
       default:  raise_internal( "extern call \"%s\": sorry, this argument count is unsupported (%i)", name, arg_count );
       }
     }
@@ -134,6 +172,25 @@ value call_extern( value* sp, long arg_count, void* fun
 
     /* marshall the result */
     CAMLreturn(val_double( type[0], result, name ));
+  }
+  else if (arg_count>0 && is_float_type(type[1]))
+  {
+    long result;
+    /* generic C call with double as first argument */
+    if (cconv == Call_c) {
+      switch (arg_count) {
+      case 1:  result = ((fun_c_Id)fun)(float_args[0]); break;
+      case 2:  result = ((fun_c_IdI)fun)(float_args[0],args[0]); break;
+      case 3:  result = ((fun_c_IdII)fun)(float_args[0],args[0],args[1]); break;
+      default:  raise_internal( "extern call \"%s\": sorry, this argument count is unsupported (%i)", name, arg_count );
+      }
+    }
+    else {
+      raise_internal( "extern call: unsupported calling convention (with these types) (%i)", cconv );
+    }
+
+    /* marshall the result */
+    CAMLreturn(val_long( type[0], result, name ));
   }
   else
   {
@@ -200,9 +257,7 @@ static long long_val( char type, value v, const char* name )
   case '8': break;
 #endif
 
-
-
-  default:  raise_internal( "extern call \"%s\": unsupported argument type (%c)", name, type );
+  default:  raise_internal( "extern call \"%s\": invalid argument type (%c)", name, type );
   }
 
   /* convert a value to a long */
@@ -218,6 +273,24 @@ static long long_val( char type, value v, const char* name )
     /* or should we just return it 'as is' ? */
     raise_internal( "extern call \"%s\": invalid argument value", name );
     return 0;
+  }
+}
+
+static float_t double_val( char type, value v, const char* name )
+{
+  /* first check the type */
+  switch (type) {
+  case 'd':
+  case 'F': break;
+  default:  raise_internal( "extern call \"%s\": invalid float argument type (%c)", name, type );
+  }
+
+  /* convert a value to a double */
+  if (Is_double(v)) {
+    return Double_val(v);
+  } else {
+    raise_internal( "extern call \"%s\": invalid argument value", name );
+    return 0.0;
   }
 }
 

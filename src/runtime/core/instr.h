@@ -18,7 +18,7 @@
   Ins( PUSHCONT, 1 ),   \
   Ins( PUSHVAR, 1 ),    \
   Ins( PUSHINT, 1 ),    \
-  Ins( PUSHDOUBLE, 2 ), \
+  Ins( PUSHFLOAT, 2 ), \
   Ins( PUSHBYTES, 1 ),  \
   Ins( SLIDE, 2 ),      \
   Ins( STUB, 1 ),       \
@@ -109,8 +109,10 @@
   Ins( MATCHCON, 2 ),   \
   Ins( SWITCHCON, 2 ),  \
   Ins( MATCHINT, 2 ),   \
+  Ins( MATCHFLOAT, 2 ), \
   Ins( MATCH, 2 ),      \
   \
+  Ins( RETURNFLOAT, 2 ), \
   Ins( ADDFLOAT, 0 ),  \
   Ins( SUBFLOAT, 0 ),  \
   Ins( MULFLOAT, 0 ),  \

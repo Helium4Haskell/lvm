@@ -699,6 +699,8 @@ raise_exception:
 /*----------------------------------------------------------------------
   RETURN: enter an int or constructor
 ----------------------------------------------------------------------*/
+    todoInstr(RETURNFLOAT)
+    
     Instr(RETURNCON0): {
       Push(Atom(pc[0]));
       goto return_enter;
@@ -998,6 +1000,7 @@ returncon:
       Next;
     }
 
+    todoInstr(MATCHFLOAT)    
 
     Instr(MATCH): {
       wsize_t    i;
@@ -1097,7 +1100,7 @@ returncon:
       Next;
     }
 
-    todoInstr(PUSHDOUBLE)
+    todoInstr(PUSHFLOAT)
 
     Instr(PUSHBYTES): {
       value decl = *(Valptr_fixup(*pc++));

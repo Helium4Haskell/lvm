@@ -282,6 +282,8 @@ double Double_val (value);
 void Store_double_val (value,double);
 #endif
 
+#define Is_double(v)  (Is_block(v) && Tag_val(v)==Double_tag)
+
 /* Arrays of floating-point numbers. */
 #define Double_array_tag 254
 #define Double_field(v,i) Double_val((value)((double *)(v) + (i)))

@@ -15,6 +15,21 @@
 #define PRIMS \
   /* floating point control */ \
   PRIM(float_of_string,"Fz") \
+  PRIM(float_of_int,"FI") \
+  PRIM(string_of_float,"aFic") \
+  \
+  PRIM(fp_pow,  "FFF") \
+  PRIM(fp_sqrt, "FF") \
+  PRIM(fp_exp,  "FF") \
+  PRIM(fp_log,  "FF") \
+  PRIM(fp_sin,  "FF") \
+  PRIM(fp_cos,  "FF") \
+  PRIM(fp_tan,  "FF") \
+  PRIM(fp_ceil, "FF") \
+  PRIM(fp_floor,"FF") \
+  PRIM(fp_round,"IF") \
+  PRIM(fp_trunc,"IF") \
+  \
   PRIM(fp_reset       ,"v" ) \
   PRIM(fp_sticky_mask ,"li") \
   PRIM(fp_set_sticky  ,"ll") \

@@ -23,7 +23,7 @@ import Lvm
   Magic numbers
 --------------------------------------------------------------}
 lvmMajorVersion,lvmMinorVersion :: Int
-lvmMajorVersion  = 14
+lvmMajorVersion  = 15
 lvmMinorVersion  = 0
 
 {--------------------------------------------------------------

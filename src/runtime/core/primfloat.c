@@ -14,7 +14,9 @@
 #include "fail.h"
 
 #include "heap/heapfast.h"
+#include "alloc.h"
 #include "primfloat.h"
+#include "math.h"
 
 #ifdef HAS_FLOAT_H
 #ifdef __MINGW32__
@@ -68,9 +70,90 @@ value copy_double(double d)
   return res;
 }
 
+float_t float_of_int( long i )
+{
+  return (float_t)i;
+}
+
 float_t float_of_string( const char* s )
 {
   return atof(s);
+}
+
+value string_of_float( float_t f, int prec, char type )
+{
+  char buffer[144];
+  if (prec>128) prec = 128;
+
+  switch (type) {
+   case 'e': snprintf( buffer, 144, "%.*e", prec, f ); break;
+   case 'E': snprintf( buffer, 144, "%.*E", prec, f ); break;
+   case 'f': snprintf( buffer, 144, "%.*f", prec, f ); break;
+   case 'F': snprintf( buffer, 144, "%.*F", prec, f ); break;
+   case 'g': snprintf( buffer, 144, "%.*g", prec, f ); break;
+   case 'G': 
+   default : snprintf( buffer, 144, "%.*G", prec, f ); break;
+  }
+
+  return copy_string(buffer);
+}
+
+
+double fp_pow( double x, double y )
+{
+  return pow(x,y);
+}
+
+double fp_sqrt( double x )
+{
+  return sqrt(x);
+}
+
+double fp_exp( double x )
+{
+  return exp(x);
+}
+
+double fp_log( double x )
+{
+  return log(x);
+}
+
+double fp_sin( double x )
+{
+  return sin(x);
+}
+
+double fp_cos( double x )
+{
+  return cos(x);
+}
+
+double fp_tan( double x )
+{
+  return tan(x);
+}
+
+long fp_round( double x )
+{
+  return (long)(x);
+}
+
+long fp_trunc( double x )
+{
+  double i;
+  modf(x,&i);
+  return (long)(i);
+}
+
+double fp_ceil( double x )
+{
+  return ceil(x);
+}
+
+double fp_floor( double x )
+{
+  return floor(x);
 }
 
 

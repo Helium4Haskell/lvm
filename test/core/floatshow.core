@@ -1,0 +1,11 @@
+module Float where
+
+extern float           "float_of_string" :: "Fz"
+extern stringFromFloat "string_of_float" :: "aFII"
+extern sqrt            "fp_sqrt" :: "FF"
+instruction fpmul      "mulfloat" :: Float! -> Float! -> Float!
+
+main = let! x = float "3.1425"
+            y = fpmul x x
+            z = sqrt y
+       in stringFromFloat z 3 0

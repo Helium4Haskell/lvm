@@ -41,7 +41,7 @@
 # define Trace_i_str(msg,i,str)
 #endif
 
-#define VERSION_MAJOR 14
+#define VERSION_MAJOR 15
 #define VERSION_MINOR 1
 
 /*----------------------------------------------------------------------
