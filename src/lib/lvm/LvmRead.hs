@@ -31,7 +31,7 @@ import ModulePretty( modulePretty )
   Magic numbers
 --------------------------------------------------------------}
 lvmMajor, lvmMinor :: Int
-lvmMajor  = 13
+lvmMajor  = 14
 lvmMinor  = 0
 
 

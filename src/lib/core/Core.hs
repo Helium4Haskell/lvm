@@ -12,7 +12,7 @@
 module Core ( module Module
             , CoreModule, CoreDecl
             , Expr(..), Note(..), Binds(..), Bind(..)
-            , Alts, Alt(..), Pat(..), Literal(..)
+            , Alts, Alt(..), Pat(..), Literal(..), Con(..)
 
             , listFromBinds, unzipBinds, binders, mapBinds
             , mapAccumBinds, zipBindsWith
@@ -43,7 +43,7 @@ data Expr       = Let       !Binds Expr
                 | Match     !Id Alts
                 | Ap        Expr Expr
                 | Lam       !Id Expr
-                | Con       !Id
+                | Con       !(Con Expr)
                 | Var       !Id
                 | Lit       !Literal 
                 | Note      !Note !Expr
@@ -59,13 +59,17 @@ data Bind       = Bind      !Id Expr
 type Alts       = [Alt]
 data Alt        = Alt       !Pat Expr
 
-data Pat        = PatCon    !Id ![Id]
+data Pat        = PatCon    !(Con Tag) ![Id]
                 | PatLit    !Literal
                 | PatDefault
 
 data Literal    = LitInt    !Int
                 | LitDouble !Double
                 | LitBytes  !Bytes
+
+data Con tag    = ConId  !Id
+                | ConTag tag !Arity
+
 
 ----------------------------------------------------------------
 -- Binders functions

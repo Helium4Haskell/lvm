@@ -34,7 +34,7 @@ data Expr   = Eval   !Id Expr Expr
             | LetRec ![(Id,Atom)] Expr
             | Let    !Id Atom Expr
             | Ap     !Id ![Atom]
-            | Con    !Id ![Atom]
+            | Con    !(Con Atom) ![Atom]
             | Lit    !Lit
             | Note   !Note !Expr
 
@@ -48,5 +48,8 @@ data Lit    = LitInt   !Int
 data Alt    = Alt !Pat Expr
 
 data Pat    = PatVar !Id
-            | PatCon !Id ![Id]
+            | PatCon !(Con Int) ![Id]
             | PatLit !Lit
+
+data Con tag = ConId !Id
+             | ConTag tag !Arity

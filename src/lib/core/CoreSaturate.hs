@@ -80,7 +80,7 @@ satBinds env binds
 satAlts env alts
   = zipAltsWith (\env pat expr -> Alt pat (satExpr env expr)) (splitEnvs env) alts
 
--- don't saturate Ap, Var and Con
+-- don't saturate Ap, Var and Con here
 satExprSimple env expr
   = case expr of
       Let _ _     -> satExpr env expr
@@ -100,11 +100,12 @@ addLam env n expr
 
 requiredArgs env expr
   = case expr of
-      Let binds expr    -> 0
-      Match id alts     -> 0
-      Lam id expr       -> 0
-      Ap expr1 expr2    -> requiredArgs env expr1 - 1
-      Var id            -> findArity id env
-      Con id            -> findArity id env
-      Note n expr       -> requiredArgs env expr
-      other             -> 0
+      Let binds expr        -> 0
+      Match id alts         -> 0
+      Lam id expr           -> 0
+      Ap expr1 expr2        -> requiredArgs env expr1 - 1
+      Var id                -> findArity id env
+      Con (ConId id)        -> findArity id env
+      Con (ConTag e arity)  -> arity
+      Note n expr           -> requiredArgs env expr
+      other                 -> 0

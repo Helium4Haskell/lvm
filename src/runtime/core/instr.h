@@ -72,7 +72,7 @@
   Ins( SETFIELD, 0 ),   \
   Ins( GETTAG, 0 ),     \
   Ins( GETSIZE, 0 ),    \
-  Ins( PACK, 1 ),       \
+  Ins( PACK, 2 ),       \
   Ins( UNPACK, 1 ),     \
   \
   Ins( PUSHVAR0, 0 ),   \
@@ -109,6 +109,7 @@
   Ins( MATCHCON, 2 ),   \
   Ins( SWITCHCON, 2 ),  \
   Ins( MATCHINT, 2 ),   \
+  Ins( MATCH, 2 ),      \
   \
   Ins( ADDFLOAT, 0 ),  \
   Ins( SUBFLOAT, 0 ),  \

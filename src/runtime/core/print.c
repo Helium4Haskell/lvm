@@ -133,6 +133,7 @@ void print_instr( value module, value* sp, opcode_t* code )
   case PUSHCODE:  print( " -- %s", find_name_of_code( module, Val_fixup(code[1]) ) ); break;
   case ENTERCODE: print( " -- %s", find_name_of_code( module, Val_fixup(code[1]) ) ); break;
   case PUSHCONT:  print( " -- %s", find_name_of_code( module, Val_code(code + code[1]) ) );     break;
+
   case PUSHVAR:   print( " -- " ); print_value( module, sp[code[1]] ); break;
   case PUSHVAR0:  print( " -- " ); print_value( module, sp[0] ); break;
   case PUSHVAR1:  print( " -- " ); print_value( module, sp[1] ); break;
@@ -143,7 +144,9 @@ void print_instr( value module, value* sp, opcode_t* code )
 
   case TESTINT:   print( " -- " ); print_value( module, Val_long(code[1]) ); break;
   case EVALVAR:   print( " -- " ); print_value( module, sp[code[1]] ); break;
-
+  case PACK:      print( " -- %i", code[1] ); print_value( module, sp[code[2]] ); break;
+  
+  case MATCH:
   case SWITCHCON:
   case MATCHCON:
   case MATCHINT:  print( " -- " ); print_value( module, sp[0] ); break;

@@ -523,34 +523,44 @@ pexprAp
 
 patom
   =   do{ id <- varid; return (Var id)  }
-  <|> do{ id <- conid; return (Con id)  }
+  <|> do{ id <- conid; return (Con (ConId id))  }
   <|> do{ lit <- pliteral; return (Lit lit) }
   <|> parenExpr
   <?> "atomic expression"
 
+
 parenExpr
   = do{ lexeme LexLPAREN
-      ; do{ lexeme LexRPAREN
-          ; id <- identifier (return "()")
-          ; return (Con id)
-          }
-      <|>
-        do{ id <- opid
-          ; lexeme LexRPAREN
-          ; return (Var id)
-          }
-      <|>
-        do{ id <- conopid
-          ; lexeme LexRPAREN
-          ; return (Con id)
-          }
-      <|>
-        do{ expr <- pexpr
-          ; lexeme LexRPAREN
-          ; return expr
-          }
+      ; expr <-   do{ id <- opid
+                    ; return (Var id)
+                    }
+                <|>
+                  do{ id <- conopid
+                    ; return (Con (ConId id))
+                    }
+                <|> 
+                  do{ lexeme LexAT
+                    ; tag   <- ptagExpr 
+                    ; lexeme LexCOMMA
+                    ; arity <- lexInt <?> "arity"
+                    ; return (Con (ConTag tag (fromInteger arity)))
+                    }
+                <|>
+                  do{ exprs <- pexpr `sepBy` (lexeme LexCOMMA)
+                    ; case exprs of
+                        [expr]  -> return expr
+                        other   -> let con = Con (ConTag (Lit (LitInt 0)) (length exprs))
+                                       tup = foldl Ap con exprs
+                                   in return tup
+                    }
+      ; lexeme LexRPAREN
+      ; return expr
       }
 
+ptagExpr
+  =   do{ i <- lexInt; return (Lit (LitInt (fromInteger i))) }
+  <|> do{ id <- variable; return (Var id) }
+  <?> "tag (integer or variable)"
 
 pliteral
   =   pnumber id id
@@ -583,7 +593,7 @@ paltSemis
       ; return (id,[alt])
       }
   <|>
-    do{ alt <- paltTagCon <|> paltLit
+    do{ alt <- palt
       ;   do{ lexeme LexSEMI
             ;     do{ (id,alts) <- paltSemis
                     ; return (id,alt:alts)
@@ -599,21 +609,51 @@ paltSemis
             }
       }
 
-
-paltTagCon
-  = do{ id   <- constructor
-      ; args <- many bindid
+palt  
+  = do{ pat <- ppat
       ; lexeme LexRARROW
       ; expr <- pexpr
-      ; return (Alt (PatCon id args) expr)
+      ; return (Alt pat expr)
       }
 
+ppat  
+  = ppatCon <|> ppatLit <|> ppatParens
 
-paltLit
-  = do{ lit <- pliteral
-      ; lexeme LexRARROW
-      ; expr <- pexpr
-      ; return (Alt (PatLit lit) expr)
+ppatParens
+  = do{ lexeme LexLPAREN
+      ; do{ lexeme LexAT
+          ; tag <- lexInt <?> "tag"        
+          ; lexeme LexCOMMA
+          ; arity <- lexInt <?> "arity"
+          ; lexeme LexRPAREN
+          ; ids <- many bindid
+          ; return (PatCon (ConTag (fromInteger tag) (fromInteger arity)) ids)
+          }
+        <|>
+        do{ pat <- ppat <|> ppatTuple <|> ppatConOp 
+          ; lexeme LexRPAREN
+          ; return pat
+          }
+      }
+
+ppatCon
+  = do{ id   <- conid
+      ; args <- many bindid
+      ; return (PatCon (ConId id) args)
+      }
+
+ppatConOp
+  = do{ id <- conopid
+      ; args <- many bindid
+      ; return (PatCon (ConId id) args)
+      }
+
+ppatLit
+  = do{ lit <- pliteral; return (PatLit lit) }
+
+ppatTuple
+  = do{ ids <- bindid `sepBy` (lexeme LexCOMMA)
+      ; return (PatCon (ConTag 0 (length ids)) ids)
       }
 
 paltDefault

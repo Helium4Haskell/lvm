@@ -37,7 +37,7 @@ ppExpr  p expr
       Lam id x    -> prec 0 $ text "\\" <> ppId  id <+> ppLams "->" (</>)  x
       Ap e1 e2    -> prec 9 $ ppExpr  9 e1 <+> ppExpr  10 e2
       Var id      -> ppId  id
-      Con tag     -> ppId  tag
+      Con con     -> ppCon (ppExpr 0) con
       Lit lit     -> ppLit lit
       Note (FreeVar fv) e
                 -> align (semiBraces (map (ppId ) (listFromSet fv))
@@ -47,6 +47,11 @@ ppExpr  p expr
   where
     prec p'  | p' >= p   = id
              | otherwise = parens
+
+ppCon ppTag con
+  = case con of
+     ConId id         -> ppId id
+     ConTag tag arity -> text "(@" <> ppTag tag <> char ',' <> pretty arity <> text ")"
 
 ----------------------------------------------------------------
 --
@@ -81,7 +86,7 @@ ppAlt  (Alt pat expr)
 ----------------------------------------------------------------
 ppPat  pat
   = case pat of
-      PatCon id ids -> hsep (ppId  id  : map (ppId ) ids)
+      PatCon con ids -> hsep (ppCon pretty con : map (ppId ) ids)
       PatLit lit  -> ppLit lit
       PatDefault  -> text "_"
 

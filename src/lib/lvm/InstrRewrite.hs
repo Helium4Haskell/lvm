@@ -91,6 +91,9 @@ rewrites instrs
         | n1 <= n0  -> rewrites (SLIDE n1 (m0+m1-(n0-n1)) d0 : is)
 
       -- essential rewrites
+      MATCH alts : is
+        -> [rewriteMatch MATCH alts is]
+
       MATCHCON alts : is
         -> [rewriteMatch MATCHCON alts is]
 
@@ -155,6 +158,7 @@ simplify single instrs
       = case instrs of
           -- structured
           EVAL d is' : is           -> EVAL d (walk is') : walk is
+          MATCH alts : is           -> MATCH (map walkAlt alts)  : walk is
           MATCHCON alts : is        -> MATCHCON (map walkAlt alts)  : walk is
           SWITCHCON alts : is       -> SWITCHCON (map walkAlt alts)  : walk is
           MATCHINT alts : is        -> MATCHINT (map walkAlt alts)  : walk is

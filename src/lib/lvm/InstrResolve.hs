@@ -167,6 +167,9 @@ resolve (ATOM is)
 resolve (INIT is)
   = resolveSlide 0 is
 
+resolve (MATCH alts)
+  = resolveAlts MATCH alts
+
 resolve (MATCHCON alts)
   = resolveAlts MATCHCON alts
 
@@ -230,7 +233,7 @@ effect instr
       NEWCON con       -> do{ pop (arityFromCon con); push 1 }
 
       NEW arity        -> do{ pop 1; pop arity; push 1 }
-      PACK arity       -> do{ pop 1; pop arity; push 1 }
+      PACK arity var   -> do{ pop arity }
       UNPACK arity     -> do{ pop 1; push arity }
 
       ALLOC            -> do{ pop 2; push 1 }

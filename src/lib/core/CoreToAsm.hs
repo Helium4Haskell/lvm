@@ -11,7 +11,7 @@
 
 module CoreToAsm( coreToAsm ) where
 
-import Standard( unsafeCoerce )
+import Standard( assert, unsafeCoerce )
 import Id      ( Id, idFromString, NameSupply, splitNameSupplies )
 import IdMap   ( IdMap, listFromMap, mapFromList )
 import IdSet   ( IdSet, elemSet )
@@ -106,9 +106,15 @@ asmAlt prim (Alt pat expr)
 
 asmPat pat
   = case pat of
-      PatCon id params  -> Asm.PatCon id params
+      PatCon con params -> Asm.PatCon (asmPatCon con) params
       PatLit lit        -> Asm.PatLit (asmLit lit)
       PatDefault        -> Asm.PatVar (idFromString  ".def")
+
+asmPatCon con
+  = case con of
+      ConId id         -> Asm.ConId id
+      ConTag tag arity -> Asm.ConTag tag arity
+
 
 asmLet prim binds (lifted,asmexpr)
   = case binds of
@@ -137,11 +143,22 @@ asmAtom atom args
       Note n e  -> asmAtom e args
       Ap e1 e2  -> asmAtom e1 (asmAtom e2 []:args)
       Var id    -> Asm.Ap id args
-      Con id    -> Asm.Con id args
+      Con con   -> Asm.Con (asmCon con) args
       Lit lit   | null args -> Asm.Lit (asmLit lit)
       Let binds expr
                 -> asmAtomBinds binds (asmAtom expr args)
       other     -> error "CoreToAsm.asmAtom: non atomic expression (do 'coreNormalise' first?)"
+
+asmCon con 
+  = case con of
+      ConId id          -> Asm.ConId id 
+      ConTag tag arity  -> assert (simpleTag tag) "CoreToAsm.asmCon: tag expression too complex (should be integer or (strict) variable" $
+                           Asm.ConTag (asmAtom tag []) arity
+  where
+    simpleTag (Lit (LitInt i))  = True
+    simpleTag (Var id)          = True
+    simpleTag (Note n e)        = simpleTag e
+    simpleTag other             = False
 
 asmAtomBinds binds atom
   = case binds of
@@ -164,7 +181,8 @@ isAtomic prim expr
       Note n e  -> isAtomic prim e
       Ap e1 e2  -> isAtomic prim e1 && isAtomic prim e2
       Var id    -> not (elemSet id prim)
-      Con id    -> True
+      Con (ConId id)   -> True
+      Con (ConTag t a) -> isAtomic prim t
       Lit lit   -> True
       Let binds expr
                 -> isAtomicBinds prim binds && isAtomic prim expr

@@ -80,7 +80,7 @@ normBind env expr
       Match id alts     -> Match id (normAlts env alts)
       Lam id expr       -> Lam id (normBind env expr)
       Note n expr       -> normBind env expr  -- de-annotate
-      Ap expr1 expr2    -> normAp env expr
+      Ap expr1 expr2    -> normAtomExpr env expr
       other             -> expr
 
 normBinds env binds
@@ -89,7 +89,7 @@ normBinds env binds
 normAlts env alts
   = zipAltsWith (\env pat expr -> Alt pat (normExpr env expr)) (splitEnvs env) alts
 
-normAp env expr
+normAtomExpr env expr
   = let (atom,f) = normAtom env expr
     in  (f atom)
 

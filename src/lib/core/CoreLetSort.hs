@@ -44,6 +44,8 @@ lsExpr expr
         -> Lam id (lsExpr expr)
       Ap expr1 expr2
         -> Ap (lsExpr expr1) (lsExpr expr2)
+      Con (ConTag tag arity)
+        -> Con (ConTag (lsExpr tag) arity)
       Note n expr
         -> Note n (lsExpr expr)
       other
@@ -51,7 +53,6 @@ lsExpr expr
 
 lsAlts alts
   = mapAlts (\pat expr -> Alt pat (lsExpr expr)) alts
-
 
 ----------------------------------------------------------------
 -- topological sort let bindings

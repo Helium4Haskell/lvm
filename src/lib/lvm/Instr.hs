@@ -61,6 +61,7 @@ idFromVar       (Var id offset depth)  = id
 ----------------------------------------------------------------
 data Pat      = PatCon !Con
               | PatInt !Int
+              | PatTag !Tag !Arity
               | PatDefault
               deriving Show
 
@@ -82,6 +83,7 @@ data Instr    =
               | EVAL        !Depth ![Instr]        -- for generating PUSHCONT
               | RESULT      ![Instr]               -- for generating SLIDE
 
+              | MATCH       ![Alt]
               | MATCHCON    ![Alt]
               | SWITCHCON   ![Alt]
               | MATCHINT    ![Alt]
@@ -126,7 +128,7 @@ data Instr    =
 
               | ALLOC
               | NEW         !Arity
-              | PACK        !Arity
+              | PACK        !Arity  !Var
               | UNPACK      !Arity
               | GETFIELD
               | SETFIELD
@@ -273,6 +275,9 @@ instrFromName name
 ---------------------------------------------------------------}
 instrHasStrictResult instr
   = case instr of
+      NEW n   -> True
+      ALLOC   -> True
+
       ADDINT  -> True
       SUBINT  -> True
       MULINT  -> True
@@ -339,7 +344,7 @@ instrTable =
     , ADDINT, SUBINT, MULINT, DIVINT, MODINT, QUOTINT, REMINT
     , ANDINT, XORINT, ORINT, SHRINT, SHLINT, SHRNAT, NEGINT
     , EQINT, NEINT, LTINT, GTINT, LEINT, GEINT
-    , ALLOC, NEW 0, GETFIELD, SETFIELD, GETTAG, GETSIZE, PACK 0, UNPACK 0
+    , ALLOC, NEW 0, GETFIELD, SETFIELD, GETTAG, GETSIZE, PACK 0 var, UNPACK 0
     , PUSHVAR0, PUSHVAR1, PUSHVAR2, PUSHVAR3, PUSHVAR4
     -- , PUSHVARS2 id 0 id 0, PUSHVARS3 id 0 id 0 id 0, PUSHVARS4 id 0 id 0 id 0 id 0
     , PUSHVARS2 var var, NOP, NOP
@@ -347,7 +352,7 @@ instrTable =
     , NOP, NEWNAP2, NEWNAP3, NEWNAP4
     , NEWCON0 con, NEWCON1 con, NEWCON2 con, NEWCON3 con
     , ENTERCODE global, EVALVAR var, RETURNCON con, RETURNINT 0, RETURNCON0 con 
-    , MATCHCON [], SWITCHCON [], MATCHINT []
+    , MATCHCON [], SWITCHCON [], MATCHINT [], MATCH []
     , ADDFLOAT, SUBFLOAT, MULFLOAT, DIVFLOAT, NEGFLOAT
     , EQFLOAT, NEFLOAT, LTFLOAT, GTFLOAT, LEFLOAT, GEFLOAT     
     ]
@@ -383,6 +388,7 @@ enumFromInstr instr
       MATCHCON    alts        -> 3
       SWITCHCON   alts        -> 4
       MATCHINT    alts        -> 5
+      MATCH       alts        -> 6
 
     -- push instructions
       PUSHVAR     var         -> 10
@@ -424,7 +430,7 @@ enumFromInstr instr
 
       ALLOC                   -> 50
       NEW arity               -> 51
-      PACK arity              -> 52
+      PACK arity var          -> 52
       UNPACK arity            -> 53
       GETFIELD                -> 54 
       SETFIELD                -> 55
@@ -520,6 +526,7 @@ nameFromInstr instr
       MATCHCON    alts        -> "MATCHCON"
       SWITCHCON   alts        -> "SWITCHCON"
       MATCHINT    alts        -> "MATCHINT"
+      MATCH       alts        -> "MATCH"
 
     -- push instructions
       PUSHVAR     var         -> "PUSHVAR"
@@ -561,7 +568,7 @@ nameFromInstr instr
 
       ALLOC                   -> "ALLOC"
       NEW arity               -> "NEW"
-      PACK arity              -> "PACK"
+      PACK arity var          -> "PACK"
       UNPACK arity            -> "UNPACK"
       GETFIELD                -> "GETFIELD" 
       SETFIELD                -> "SETFIELD"

@@ -40,7 +40,7 @@
 # define Trace_i_str(msg,i,str)
 #endif
 
-#define VERSION_MAJOR 13
+#define VERSION_MAJOR 14
 #define VERSION_MINOR 1
 
 /*----------------------------------------------------------------------
@@ -889,6 +889,10 @@ static void resolve_instrs( const char* name, wsize_t code_len, opcode_t* code
     case MATCHINT:
       /* TODO: check bounds */
       opcode += 2*opcode[0];
+      break;
+
+    case MATCH:
+      opcode += 3*opcode[0];
       break;
 
     case MATCHCON: {

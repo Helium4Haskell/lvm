@@ -90,6 +90,7 @@ nsExpr env expr
       Ap expr1 expr2    -> let (env1,env2) = splitEnv env
                            in  Ap (nsExpr env1 expr1) (nsExpr env2 expr2)
       Var id            -> Var (renameVar env id)
+      Con (ConTag e a)  -> Con (ConTag (nsExpr env e) a)
       other             -> expr
 
 
@@ -118,6 +119,6 @@ nsAlt env pat expr
 
 nsPat env pat
   = case pat of
-      PatCon id ids -> let (env',ids') = renameBinders env ids
-                       in (PatCon id ids',env')
-      other         -> (other,env)
+      PatCon con ids -> let (env',ids') = renameBinders env ids
+                        in (PatCon con ids',env')
+      other          -> (other,env)

@@ -81,14 +81,20 @@ occExpr expr
                        in  (Match id alts',addOcc id occ)
       Ap id atoms   -> let (atoms',occ) = occExprs atoms
                        in (Ap id atoms',addOcc id occ)
-      Con id atoms  -> let (atoms',occ) = occExprs atoms
-                       in (Con id atoms',occ)
+      Con con atoms -> let (atoms',occ1) = occExprs atoms
+                           (con',occ2)   = occCon con
+                       in (Con con' atoms',unionOcc occ1 occ2)
       Prim id atoms -> let (atoms',occ) = occExprs atoms
                        in (Prim id atoms',occ)
       Lit lit       -> (expr,emptyMap)
       Note note e   -> let (expr',occ) = occExpr e 
                        in (Note note expr',occ)
         
+occCon con
+  = case con of
+      ConTag tag arity  -> let (tag',occ) = occExpr tag in (ConTag tag' arity,occ)
+      other             -> (con,emptyMap)
+
 occExprs :: [Expr] -> ([Expr],Occ)
 occExprs exprs
   = let (exprs',occs) = unzip (map occExpr exprs)
@@ -102,6 +108,9 @@ occAlt (Alt pat expr)
   = let (expr',occ) = occExpr expr
     in (Alt pat expr',foldr delOcc occ (patIds pat))
   where
-    patIds (PatVar id)     = [id]
-    patIds (PatCon id ids) = (id:ids)
-    patIds (PatLit lit)    = []
+    patIds (PatVar id)      = [id]
+    patIds (PatCon con ids) = ids
+    patIds (PatLit lit)     = []
+
+
+                         

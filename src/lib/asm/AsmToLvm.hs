@@ -11,9 +11,10 @@
 
 module AsmToLvm( asmToLvm )  where
 
-import List   ( partition)
-import Id     ( Id )
-import IdMap  ( IdMap, emptyMap, lookupMap, extendMap, mapMapWithId, mapFromList )
+import Standard ( assert )
+import List     ( partition)
+import Id       ( Id )
+import IdMap    ( IdMap, emptyMap, lookupMap, extendMap, mapMapWithId, mapFromList )
 import Asm
 import Lvm
 
@@ -90,10 +91,14 @@ cgAlloc env (id,atom)
 cgAlloc' env atom
   = case atom of
       Asm.Ap x args    -> [ALLOCAP (length args + 1)]
-      Asm.Con x args   -> [ALLOCCON (conFromId x (length args) env)]
       Asm.Let id e1 e2 -> cgAlloc' env e2
       Asm.LetRec bs e2 -> cgAlloc' env e2
       Asm.Note note e  -> cgAlloc' env e
+      Asm.Con (ConId x) args   
+                       -> [ALLOCCON (conFromId x (length args) env)]
+      Asm.Con (ConTag tag arity) args  -- TODO: tag may not be recursively bound!
+                       -> assert (arity == length args) "AsmToCode.cgAlloc': constructor arity doesn't match arguments" $
+                          [PUSHINT arity] ++ cgAtom env tag ++ [ALLOC]
       Asm.Lit lit      -> error "AsmToCode.cgAlloc': literal in recursive binding."
       other            -> error "AsmToCode.cgAlloc': non-atomic expression encountered."
 
@@ -103,10 +108,13 @@ cgInit env (id,atom)
 cgInit' env id atom
   = case atom of
       Asm.Ap x args    -> cgArgs env args ++ cgVar env x ++ [PACKAP (varFromId id) (length args + 1)]
-      Asm.Con x args   -> cgArgs env args ++ [PACKCON (conFromId x (length args) env) (varFromId id)]
       Asm.Let id e1 e2 -> cgLet env id e1 ++ cgInit' env id e2
       Asm.LetRec bs e2 -> cgLetRec env bs ++ cgInit' env id e2
       Asm.Note note e  -> cgInit' env id e
+      Asm.Con (ConId x) args   
+                       -> cgArgs env args ++ [PACKCON (conFromId x (length args) env) (varFromId id)]
+      Asm.Con (ConTag tag arity) args
+                       -> cgArgs env args ++ [PACK arity (varFromId id)]
       Asm.Lit lit      -> error "AsmToCode.cgInit: literal in recursive binding."
       other            -> error "AsmToCode.cgInit: non-atomic expression encountered."
 
@@ -127,10 +135,14 @@ cgMatch env alts
     isVarAlt other                = False
 
 cgAlts env def alts
-  | all isConAlt alts   = [MATCHCON (def:map (cgAlt env) alts)]
+  | all isConIdAlt alts = [MATCHCON (def:map (cgAlt env) alts)]
+  | all isConAlt alts   = [MATCH    (def:map (cgAltTag env) alts)]
   | all isIntAlt alts   = [MATCHINT (def:map (cgAlt env) alts)]
   | otherwise           = error "AsmToCode.cgMatch: unknown or mixed type patterns"
   where
+    isConIdAlt (Alt (PatCon (ConId _) _) _) = True
+    isConIdAlt other                        = False
+
     isConAlt (Alt (PatCon _ _) _) = True
     isConAlt other                = False
 
@@ -138,13 +150,34 @@ cgAlts env def alts
     isIntAlt other                        = False
 
 
+
 cgAlt env (Alt pat expr)
   = case pat of
-      PatCon id params  -> Instr.Alt (Instr.PatCon (conFromId id (length params) env))
-                                    [ATOM (map PARAM (reverse params) ++ cgExpr env expr)]
-      PatLit (LitInt i) -> Instr.Alt (Instr.PatInt i) [ATOM (cgExpr env expr)]
-      PatVar id         -> Instr.Alt (Instr.PatDefault) [ATOM ([PARAM id] ++ cgExpr env expr)]
-      other             -> error "AsmToCode.cgAlt: unknown pattern"
+      PatCon (ConId id) params  
+          -> Instr.Alt (Instr.PatCon (conFromId id (length params) env))
+                       [ATOM (map PARAM (reverse params) ++ cgExpr env expr)]
+      PatLit (LitInt i) 
+          -> Instr.Alt (Instr.PatInt i) [ATOM (cgExpr env expr)]
+      PatVar id         
+          -> Instr.Alt (Instr.PatDefault) [ATOM ([PARAM id] ++ cgExpr env expr)]
+      other             
+          -> error "AsmToCode.cgAlt: unknown pattern"
+
+cgAltTag env (Alt pat expr)
+  = case pat of
+      PatCon (ConTag tag arity) params  
+          -> Instr.Alt (Instr.PatTag tag arity)
+                       [ATOM (map PARAM (reverse params) ++ cgExpr env expr)]                      
+      PatCon (ConId id) params  
+          -> let (tag,arity) = tagArityFromId id (length params) env
+             in Instr.Alt (Instr.PatTag tag arity)
+                       [ATOM (map PARAM (reverse params) ++ cgExpr env expr)]
+      PatVar id         
+          -> Instr.Alt (Instr.PatDefault) [ATOM ([PARAM id] ++ cgExpr env expr)]
+      other             
+          -> error "AsmToCode.cgAltTag: invalid pattern"
+
+
 
 
 {---------------------------------------------------------------
@@ -175,12 +208,15 @@ cgAtom' env atom
   = case atom of
       Ap id args  -> cgArgs env args ++ cgVar env id ++
                       (if null args then [] else [NEWAP (length args + 1)])
-      Con id args -> cgArgs env args ++ [NEWCON (conFromId id (length args) env) ]
       Lit lit     -> cgLit lit
       Let id e1 e2-> cgLet env id e1 ++ cgAtom' env e2
       LetRec bs e2-> cgLetRec env bs ++ cgAtom' env e2
       Note note e -> cgAtom' env e
-
+      Con (ConId id) args 
+                  -> cgArgs env args ++ [NEWCON (conFromId id (length args) env) ]
+      Con (ConTag tag arity) args 
+                  -> cgArgs env args ++ cgAtom env tag ++ [NEW arity]
+            
       -- optimizer: inlined strict bindings 
       Eval id e1 e2  | whnf env e1
                   -> [ATOM (cgExpr env e1), VAR id] ++ cgAtom' env e2
@@ -221,7 +257,7 @@ whnf env expr
       Match id alts -> all (whnfAlt env) alts
       Prim id args  -> whnfPrim env id
       Ap id args    -> False
-      Con id args   -> True
+      Con con args  -> True
       Lit lit       -> True
       Note note e   -> whnf env e
 
@@ -252,12 +288,15 @@ varFromId id
   = Var id 0 0
 
 conFromId id argcount env
+  = let (tag,arity) = tagArityFromId id argcount env
+    in  Instr.Con id 0 arity tag
+
+tagArityFromId id argcount env
   = case lookupMap id (cons env) of
       Just (tag,arity)  -> if (arity /= argcount)
                             then error ("AsmToCode.conFromId: unsaturated constructor " ++ show id)
-                            else Instr.Con id 0 arity tag
+                            else (tag,arity)
       Nothing           -> error ("AsmToCode.conFromId: undeclared constructor " ++ show id)
-
 
 -- create an initial environment from the declarations
 initialEnv :: AsmModule -> Env

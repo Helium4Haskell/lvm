@@ -29,7 +29,7 @@ instrPretty instrs
 ----------------------------------------------------------------
 ppInstrs :: [Instr] -> Doc
 ppInstrs instrs
-  = vcat (map (ppInstr ) instrs)
+  = align (vcat (map (ppInstr ) instrs))
 
 ppInstr instr
   = let name = nameFromInstr instr
@@ -51,6 +51,7 @@ ppInstr instr
       SWITCHCON alts          -> nest 2 (text name <$> ppAlts alts)
       MATCHCON alts           -> nest 2 (text name <$> ppAlts alts)
       MATCHINT alts           -> nest 2 (text name <$> ppAlts alts)
+      MATCH alts              -> nest 2 (text name <$> ppAlts alts)
 
 
     -- push instructions
@@ -91,7 +92,7 @@ ppInstr instr
       NEWCON      con         -> text name   <+> ppCon con
       
       NEW arity               -> text name <+> pretty arity
-      PACK arity              -> text name <+> pretty arity
+      PACK arity var          -> text name <+> pretty arity <+> ppVar var
       UNPACK arity            -> text name <+> pretty arity
 
     -- optimized instructions
@@ -117,6 +118,7 @@ ppPat pat
   = case pat of
       PatCon con  -> ppCon con
       PatInt i    -> pretty i
+      PatTag t a  -> text "(@" <> pretty t <> char ',' <> pretty a <> text ")"
       PatDefault  -> text "<default>"
 
 ppCon (Con id c arity tag)

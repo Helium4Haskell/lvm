@@ -23,7 +23,7 @@ import Lvm
   Magic numbers
 --------------------------------------------------------------}
 lvmMajorVersion,lvmMinorVersion :: Int
-lvmMajorVersion  = 13
+lvmMajorVersion  = 14
 lvmMinorVersion  = 0
 
 {--------------------------------------------------------------
@@ -195,8 +195,9 @@ emit instr
       RESULT is               -> illegal
 
       -- structured instructions
-      MATCHCON alts           -> [opcode] ++ emitMatch alts
-      MATCHINT alts           -> [opcode] ++ emitMatch alts
+      MATCH alts              -> [opcode] ++ emitMatch 3 alts
+      MATCHCON alts           -> [opcode] ++ emitMatch 2 alts
+      MATCHINT alts           -> [opcode] ++ emitMatch 2 alts
       SWITCHCON alts          -> todo
 
       EVAL d is               -> let scrut = emits is
@@ -242,7 +243,7 @@ emit instr
       NEWCON      con         -> [opcode, indexFromCon con, arityFromCon con]                                 
 
       NEW         arity       -> [opcode, arity]
-      PACK        arity       -> [opcode, arity]
+      PACK        arity v     -> [opcode, arity, offsetFromVar v]
       UNPACK      arity       -> [opcode, arity]
 
       -- optimized instructions
@@ -259,11 +260,11 @@ emit instr
       other                   -> [opcode]
 
 
-emitMatch alts
+emitMatch entrySize alts
   = assert (normalizedAlts alts) "LvmWrite.emitMatch: unnormalized alternatives" $
     let (pats,iss) = unzipAlts alts
         altis      = map emits iss
-        start      = 2 + 2*(length alts -1)
+        start      = 2 + entrySize*(length alts -1)
     in [length alts-1]
        ++ matches start (zip pats (map length altis))
        ++ concat altis       
@@ -273,6 +274,7 @@ emitMatch alts
         = (case pat of
              PatCon con -> [indexFromCon con]
              PatInt i   -> [i]
+             PatTag t a -> [t,a]
              PatDefault -> [])
           ++ [if (n==0) then 0 else top] ++ matches (top+n) xs
 
@@ -300,6 +302,7 @@ resolve instr
   = case instr of
       EVAL d is       -> resolves (EVAL d) is
       RESULT is       -> resolves RESULT is
+      MATCH    alts   -> resolveAlts MATCH alts
       MATCHCON alts   -> resolveAlts MATCHCON alts
       MATCHINT alts   -> resolveAlts MATCHINT alts
       SWITCHCON alts  -> resolveAlts SWITCHCON alts

@@ -72,6 +72,8 @@ liftExpr env expr
         -> Ap (liftExpr env expr1) (liftExpr env expr2)
       Var id
         -> foldlStrict (\e v -> Ap e (Var v)) expr (lookupFree env id)
+      Con (ConTag tag arity)
+        -> Con (ConTag (liftExpr env tag) arity)
       Note n e
         -> Note n (liftExpr env e)
       other
@@ -79,6 +81,7 @@ liftExpr env expr
 
 liftAlts env alts
   = mapAlts (\pat expr -> Alt pat (liftExpr env expr)) alts
+
 
 ----------------------------------------------------------------
 -- Lift binding groups
@@ -171,7 +174,7 @@ isAtomExpr env expr
       Ap e1 e2  -> isAtomExpr env e1 && isAtomExpr env e2
       Note n e  -> isAtomExpr env e
       Var id    -> not (isPrimitive env id)
-      Con id    -> True
+      Con con   -> True
       Lit lit   -> True
       Let binds expr  
                 -> isAtomBinds env binds && isAtomExpr env expr

@@ -954,6 +954,8 @@ returncon:
       Next;
     }
 
+
+
     Instr(MATCHCON): {
       wsize_t    i;
       con_tag_t  contag;
@@ -996,6 +998,35 @@ returncon:
       Next;
     }
 
+
+    Instr(MATCH): {
+      wsize_t    i;
+      con_tag_t  contag;
+      wsize_t    consize;
+      wsize_t    n   = pc[0];
+      long       ofs = pc[1];
+      Require( sp < fp );
+      Require( Is_block(sp[0]));
+
+      Con_tag_val(contag,sp[0]);
+      consize = Fsize_val(sp[0]);
+
+      for( i = 0; i < n; i++ ) {
+        if (pc[2+i*3] == contag && pc[2+i*3+1] == (opcode_t)consize) {
+          /* we have a match, unpack constructor to the stack */
+          value   con = Popx();
+          wsize_t j   = consize;
+          ofs         = pc[2+i*3+2];
+          Push_n(j);
+          while (j > 0) { sp[j-1] = Field(con,j-1); j--; }
+          break;
+        }
+      }
+
+      if (ofs == 0) { Raise_runtime_exn(Exn_failed_pattern); }
+      pc += ofs;
+      Next;
+    }
 
 /*----------------------------------------------------------------------
   Stack manipulation
@@ -1322,14 +1353,14 @@ returncon:
 
     Instr(PACK): {
       wsize_t n = *pc++;
-      value   v = sp[0];
-      wsize_t size;
+      long ofs  = *pc++;
       wsize_t i;
-      Require( Is_block(v) );
-      size = Fsize_val(v);
-      if (n >= size) { Raise_runtime_exn( Exn_out_of_bounds ); }
-      Pop();
-      for( i = 0; i < n; i++) { Store_field(v,i,sp[i]); }
+      value con;
+
+      Require( sp+n <= fp && sp + ofs < fp);
+      con = sp[ofs];
+      Require( Is_block(con) && Tag_val(con) <= Con_max_tag && Fsize_val(con) >= n);
+      for( i = 0; i < n; i++) { Store_field(con,i,sp[i]); }
       Pop_n(n);
       Next;
     }

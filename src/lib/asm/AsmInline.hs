@@ -99,10 +99,15 @@ inlineExpr env expr
                                                        -> Eval id1 e1 (Ap id1 args0)   
                                           other        -> Let id e (Ap id args)       -- don't inline!
                             Nothing  -> Ap id args0
-      Con id args   -> Con id  (inlineExprs env args)
+      Con con args  -> Con (inlineCon env con)  (inlineExprs env args)
       Prim id args  -> Prim id (inlineExprs env args)
       Lit lit       -> expr
       Note note e   -> Note note (inlineExpr env e)
+
+inlineCon env con
+  = case con of
+      ConTag tag arity  -> ConTag (inlineExpr env tag) arity
+      other             -> con
 
 inlineExprs :: Env -> [Expr] -> [Expr]
 inlineExprs env exprs
@@ -119,10 +124,11 @@ inlineAlts env alts
 
 inlineAlt env (Alt pat expr)
   = Alt pat (inlineExpr (removeIds (patIds pat) env) expr)
-    where
-    patIds (PatVar id)     = [id]
-    patIds (PatCon id ids) = (id:ids)
-    patIds (PatLit lit)    = []
+  where
+    patIds (PatVar id)      = [id]
+    patIds (PatCon con ids) = ids
+    patIds (PatLit lit)     = []
+
 
 {---------------------------------------------------------------
   deAnnotate
@@ -139,19 +145,19 @@ deAnnotate expr
 trivial :: Expr -> Bool
 trivial expr
   = case expr of
-      Note note e   -> trivial e
-      Ap id []      -> True
-      Con id []     -> True
-      Lit lit       -> True
-      other         -> False
+      Note note e         -> trivial e
+      Ap id []            -> True
+      Con (ConId id) []   -> True
+      Lit lit             -> True
+      other               -> False
 
 whnfTrivial :: Expr -> Bool
 whnfTrivial expr
   = case expr of
-      Note note e   -> whnfTrivial e
-      Con id []     -> True
-      Lit lit       -> True
-      other         -> False
+      Note note e         -> whnfTrivial e
+      Con (ConId id) []   -> True
+      Lit lit             -> True
+      other               -> False
 
 {---------------------------------------------------------------
   firstuse

@@ -63,6 +63,9 @@ fvExpr globals expr
         -> if (elemSet id globals)
             then (expr,emptySet)
             else (expr,insertSet id emptySet)
+      Con (ConTag tag arity)
+        -> let (tag',fv) = fvExpr globals tag
+           in (Con (ConTag tag' arity),fv)
       Note n expr
         -> let (expr',fv) = fvExpr globals expr
            in  (Note n expr',fv)
@@ -72,7 +75,7 @@ fvExpr globals expr
 
 fvAlts :: IdSet -> Alts -> (Alts,IdSet)
 fvAlts globals alts
-  = let alts' = mapAlts (\pat expr -> let (expr',fv) = fvExpr globals expr
+  = let alts' = mapAlts (\pat expr -> let (expr',fv)   = fvExpr globals expr                                          
                                       in  Alt pat (Note (FreeVar fv) expr')) alts
         fvs   = unionSets (map (\(Alt pat expr) -> diffSet (freeVar expr) (patBinders pat)) (alts'))
     in  (alts',fvs)

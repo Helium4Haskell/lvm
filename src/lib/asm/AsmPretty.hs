@@ -48,10 +48,15 @@ ppExprEx pars expr
       Prim id args    -> pars $ text "prim" <> char '[' <> (ppId id) <+> hsep (map ppArg args) <> char ']'
       Ap id []        -> ppId id
       Ap id args      -> pars $ ppId id <+> hsep (map ppArg args)
-      Con id []       -> ppId id
-      Con id args     -> pars $ ppId id <+> hsep (map ppArg args)
+      Con con []      -> ppCon ppExpr con
+      Con con args    -> pars $ ppCon ppExpr con <+> hsep (map ppArg args)
       Lit lit         -> ppLit lit
       Note note e     -> pars $ align $ ppNote note </> ppExpr e
+
+ppCon ppTag con
+  = case con of
+      ConId id          -> ppId id
+      ConTag tag arity  -> text "(@" <> ppTag tag <> char ',' <> pretty arity <> char ')'
 
 ppNote (Occur occ)
   = angled (ppOccur occ)
@@ -75,9 +80,9 @@ ppAlt (Alt pat expr)
 
 ppPat pat
   = case pat of
-      PatCon id params -> ppId id <+> hsep (map ppId params)
-      PatVar id        -> ppId id
-      PatLit lit       -> ppLit lit
+      PatCon con params -> ppCon pretty con <+> hsep (map ppId params)
+      PatVar id         -> ppId id
+      PatLit lit        -> ppLit lit
 
 {---------------------------------------------------------------
   literals and variables
