@@ -449,11 +449,13 @@ fi
 echo "#define OS_TYPE \"$ostype\"" >> s.h
 
 
-case $ostype in
-  windows) echo "#define OS_WINDOWS" >> s.h;;
-  cygwin*) echo "#define OS_UNIX"    >> s.h
-           echo "#define OS_CYGWIN"  >> s.h;;
-  *)       echo "#define OS_UNIX"    >> s.h;;
+case "$cc,$ostype" in
+  gcc,windows) echo "#define OS_WINDOWS" >> s.h
+               echo "#define OS_MINGW"   >> s.h;;
+  *,windows)   echo "#define OS_WINDOWS" >> s.h;;
+  *,cygwin*)   echo "#define OS_UNIX"    >> s.h
+               echo "#define OS_CYGWIN"  >> s.h;;
+  *,*)         echo "#define OS_UNIX"    >> s.h;;
 esac
 
 echo "#define EXE \"$exe\""  >> s.h
