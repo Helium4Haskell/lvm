@@ -62,7 +62,7 @@ $(MAIN)$(EXE): $(OBJS)
 	  $(STRIP) $@
 
 common/ghc/Special.hi: common/ghc/Special.hs
-	$(HC) -c $< -cpp -fglasgow-exts $(HC_OPTS) -i$(LIBPATH)
+	$(HC) -c $< -cpp -fglasgow-exts $(HC_OPTS) 
 
 
 # Standard suffix rules
