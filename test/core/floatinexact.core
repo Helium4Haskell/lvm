@@ -1,0 +1,6 @@
+module Float where
+
+extern float        "float_of_string" :: "Fz"
+extern fpgetsticky  "fp_get_sticky"   :: "I"
+
+main = case float "1.0" of _ -> fpgetsticky

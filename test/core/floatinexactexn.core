@@ -1,0 +1,26 @@
+module FloatInexactExn where
+
+extern float        "float_of_string" :: "Fz"
+extern fpgetsticky  "fp_get_sticky"   :: "I"
+extern fptrapmask   "fp_trap_mask"    :: "Ii"
+extern fpsettraps   "fp_set_traps"    :: "II"
+
+data ArithmeticException
+  = FloatInvalid                      -- float invalid operation
+  | FloatDivideByZero                 -- float division by zero
+  | FloatOverflow                     -- float has overflowed
+  | FloatUnderflow                    -- float has underflowed
+  | FloatInexact                      -- float result is inexact
+  | FloatDenormal                     -- denormalized float value
+  | DivideByZero                      -- integer division by zero
+  | Overflow                          -- integer overflow
+  | Underflow                         -- integer underflow
+  | InvalidOperation                  -- general arithmetic error
+  | UnEmulated                        -- cannot emulate float instruction
+  | NegativeSquareRoot                -- square root of negative number
+  | FloatStackOverflow                -- float hardware stack has overflowed
+  | FloatStackUnderflow               -- float hardware stack has underflowed
+
+main = case fptrapmask FloatInexact of
+        mask -> case fpsettraps mask of 
+                  _ -> case float "1.0" of _ -> 42
