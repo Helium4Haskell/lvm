@@ -30,6 +30,7 @@ module Byte( Byte
 import IO       ( IOMode(..) )
 import Special  ( openBinary, writeBinaryChar, readBinary, closeBinary )
 import Standard ( strict, foldlStrict )
+import System   ( exitWith, ExitCode(..))
 
 {----------------------------------------------------------------
   types
@@ -161,4 +162,7 @@ readByteList path
       ; xs <- readBinary h
       ; closeBinary h
       ; return xs
-      }
+      } `catch` (\exception ->
+            let message =  show exception ++ "\n\nUnable to read from file " ++ show path
+            in do { putStrLn message; exitWith (ExitFailure 1) })
+            

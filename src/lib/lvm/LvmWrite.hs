@@ -14,10 +14,10 @@ module LvmWrite( lvmWriteFile, lvmToBytes ) where
 import Standard ( assert, strict )
 import Id       ( Id, stringFromId, setNameSpace )
 import IdMap    ( IdMap, emptyMap, insertMapWith, lookupMap, listFromMap )
+import System   ( exitWith, ExitCode(..))
 import Byte
 import Instr
 import Lvm
-
 
 {--------------------------------------------------------------
   Magic numbers
@@ -32,8 +32,10 @@ lvmMinorVersion  = 0
 lvmWriteFile :: FilePath -> LvmModule -> IO ()
 lvmWriteFile path lvm
   = let bytes = lvmToBytes lvm
-    in seq bytes (writeBytes path bytes)
-
+    in seq bytes $
+        writeBytes path bytes `catch` (\exception ->
+            let message = show exception ++ "\n\nUnable to write to file " ++ show path
+            in do { putStrLn message; exitWith (ExitFailure 1) })
 
 lvmToBytes :: LvmModule -> Bytes
 lvmToBytes mod

@@ -20,7 +20,7 @@ MAIN	= coreasm
 
 #the haskell compiler
 HC	= ghc
-HC_OPTS = -static -package lang -i$(IFACES)
+HC_OPTS = -static -package lang -i$(IFACES) $(EXTRA_HC_OPTS)
 
 #Haskell sources
 COMMON	= common/Id.hs common/IdMap.hs common/IdSet.hs \
