@@ -36,8 +36,8 @@ struct module_footer_t
          total_length;
 };
 
-#define Magic_header 0x4C564D58
-#define Magic_footer 0x4C564D59
+#define Magic_header 0x214C564D
+#define Magic_footer (Magic_header+1)
 
 /*----------------------------------------------------------------------
   MODULES
@@ -90,6 +90,7 @@ enum rec_kind {
   Rec_module,
   Rec_extern,
   Rec_extern_type,
+  Rec_custom,
 
   Rec_last = Rec_extern_type
 };
@@ -146,7 +147,10 @@ enum rec_fields {
   Rec_bytes_size,
 
   Field_code_code = 0,   /* points to a bytes block containing the instructions (as Code_tag) */
-  Rec_code_size
+  Rec_code_size,
+
+  Field_custom_kind = Field_flags+1,
+  Rec_custom_size
 };
 
 enum link_mode {

@@ -30,7 +30,6 @@
 #include "prim/prims.h"
 #include "options.h"    /* lvmpath */
 
-
 #ifdef TRACE_TRACE
 # define Trace(msg)             { print(msg); print("\n"); }
 # define Trace_i(msg,i)         { print(msg); print(" %i\n", i); }
@@ -41,7 +40,7 @@
 # define Trace_i_str(msg,i,str)
 #endif
 
-#define VERSION_MAJOR 9
+#define VERSION_MAJOR 10
 #define VERSION_MINOR 1
 
 /*----------------------------------------------------------------------
@@ -109,6 +108,8 @@ static int open_module(const char **fname)
   return fd;
 }
 
+#define Decode(x)     (Long_val(x))
+
 static void read_header( const char* name, int handle,
                           struct module_header_t* header, int* is_rev_endian )
 {
@@ -124,11 +125,11 @@ static void read_header( const char* name, int handle,
     raise_module( name, "truncated header" );
   }
 
-  if (Magic_header != header->magic)
+  if (Magic_header != Long_val(header->magic))
   {
-    word_t rev_magic = Magic_header;
+    word_t rev_magic = header->magic;
     Reverse_word(  &rev_magic, &rev_magic );
-    if (rev_magic != header->magic) {
+    if (Magic_header != Long_val(rev_magic)) {
       file_close(handle);
       raise_module( name, "invalid magic number" );
     }
@@ -136,6 +137,20 @@ static void read_header( const char* name, int handle,
     *is_rev_endian = 1;
     reverse_endian( (word_t*)header, Word_sizeof(*header) );
   }
+
+  /* convert ints & indices */
+#define headerInt(x)  header->x = Decode(header->x)
+#define headerIdx(x)  header->x = Decode(header->x)
+    headerInt(magic);
+    headerInt(header_length);
+    headerInt(total_length);
+    headerInt(major_version);
+    headerInt(minor_version);
+    headerInt(module_major_version);
+    headerInt(module_minor_version);
+    headerIdx(module_name);
+    headerInt(records_count);
+    headerInt(records_length);
 
   if (header->major_version != VERSION_MAJOR ||
       header->minor_version > VERSION_MINOR) {
@@ -154,7 +169,7 @@ static void read_header( const char* name, int handle,
  read records
  - read all records into the records array. don't resolve ref's yet
 ----------------------------------------------------------------------*/
-#define Word_read(x)          {(x) = *p++; if (is_rev_endian) { Reverse_word(&x,&x); }; }
+#define Word_read(x)          {(x) = *p++; if (is_rev_endian) { Reverse_word(&x,&x); }; (x) = Decode(x); }
 #define String_read(v,n)      {(v) = alloc_string(n); bcopy(p,String_val(v),n); p += Word_bytes(n); }
 #define Store_read(fld)       { word_t x; Word_read(x); Store_field(rec,fld,Val_long(x)); }
 #define Store_zero(fld)       { Store_field(rec,fld,Val_long(0)); }
@@ -169,7 +184,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
                           unsigned record_len, value records )
 {
   CAMLparam1(records);
-  CAMLlocal2(rec,instrs);
+  CAMLlocal4(rec,instrs,str,code);
 
   wsize_t read_count;
   void*   buffer;
@@ -187,7 +202,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
   read_count  = file_read( handle, &footer, sizeof(footer) );
   if (read_count != sizeof(footer)) Rec_raise( "truncated footer section" );
   if (is_rev_endian) { Reverse_word( &footer.magic, &footer.magic ); }
-  if (footer.magic != Magic_footer) Rec_raise( "invalid magic number in footer section" );
+  if (Long_val(footer.magic) != Magic_footer) Rec_raise( "invalid magic number in footer section" );
 
   /* process all records in the buffer */
   for(p = buffer, i = 1; i <= Wosize_records(records); i++)
@@ -207,13 +222,12 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       case Rec_name:
       case Rec_bytes:
       case Rec_extern_type:
-      { value  str;
-        word_t slen;
+      { word_t slen;
         Alloc_record(Rec_name_size);
         Word_read(slen);
         String_read(str,slen);
         Trace_i_str ("Rec_name/bytes/extern_type", i, str);
-        Store_field( rec, Field_name_string, str );
+        Init_field( rec, Field_name_string, str );
         break;
       }
 
@@ -259,6 +273,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
         Store_read( Field_import_name );
         Store_read( Field_import_kind );
         Store_zero( Field_import_fixup );
+        Trace_i ("name", Long_val(Field(rec,Field_import_name)));
         break;
       }
 
@@ -280,7 +295,6 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       }
 
       case Rec_code: {
-        value code;
         char* instrs;
         wsize_t instrlen = len;
         Trace_i ("Rec_code", i);
@@ -306,19 +320,27 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       }
 
       default: {
-        Trace_i ("Rec_unknown", i);
+        Trace_i ("Rec_custom", i);
+/*
 #ifdef DEBUG
         Rec_raise(( "unknown constant kind" ));
 #endif
+*/
+        Alloc_record(Rec_custom_size);
+        Store_read( Field_name );
+        Store_read( Field_flags );        
+        Store_field(rec,Field_custom_kind,Val_long(kind));
         break;
       }
     }
 
+/*
 #ifdef DEBUG
     if (p != next) {
       Rec_raise( "invalid constant length" );
     }
 #endif
+*/
     p = next;
   }
   stat_free(buffer);
@@ -453,9 +475,12 @@ static void resolve_internal_records( value module )
       }
 
       default: {
+/*
 #ifdef DEBUG
         raise_module( fname, "unknown record kind during resolve" );
 #endif
+*/
+        break;
       }
     }
   }
@@ -607,10 +632,12 @@ static value read_module( value parent, const char* modname )
 
   records = alloc_fixed( header.records_count );
   Store_field( module, Module_records, records );
+/*
+TODO: gc here triggers a bug when loading multiple modules, ie. "Abstract.lvm" 
 debug_gc();
+*/
   read_records( fname, handle, is_rev_endian,
                 header.records_length, records );
-
   file_close(handle);
 
   /* resolve */
@@ -693,7 +720,8 @@ static value* load_symbol( value module, const char* modname, long major_version
                          , const char* name, enum rec_kind kind )
 {
   CAMLparam1(module);
-  CAMLreturn(find_symbol(find_module(module,modname,major_version),name, kind));
+  value* result = find_symbol(find_module(module,modname,major_version),name, kind);
+  CAMLreturn(result);
 }
 
 

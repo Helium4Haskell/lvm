@@ -45,14 +45,14 @@ data Link
 
 data Decl v     
   = DeclValue     { declName :: Id, declAccess :: !Access, valueEnc :: Maybe Link, valueValue :: v, declCustoms :: ![Custom] }
-  | DeclAbstract  { declName :: Id, declAccess :: !Access, declArity :: !Arity }
+  | DeclAbstract  { declName :: Id, declAccess :: !Access, declArity :: !Arity, declCustoms :: ![Custom] }
   | DeclCon       { declName :: Id, declAccess :: !Access, declArity :: !Arity, conTag :: !Tag, declCustoms :: [Custom] }
   | DeclExtern    { declName :: Id, declAccess :: !Access, declArity :: !Arity
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
                   , externLib  :: !String, externName :: !ExternName, declCustoms :: ![Custom] } 
   | DeclCustom    { declName :: Id, declAccess :: !Access, declKind :: !DeclKind, declCustoms :: ![Custom] }
 
-  | DeclImport    { declName :: Id, declAccess :: !Access }
+  | DeclImport    { declName :: Id, declAccess :: !Access, declCustoms :: ![Custom] }
 
 data Custom
   = CustomInt   !Int

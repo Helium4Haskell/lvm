@@ -12,6 +12,7 @@
 module ModulePretty ( modulePretty ) where
 
 import PPrint
+import Byte     ( stringFromBytes )
 import Id       ( Id, stringFromId )
 import IdMap    ( listFromMap )
 import Module
@@ -30,21 +31,37 @@ ppModule ppValue (Module moduleName major minor decls)
  <$> empty
 
 ppDecl ppValue decl
+  = nest 2 (ppDeclHeader decl <> (  
+    case decl of
+      DeclValue{} -> line <> text "=" <+> ppValue (valueValue decl)
+      DeclCon{}   -> line <> text "=" <+> text "[tag=" <> pretty (conTag decl) 
+                                      <>  text ", arity=" <> pretty (declArity decl) <> text "]"
+      other       -> empty
+   ))
+
+ppDeclHeader decl
+  = ppDeclKind decl <> ppId (declName decl) <+> text ":" <+> ppAccess (declAccess decl) <+> ppCustoms (declCustoms decl)
+
+ppDeclKind decl
   = case decl of
-      DeclValue{declName=id,declAccess=access,valueValue=value}   
-        -> nest 2 (ppId id <+> text "=" <+> ppAccess access <$> ppValue value)
-      DeclCon{declName=id,conTag=tag,declArity=arity }
-        -> text "con" <+> ppId  id <+> text "= <tag=" <+> pretty tag <+> text ", arity=" <+> pretty arity <> text ">"
-      DeclExtern{declName=id}
-        -> text "extern" <+> ppId  id
-      DeclCustom{declName=id}
-        -> text "custom" <+> ppId id
-      DeclImport{declName=id,declAccess=access}
-        -> text "import" <+> ppId id <+> text "=" <+> ppAccess access
-      DeclAbstract{declName=id,declAccess=access}
-        -> text "abstract" <+> ppId id <+> text "=" <+> ppAccess access
-      other
-        -> text "<unknown declaration>"
+      DeclValue{}   -> empty
+      DeclCon{}     -> text "con "
+      DeclExtern{}  -> text "extern "
+      DeclCustom{}  -> text "custom "
+      DeclImport{}  -> text "import "
+      DeclAbstract{}-> text "abstract "
+      other         -> text "<unknown declaration>"
+
+ppCustoms customs
+  = list (map ppCustom customs)
+
+ppCustom custom
+  = case custom of
+      CustomInt i     -> pretty i
+      CustomName id   -> ppId id
+      CustomBytes bs  -> dquotes (string (stringFromBytes bs))
+      CustomDecl (Link id kind) -> text "link" <+> ppId id
+      other           -> error "ModulePretty.ppCustom: unknown custom kind"
 
 ppId :: Id -> Doc
 ppId id
@@ -55,7 +72,7 @@ ppAccess acc
       Defined public 
         -> ppPublic public
       Imported public modid impid impkind major minor
-        -> ppPublic public <+> ppId modid <> char '.' <> ppId impid
+        -> ppPublic public <+> text "import" <+> ppId modid <> char '.' <> ppId impid
 
 ppPublic public
   = if public then text "public" else text "private"

@@ -11,7 +11,7 @@
 
 module LvmRead( lvmReadFile, lvmRead ) where
 
-import Prelude hiding (Read)
+import Prelude hiding (Read,readInt)
 import Array
 import PPrint   ( putDoc )
 import Standard ( assert, foldlStrict, getLvmPath, searchPath )
@@ -30,10 +30,9 @@ import ModulePretty( modulePretty )
 {--------------------------------------------------------------
   Magic numbers
 --------------------------------------------------------------}
-magic, lvmMajor, lvmMinor :: Int
-lvmMajor  = 9
+lvmMajor, lvmMinor :: Int
+lvmMajor  = 10
 lvmMinor  = 0
-magic     = 0x4C564D58
 
 
 data Record v   = RecDecl       (Decl v)
@@ -67,18 +66,18 @@ lvmRead ns fname bs
 
 readModule :: Read v (Module v,[Record v])
 readModule
-  = do{ tag    <- readint
-      ; readGuard (tag == magic) "readHeader" "magic number is incorrect"
-      ; len    <- readint
-      ; total  <- readint
-      ; lvmmajor <- readint
-      ; lvmminor <- readint
+  = do{ tag    <- readInt
+      ; readGuard (tag == recHeader) "readHeader" "magic number is incorrect"
+      ; len    <- readInt
+      ; total  <- readInt
+      ; lvmmajor <- readInt
+      ; lvmminor <- readInt
       ; readGuard (lvmmajor == lvmMajor && lvmminor >= lvmMinor) "readHeader" "invalid module version"
-      ; major  <- readint
-      ; minor  <- readint
+      ; major  <- readInt
+      ; minor  <- readInt
       ; id     <- readNameIdx
-      ; count  <- readint
-      ; bcount <- readint
+      ; count  <- readInt
+      ; bcount <- readInt
       ; recs   <- readRecords total [] 
       ; readGuard (count == length recs) "readModule" "incorrect record count"
       ; return (Module id major minor [d | RecDecl d <- filter isRecDecl recs, accessPublic (declAccess d)],recs)
@@ -93,10 +92,10 @@ readFooter
 
 readRecords :: Int -> [Record v] -> Read v [Record v]
 readRecords total acc
-  = do{ tag   <- readint
-      ; len   <- readint
-      ; if (tag == (magic+1))
-         then do{ total' <- readint
+  = do{ tag   <- readInt
+      ; len   <- readInt
+      ; if (tag == recFooter)
+         then do{ total' <- readInt
                 ; readGuard (total==total') "readRecords" "footer doesn't match with header"
                 ; return (reverse acc)
                 }
@@ -110,7 +109,7 @@ readRecords total acc
                           6     -> readModuleRec len
                           7     -> readExtern len
                           8     -> readExternType len
-                          other -> readCustom (toEnum tag) len
+                          other -> readDeclCustom (toEnum tag) len
                 ; readRecords total (rec:acc)
                 }
       }
@@ -123,60 +122,60 @@ readValue :: Int -> Read v (Record v)
 readValue len
   = do{ id     <- readNameIdx
       ; acc    <- readAccess
-      ; arity  <- readint
+      ; arity  <- readInt
       ; enc    <- readEnclosing
       -- ; code   <- readCodeIdx
-      ; readint
+      ; readIdx "code"
       ; customs<- readCustoms (len - 20)
-      ; return (RecDecl (DeclAbstract id acc arity))
+      ; return (RecDecl (DeclAbstract id acc arity customs))
       }
 
 readCon len
   = do{ id    <- readNameIdx
       ; acc   <- readAccess
-      ; arity <- readint
-      ; tag   <- readint
+      ; arity <- readInt
+      ; tag   <- readInt
       ; customs <- readCustoms (len - 16)
       ; return (RecDecl (DeclCon id acc arity tag customs))
       }
 
 readImport len
   = do{ id    <- readNameIdx
-      ; flags <- readint
+      ; flags <- readInt
       ; ~(modid,major,minor) <- readModuleIdx
       ; impid <- readNameIdx
-      ; kind  <- readint
+      ; kind  <- readInt
       ; customs <- readCustoms (len - 20)
-      ; return (RecDecl (DeclImport id (Imported (odd flags) modid impid (toEnum kind) major minor)))
+      ; return (RecDecl (DeclImport id (Imported (odd flags) modid impid (toEnum kind) major minor) customs))
       }
 
 readModuleRec len
   = do{ id    <- readNameIdx
-      ; major <- readint
-      ; minor <- readint
+      ; major <- readInt
+      ; minor <- readInt
       ; customs <- readCustoms (len - 12)
       ; return (RecModule id major minor)
       }
 
-readCustom :: DeclKind -> Int -> Read v (Record v)
-readCustom kind len
+readDeclCustom :: DeclKind -> Int -> Read v (Record v)
+readDeclCustom kind len
   = do{ id  <- readNameIdx
       ; acc <- readAccess
-      ; skip (len - 8)
-      ; return (RecDecl (DeclCustom id acc (kind) []))
+      ; customs <- readCustoms (len - 8)
+      ; return (RecDecl (DeclCustom id acc (kind) customs))
       }
 
 readExtern :: Int -> Read v (Record v)
 readExtern len
   = do{ id    <- readNameIdx
       ; acc   <- readAccess
-      ; arity <- readint
+      ; arity <- readInt
       ; tp    <- readExternTypeIdx
       ; libname <- readNameStringIdx
-      ; idx   <- readint
-      ; mode  <- readint
-      ; link  <- readint
-      ; call  <- readint
+      ; idx   <- readIdx "name string"
+      ; mode  <- readInt
+      ; link  <- readInt
+      ; call  <- readInt
       ; customs <- readCustoms (len - 9*4)
       ; name  <- case mode of
                    1  -> fmap Decorate  (readNameString idx)
@@ -198,7 +197,7 @@ readExtern len
 --------------------------------------------------------------}
 readCode :: Int -> Read v (Record v)
 readCode len
-  = do{ ints   <- mapM (const readint) [1..div len 4]
+  = do{ ints   <- mapM (const readRaw) [1..div len 4]
       ; return (RecCode ints)
       }
 
@@ -221,7 +220,7 @@ readExternType len
 
 readByteSeq :: Int -> Read v [Byte]
 readByteSeq len
-  = do{ blen <- readint
+  = do{ blen <- readInt
       ; bs   <- readByteList blen
       ; skip (len - 4 - blen)      
       ; return bs
@@ -229,22 +228,36 @@ readByteSeq len
 
 readCustoms :: Int -> Read v [Custom]
 readCustoms len
-  = do{ ints <- mapM (const readint) [1..div len 4]
-      ; return (map CustomInt ints)
-      }
-
+  = mapM (const readCustom) [1..div len 4]
+    
 readAccess :: Read v Access
 readAccess
-  = do{ flags <- readint
+  = do{ flags <- readInt
       ; return (Defined (odd flags))
       }
+
+readCustom :: Read v Custom
+readCustom
+  = do{ x <- readRaw
+      ; if (isInt x) 
+         then return (CustomInt (decodeInt x))
+         else resolve (decodeIdx x) recToCustom
+      }
+  where
+    recToCustom rec
+      = case rec of
+          RecName id  -> CustomName id
+          RecBytes bs -> CustomBytes bs
+          RecDecl d   -> CustomDecl (Link (declName d) (declKindFromDecl d))
+          other       -> error "LvmRead.readCustom: invalid link"
+
 
 {--------------------------------------------------------------
   indices
 --------------------------------------------------------------}
 readNameIdx :: Read v Id
 readNameIdx
-  = do{ idx <- readint
+  = do{ idx <- readIdx "name"
       ; if (idx == 0)
          then readFreshId
          else resolve idx (\rec -> case rec of 
@@ -253,25 +266,25 @@ readNameIdx
       }
 
 readModuleIdx 
-  = do{ idx <- readint
+  = do{ idx <- readIdx "module descriptor"
       ; resolve idx (\rec -> case rec of
                                RecModule modid major minor -> (modid,major,minor)
                                other -> error "LvmRead.readModule: invalid module index")
       }
 
 readExternTypeIdx
-  = do{ idx <- readint
+  = do{ idx <- readIdx "extern type"
       ; resolve idx (\rec -> case rec of
                                RecExternType tp -> tp
                                other  -> error "LvmRead.readExternType: invalid extern type index")
       }
 
 readNameStringIdx
-  = do{ idx <- readint
+  = do{ idx <- readIdx "name string"
       ; readNameString idx
       }
 
-readNameString idx
+readNameString idx 
   = resolve idx (\rec -> case rec of
                            RecName id   -> stringFromId id
                            RecBytes bs  -> stringFromBytes bs
@@ -279,14 +292,14 @@ readNameString idx
               
 
 readCodeIdx
-  = do{ idx <- readint
+  = do{ idx <- readIdx "code"
       ; resolve idx (\rec -> case rec of
                                RecCode code -> code
                                other        -> error "readCode" "invalid code index")
       }
 
 readEnclosing
-  = do{ idx  <- readint
+  = do{ idx  <- readIdx "enclosing"
       ; if (idx == 0) 
           then return Nothing
           else resolve idx (\rec -> case rec of
@@ -296,7 +309,25 @@ readEnclosing
       }
 
 
-                   
+
+readInt :: Read v Int
+readInt 
+  = do{ i <- readRaw
+      ; readGuard (isInt i) "readInt" ("expecting integer but found index")
+      ; return (decodeInt i)
+      }
+readIdx :: String -> Read v Int
+readIdx name
+  = do{ i <- readRaw
+      ; readGuard (isIdx i) "readIdx" ("expecting index but found integer (" ++ name ++ ")")
+      ; return (decodeIdx i)
+      }
+
+isInt i = odd i
+isIdx i = even i
+
+decodeInt i = (i-1) `div` 2
+decodeIdx i = i `div` 2
 
 {--------------------------------------------------------------
   Reader monad.
@@ -325,8 +356,9 @@ instance Monad (Read v) where
   (Read r) >>= f  = Read (\rs bs -> case r rs bs of
                                       Result x bsx -> unRead (f x) rs bsx) 
 
-readint :: Read v Int
-readint 
+
+readRaw :: Read v Int
+readRaw 
   = Read (\env (State bs ns) -> case int32FromByteList bs of (i,cs) -> Result i (State cs ns))
 
 readByteList :: Int -> Read v [Byte]

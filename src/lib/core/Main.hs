@@ -35,7 +35,7 @@ import LvmImport  ( lvmImport )         -- resolve import declarations
 ----------------------------------------------------------------
 message s
   = return () 
-  -- = putStr s
+ -- = putStr s
 
 main
   = do{ [arg] <- getArgs
@@ -63,9 +63,9 @@ compile src
             target  = (reverse (drop 5 (reverse source)) ++ ".lvm")
 
       ; messageDoc "core"         (corePretty coremod)
-      ; messageDoc "assembler"    (asmPretty asmmod)
-      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
-      ; messageDoc "instructions" (lvmPretty lvmmod)
+      -- ; messageDoc "assembler"    (asmPretty asmmod)
+      -- ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
+      -- ; messageDoc "instructions" (lvmPretty lvmmod)
 
       ; messageLn  ("writing    : " ++ showFile target)
       ; lvmWriteFile target lvmmod

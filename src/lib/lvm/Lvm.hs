@@ -30,5 +30,5 @@ type LvmDecl    = Decl [Instr]
   Constants
 ---------------------------------------------------------------}
 recHeader,recFooter :: Int
-recHeader     = 0x4c564d58
-recFooter     = 0x4c564d59
+recHeader     = 0x214C564D
+recFooter     = recHeader+1

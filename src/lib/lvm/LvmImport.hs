@@ -76,7 +76,7 @@ resolveImports loaded (modid,mod)
   = foldlStrict (resolveImport [] modid) loaded (filter isDeclImport (moduleDecls mod))
 
 resolveImport :: [Id] -> Id -> IdMap (Module v) -> Decl v -> IdMap (Module v)
-resolveImport visited modid loaded x@(DeclImport id access@(Imported public imodid impid kind major minor))
+resolveImport visited modid loaded x@(DeclImport id access@(Imported public imodid impid kind major minor) customs)
   | elem modid visited = error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
   | otherwise = 
     let mod = findMap modid loaded in 

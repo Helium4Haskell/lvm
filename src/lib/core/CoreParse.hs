@@ -11,10 +11,14 @@
 
 module CoreParse( coreParse, coreParseExpr ) where
 
+import PPrint( (<+>), (<>), Doc, text )
+import qualified PPrint
+
 import Standard( foldlStrict )
 import Parsec hiding (satisfy)
 import Byte   ( bytesFromString )
 import Id     ( Id, stringFromId, idFromString )
+import IdSet  ( IdSet, deleteSet, unionSet, emptySet, singleSet, listFromSet )
 import IdMap
 import IdSet
 import Core
@@ -89,6 +93,89 @@ arityFromKind kind
       KStar           -> 0
       KString s       -> error "Core.arityFromKind: string kind"
 
+ppType :: Type -> Doc
+ppType tp
+  = ppTypeEx 0 (addForall tp)
+
+ppTypeEx level tp
+  = parenthesized $
+    case tp of
+      TFun    t1 t2   -> ppHi t1 <+> text "->" <+> ppEq t2
+      TAp     t1 t2   -> ppEq t1 <+> ppHi t2
+      TForall id t    -> text "forall" <+> ppId id <> text "." <+> ppEq t
+      TExist  id t    -> text "exist" <+> ppId id <> text "." <+> ppEq t
+      TStrict t       -> ppHi t <> text "!"
+      TVar    id      -> ppId id
+      TCon    id      -> ppId id
+      TAny            -> text "any"
+      TString s       -> PPrint.string s
+  where
+    tplevel           = levelFromType tp
+    parenthesized doc | level <= tplevel  = doc
+                      | otherwise         = PPrint.parens doc
+    ppHi t            | level <= tplevel  = ppTypeEx (tplevel+1) t
+                      | otherwise         = ppTypeEx 0 t
+    ppEq  t           | level <= tplevel  = ppTypeEx tplevel t
+                      | otherwise         = ppTypeEx 0 t
+
+
+ppKind :: Kind -> Doc
+ppKind kind
+  = ppKindEx 0 kind
+
+ppKindEx level kind
+  = parenthesized $
+    case kind of
+      KFun k1 k2    -> ppHi k1 <+> text "->" <+> ppEq k2
+      KStar         -> text "*"
+      KString s     -> PPrint.string s
+  where
+    (klevel,parenthesized)
+      | level <= levelFromKind kind   = (levelFromKind kind,id)
+      | otherwise                     = (0,PPrint.parens)
+
+    ppHi k  = ppKindEx (if klevel<=0 then 0 else klevel+1) k
+    ppEq k  = ppKindEx klevel k
+
+
+ppId id
+  = PPrint.string (stringFromId id)
+
+levelFromType tp
+  = case tp of
+      TString s       -> 1 
+      TForall id t    -> 2
+      TExist  id t    -> 2
+      TFun    t1 t2   -> 3
+      TAp     t1 t2   -> 4
+      TStrict t       -> 5
+      TVar    id      -> 6
+      TCon    id      -> 6
+      TAny            -> 7 
+
+levelFromKind kind
+  = case kind of
+      KString s     -> 1
+      KFun k1 k2    -> 2
+      KStar         -> 3
+
+addForall :: Type -> Type
+addForall tp
+  = foldr TForall tp (listFromSet (varsInType tp))
+
+varsInType :: Type -> IdSet
+varsInType tp
+  = case tp of
+      TForall id t    -> deleteSet id (varsInType t)
+      TExist  id t    -> deleteSet id (varsInType t)
+      TString s       -> emptySet
+      TFun    t1 t2   -> unionSet (varsInType t1) (varsInType t2)
+      TAp     t1 t2   -> unionSet (varsInType t1) (varsInType t2)
+      TStrict t       -> varsInType t
+      TVar    id      -> singleSet id
+      TCon    id      -> emptySet
+      TAny            -> emptySet
+   
 
 ----------------------------------------------------------------
 -- Program
@@ -103,7 +190,7 @@ parseModule
       ; (exports, exportCons, exportData) <- pexports
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
-      ; declss <- semiList (wrap (ptopDecl <|> pabstract <|> pextern) <|> pdataDecl <|> pimport <|> ptypeTopDecl)
+      ; declss <- semiList (wrap (ptopDecl <|> pabstract <|> pextern) <|> pdata <|> pimport <|> ptypeTopDecl)
       ; lexeme LexRBRACE
       ; lexeme LexEOF
 
@@ -121,8 +208,8 @@ modulePublic exports exportCons exportData mod
          then decl{ declAccess = (declAccess decl){ accessPublic = True }}
          else decl
 
-    conTypeName (DeclCon{declCustoms=(CustomName id:rest)})  = id
-    conTypeName other                                        = dummyId
+    conTypeName (DeclCon{declCustoms=(CustomBytes tp:CustomName id:rest)})  = id
+    conTypeName other  = dummyId
 
 ----------------------------------------------------------------
 -- export list
@@ -177,7 +264,7 @@ pabstractValue
       ; (modid,impid) <- qualifiedVar
       ; (tp,tparity) <- ptypeDecl
       ; arity <- do{ lexeme LexASG; i <- lexInt; return (fromInteger i) } <|> return tparity
-      ; return (DeclAbstract id (Imported False modid impid DeclKindValue 0 0) arity)
+      ; return (DeclAbstract id (Imported False modid impid DeclKindValue 0 0) arity [])
       }
 
 pabstractCon
@@ -206,18 +293,18 @@ pimportValue modid
   = do{ id <- variable
       ; do{ lexeme LexASG
           ; impid <- variable
-          ; return (DeclImport id (Imported False modid impid DeclKindValue 0 0))
+          ; return (DeclImport id (Imported False modid impid DeclKindValue 0 0) [])
           }
-      <|> return (DeclImport id (Imported False modid id DeclKindValue 0 0))
+      <|> return (DeclImport id (Imported False modid id DeclKindValue 0 0) [])
       }
 
 pimportCon modid
   = do{ id <- constructor
       ; do{ lexeme LexASG
           ; impid <- constructor
-          ; return (DeclImport id (Imported False modid impid DeclKindCon 0 0))
+          ; return (DeclImport id (Imported False modid impid DeclKindCon 0 0) [])
           }
-      <|> return (DeclImport id (Imported False modid id DeclKindCon 0 0))
+      <|> return (DeclImport id (Imported False modid id DeclKindCon 0 0) [])
       }
 
 ----------------------------------------------------------------
@@ -268,26 +355,22 @@ pbindRhs
 ----------------------------------------------------------------
 -- data declarations
 ----------------------------------------------------------------
-pdataDecl :: TokenParser [CoreDecl]
-pdataDecl
-  = do{ (id,cons) <- pdata
-      ; return cons
-      }
-
-pdata :: TokenParser (Id,[CoreDecl])
+pdata :: TokenParser [CoreDecl]
 pdata
   = do{ lexeme LexDATA
       ; id   <- typeid
       ; args <- many typevarid
-      ; let kind            = foldr KFun KStar (map (const KStar) args)
+      ; let kind     = foldr KFun KStar (map (const KStar) args)
+            datadecl = DeclCustom id public (DeclKindCustom 100) [CustomBytes (bytesFromString (show (ppKind kind)))]
       ; do{ lexeme LexASG
           ; let tp  = foldl TAp (TCon id) (map TVar args)
           ; cons <- sepBy1 (pconDecl tp) (lexeme LexBAR)
-          ; let con tag (id,tp) = (DeclCon id public (arityFromType tp) tag [CustomName id])
-          ; return (id,zipWith con [0..] cons)
+          ; let con tag (conid,tp) = (DeclCon conid public (arityFromType tp) tag 
+                                      [CustomBytes (bytesFromString (show (ppType tp))), CustomName id])
+          ; return (datadecl:zipWith con [0..] cons)
           }
       <|> {- empty data types -}
-        do{ return (id,[]) }
+        do{ return [datadecl] }
       }
 
 pconDecl :: Type -> TokenParser (Id,Type)

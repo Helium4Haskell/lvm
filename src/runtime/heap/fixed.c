@@ -101,9 +101,9 @@ value alloc_fixed( size_t size )
     struct fixed_block* fixedb = stat_alloc( sizeof(struct fixed_block) + (size-1)*sizeof(value) );
     fixedb->size = size;
     for( i = 0; i < size; i++) { fixedb->data[i] = 0; }
+    Fixed_block_val(v) = fixedb;
     fixedb->next = fixed_blocks;
     fixed_blocks = fixedb;
-    Fixed_block_val(v) = fixedb;
   }
 
   CAMLreturn(v);

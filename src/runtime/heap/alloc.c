@@ -56,11 +56,12 @@ value alloc (mlsize_t wosize, tag_t tag)
 value alloc_small (mlsize_t wosize, tag_t tag)
 {
   value result;
-
+  mlsize_t i;
   Assert (wosize > 0);
   Assert (wosize <= Max_young_wosize);
   Assert (tag < 256);
   Alloc_small (result, wosize, tag);
+  for(i=0;i<wosize;i++) Field(result,i) = 0;
   return result;
 }
 
