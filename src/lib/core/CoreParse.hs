@@ -703,7 +703,7 @@ listExpr
   = do{ lexeme LexLBRACKET
       ; exprs <- sepBy pexpr (lexeme LexCOMMA)
       ; lexeme LexRBRACKET
-      ; return (foldl cons nil exprs)
+      ; return (foldr cons nil exprs)
       }
   where
     cons x xs   = Ap (Ap (Con (ConId (idFromString ":"))) x) xs
