@@ -582,7 +582,7 @@ enterloop:
           else {
             value nap;
             word  i;
-            UpdateAlloc(upd,nap,args+1,Nap_tag);
+            Update_alloc(upd,nap,args+1,Nap_tag);
             Field(nap,0) = Val_code((pc-2));
             for( i = args; i > 0; i--)   { value x = sp[i-1]; sp[i+2] = x; Store_field(nap,i,x); }
           }
@@ -759,20 +759,14 @@ returnloop:
 /*----------------------------------------------------------------------
   RETURNCON t n == NEWCON t n; SLIDE 1 m; ENTER == NEWCON t n; RETURN
 ----------------------------------------------------------------------*/
-#define AllocCon() \
+#define Ensure_con() \
     if (con==0) { \
+      wsize_t i; \
       Assert(n > 0); \
-      if (n <= Max_young_wosize) { \
-        wsize_t i; \
-        Alloc_small(con,n,tag);\
-        for( i = 0; i < n; i++) { Field(con,i) = sp[i]; }\
-      } else {\
-        wsize_t i; \
-        Alloc_large(con,n,tag);\
-        for( i = 0; i < n; i++) { Init_field(con,i,sp[i]); }\
-      }\
+      Alloc_con(con,n,tag); \
+      for( i = 0; i < n; i++) { Init_field(con,i,sp[i]); } \
     }
-
+    
     Instr(RETURNCON): {
       con_tag_t tag = *pc++;
       wsize_t   n   = *pc++;
@@ -793,10 +787,11 @@ returncon:
           /* jump to the continuation, hopefully without allocation */
           pc = Code_val(Frame_value(fp));
 
-          if (*pc == Val_instr(SWITCHCON))
-          {
-            value* bp;
-            /* hoeree, we can probably switch immediately without allocation */
+          if (*pc == Val_instr(SWITCHCON)) {
+            /* hooray, we can probably switch immediately without allocation */
+            value*  bp;
+            wsize_t count;
+            long    ofs;
             Trace_value( "returncon: continue into switch: ", Val_code(pc) );
 
             /* restore the stack */
@@ -809,34 +804,30 @@ returncon:
             }
 
             /* interpret the SWITCHCON instruction */
-            pc++;
-            {
-              word_t count  = pc[0];
-              word_t ofs;
-
-              if (tag >= count) {
-                /* default case: we have to allocate */
-                ofs = pc[1];
-                if (ofs==0) { Raise_runtime_exn(Exn_failed_pattern); }
-                pc += ofs;
-
-                AllocCon();
-                Pop_n(n);
-                Push(con);
-              }
-              else {
-                ofs = pc[tag+2];
-                if (ofs==0) { Raise_runtime_exn(Exn_failed_pattern); }
-                pc += ofs;
-              }
-
-              Next;
+            pc++; 
+            count = pc[0];
+            if (tag >= count) {
+              /* default case: we have to allocate */
+              ofs = pc[1];
+              if (ofs==0) { Raise_runtime_exn(Exn_failed_pattern); }
+              pc += ofs;
+              Ensure_con();
+              Pop_n(n);
+              Push(con);
             }
+            else {
+              ofs = pc[tag+2];
+              if (ofs==0) { Raise_runtime_exn(Exn_failed_pattern); }
+              pc += ofs;
+            }
+            Next;
           }
-          else if (*pc == Val_instr(MATCHCON))
-          {
-            value* bp;
-            /* hoeree, we can probably switch immediately without allocation */
+          else if (*pc == Val_instr(MATCHCON)){
+            /* hurray, we can probably switch immediately without allocation */
+            value*  bp;
+            wsize_t count;
+            wsize_t i;
+            long    ofs;
             Trace_value( "returncon: continue into match: ", Val_code(pc) );
 
             /* restore the stack */
@@ -850,31 +841,22 @@ returncon:
 
             /* interpret the MATCHCON instruction */
             pc++;
-            {
-              long count = pc[0];
-              long i;
-              long ofs   = pc[1];
-
-              for(i = 1; i <= count; i++) {
-                if (pc[i*2] == tag) { ofs = pc[i*2+1]; break; }
-              }
-
-              if (ofs == 0) { Raise_runtime_exn(Exn_failed_pattern); }
-              pc += ofs;
-
-              if (i > count) {
-                /* default case: we have to allocate :-( */
-                AllocCon();
-                Pop_n(n);
-                Push(con);
-              }
-
-              Next;
+            count = pc[0];
+            ofs   = pc[1];
+            for(i = 1; i <= count; i++) {
+              if (pc[i*2] == tag) { ofs = pc[i*2+1]; break; }
             }
+            if (ofs == 0) { Raise_runtime_exn(Exn_failed_pattern); }
+            pc += ofs;
+            if (i > count) { /* default case: we have to allocate :-( */
+              Ensure_con();
+              Pop_n(n);
+              Push(con);
+            }
+            Next;
           }
           else {
-            AllocCon();
-
+            Ensure_con();
             Trace_value( "returncon: failed unshared continue into", Val_code(pc) );
             Debug_pcstart(pc);
             sp    = fp + Frame_size - 1;
@@ -888,22 +870,12 @@ returncon:
 
         case frame_update: {
           /* overwrite update value with the constructor */
-          value   upd     = Frame_value(fp);
-          wsize_t updsize = Wosize_val(upd);
-
-          /* and update */
-          if (updsize >= n
-              /* && (updsize!= n+1 || Is_young(upd) ) // avoid gc bug */
-             ) {
-            /* update in place */
+          value upd = Frame_value(fp);
+          if (con == 0) {
             wsize_t i;
-            Trace_value( "returncon: update frame in-place: ", upd );
-            Downsize(upd,updsize,n,(tag_t)tag);
-            for( i = 0; i < n; i++) { Store_field(upd,i,sp[i] ); }
+            Update_alloc_con(upd,con,n,tag);
+            for( i = 0; i < n; i++) { Store_field(con,i,sp[i]); } 
           } else {
-            /* update with indirection */
-            Trace_value( "returncon: update frame: ", upd );
-            AllocCon();
             Indirect(upd,con);
           }
 
@@ -919,7 +891,7 @@ returncon:
 
         case frame_stop: {
           /* return with this constructor */
-          AllocCon();
+          Ensure_con();
 
           sp = fp;
           Push(con);
@@ -933,7 +905,7 @@ returncon:
 
       Next; /* for a non-threaded application */
     }
-
+#undef Ensure_con
 
 /*----------------------------------------------------------------------
   Matching

@@ -105,27 +105,41 @@ extern struct inv_block_t inv_block;
 
 /* Update(v,w,sz,tag) => update [v] with a block [w] of size [sz] and tag [tag] */
 #ifdef LVM_UPDATE_INPLACE
-# define UpdateAlloc(v,w,_newsz,newtag) { \
+# define Update_alloc(v,w,_newsz,newtag) { \
     wsize_t sz    = Wosize_val(v); \
     wsize_t newsz = _newsz; /* sharing */ \
     Assert( Is_block(v) && Wosize_val(v) > 0); \
     if (sz == newsz) { \
       w = v; \
       Tag_val(v) = newtag; \
-    } else if (sz < newsz \
-               /* || (newsz+1 == sz && !Is_young(v))   // avoid gc bug */ \
-              ) { \
+    } else if (sz > newsz) { \
+      w = v; \
+      Truncate(v,sz,newsz,newtag); \
+    } else { \
       Allocate(w,newsz,newtag); \
       Indirect(v,w); \
-    } else { \
-      w = v; \
-      Assert(sz != newsz+1); \
-      Truncate(v,sz,newsz,newtag); \
     } \
   }
+
 #else
-#define UpdateAlloc(v,w,newsz,newtag) { \
+#define Update_alloc(v,w,newsz,newtag) { \
     Allocate(w,newsz,newtag); \
+    Indirect(v,w); \
+  }
+#endif
+
+#ifdef LVM_UPDATE_INPLACE
+# define Update_alloc_con(v,w,size,tag) { \
+    wsize_t consize; \
+    tag_t   contag;  \
+    if (tag >= Con_max_tag) { contag = Con_max_tag; consize = size + 1; } \
+                       else { contag = tag; consize = size; } \
+    Update_alloc(v,w,consize,contag); \
+    if (tag >= Con_max_tag) { Store_field(w,size,Val_long(tag)); } \
+  }
+#else
+# define Update_alloc_con(v,w,size,tag) { \
+    Alloc_con(w,size,tag); \
     Indirect(v,w); \
   }
 #endif
@@ -134,9 +148,7 @@ extern struct inv_block_t inv_block;
 #define Update(v,w) { \
     wsize_t sz = Wosize_val(v); \
     wsize_t newsz; \
-    if (Is_block(w) && (newsz = Wosize_val(w)) <= sz && newsz > 0 \
-       /* && (newsz+1 != sz || Is_young(v))   // avoid gc bug */ \
-       ) { \
+    if (Is_block(w) && (newsz = Wosize_val(w)) <= sz && newsz > 0) { \
       wsize_t i; \
       Downsize(v,sz,newsz,Tag_val(w)); \
       for( i = 0; i < newsz; i++ ) { Store_field(v,i,Field(w,i)); } \
