@@ -63,21 +63,12 @@ static void schedule( struct thread_state* thread )
   } /* while(1) */
 }
 
-void evaluate_name( value module, char* name )
+void evaluate_code( value module, value code, bool showfinal )
 {
-  CAMLparam1(module);
-  CAMLlocal1(v);
-
+  CAMLparam2(module,code);
+  extern wsize_t stack_wsize_max, stack_wsize_threshold, stack_wsize_init;
   struct thread_state* thread;
-  value code = find_code( module, name );
-
-extern wsize_t stack_wsize_max, stack_wsize_threshold, stack_wsize_init;
-
-  if (code == 0) {
-    fatal_error( "fatal error: function \"%s\" is not defined\n", name );
-    CAMLreturn0;
-  }
-
+  
   thread = thread_new( stack_wsize_init, stack_wsize_threshold, stack_wsize_max, module, code );
   schedule( thread );
 
@@ -89,13 +80,29 @@ extern wsize_t stack_wsize_max, stack_wsize_threshold, stack_wsize_init;
   case Thread_complete:
   case Thread_yield:
   default: {
-//    print( "final value: " );
-//    print_value(module, thread->stack_sp[0]);
-//    print( "\n");
+    if (showfinal) {
+      print( "final value: " );
+      print_value(module, thread->stack_sp[0]);
+      print( "\n");
+    }
     break;
   }}
 
   debug_gc();
   thread_destroy(thread);
+  CAMLreturn0;
+}
+
+void evaluate_name( value module, char* name )
+{
+  CAMLparam1(module);
+  value code = find_code( module, name );
+
+  if (code == 0) {
+    fatal_error( "fatal error: function \"%s\" is not defined\n", name );
+    CAMLreturn0;
+  }
+
+  evaluate_code(module,code,false);
   CAMLreturn0;
 }

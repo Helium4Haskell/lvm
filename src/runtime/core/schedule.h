@@ -16,5 +16,6 @@
 #include "module.h"
 
 void evaluate_name( value module, const char* name );
+void evaluate_code( value module, value code, bool showfinal );
 
 #endif /* _schedule_h */

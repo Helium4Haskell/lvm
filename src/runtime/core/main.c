@@ -24,15 +24,25 @@
 void start_module( const char* name )
 {
   CAMLparam0();
-  CAMLlocal1(module);
+  CAMLlocal2(module,code);
+  bool showfinal = false;
 
   stat_start_init();
   module = load_module( name );
   debug_gc();
   stat_end_init();
 
-  evaluate_name( module, "main$" );
+  code = find_code(module,"main$" );
+  if (code==0) {
+    code = find_code(module,"main");
+    if (code==0) {
+      fatal_error( "fatal error: neither \"main\" or \"main$\" is defined\n" );   
+      CAMLreturn0;
+    }
+    showfinal = true;
+  }
 
+  evaluate_code( module, code, showfinal );
   CAMLreturn0;
 }
 
