@@ -25,10 +25,11 @@ core/loader.o: core/loader.c common/mlvalues.h common/config.h \
  heap/gc_ctrl.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
  core/sys.h common/fail.h core/reverse.h common/bytes.h \
  common/custom.h core/instr.h core/module.h common/fixed.h \
- core/dynamic.h core/print.h prim/prims.h prim/../core/module.h
+ core/dynamic.h core/print.h prim/prims.h prim/../core/module.h \
+ core/options.h
 core/main.o: core/main.c common/mlvalues.h common/config.h common/misc.h \
- common/memory.h core/print.h core/module.h common/fixed.h \
- core/loader.h core/schedule.h core/options.h core/stats.h
+ common/memory.h core/module.h common/fixed.h core/loader.h \
+ core/schedule.h core/options.h core/stats.h
 core/misc.o: core/misc.c common/mlvalues.h common/config.h common/misc.h \
  heap/heap.h common/memory.h heap/gc.h heap/gc_ctrl.h heap/minor_gc.h \
  heap/major_gc.h heap/freelist.h core/dynamic.h core/module.h \
@@ -36,6 +37,12 @@ core/misc.o: core/misc.c common/mlvalues.h common/config.h common/misc.h \
 core/module.o: core/module.c common/mlvalues.h common/config.h \
  common/misc.h common/memory.h core/module.h common/fixed.h \
  common/bytes.h common/custom.h
+core/options.o: core/options.c common/mlvalues.h common/config.h \
+ common/misc.h common/memory.h heap/heap.h heap/gc.h heap/gc_ctrl.h \
+ heap/minor_gc.h heap/major_gc.h heap/freelist.h core/dynamic.h \
+ core/module.h common/fixed.h common/custom.h common/fail.h \
+ core/print.h core/loader.h core/evaluator.h core/thread.h \
+ core/signals.h core/schedule.h core/stats.h core/sys.h
 core/primfloat.o: core/primfloat.c common/mlvalues.h common/config.h \
  common/misc.h common/fail.h heap/heapfast.h heap/heap.h \
  common/memory.h heap/gc.h heap/gc_ctrl.h heap/minor_gc.h \
@@ -63,7 +70,7 @@ core/stats.o: core/stats.c common/mlvalues.h common/config.h common/misc.h \
  common/fixed.h core/options.h core/stats.h
 core/sys.o: core/sys.c common/mlvalues.h common/config.h common/misc.h \
  common/alloc.h common/fail.h common/memory.h core/signals.h \
- core/thread.h core/sys.h
+ core/thread.h core/sys.h core/options.h
 core/systhread.o: core/systhread.c common/mlvalues.h common/config.h \
  common/misc.h common/fail.h core/sys.h core/systhread.h
 core/thread.o: core/thread.c common/config.h common/mlvalues.h \
@@ -121,6 +128,7 @@ heap/weak.o: heap/weak.c common/mlvalues.h common/config.h common/misc.h \
 prim/primio.o: prim/primio.c common/mlvalues.h common/config.h \
  common/misc.h common/fail.h common/memory.h common/alloc.h \
  common/custom.h prim/primio.h prim/primsys.h
+prim/primmagic.o: prim/primmagic.c
 prim/prims.o: prim/prims.c common/mlvalues.h common/config.h common/misc.h \
  common/fail.h prim/prims.h prim/../core/module.h common/fixed.h \
  prim/primitives.h prim/../core/sys.h
