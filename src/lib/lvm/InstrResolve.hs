@@ -138,8 +138,8 @@ resolve (CATCH is)
       ; is' <- resolves is
       ; return (PUSHCATCH : is')
       }
-
 {-
+
   = do{ b   <- base
       ; pop 1
       ; push 3

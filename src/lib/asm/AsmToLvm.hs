@@ -192,7 +192,7 @@ cgPrim env id args
                                      else result (CALL (Global id 0 arity))
       Just instr -> if (isCATCH instr)
                      then case args of
-                            [handler,atom] -> cgAtom env handler ++ [CATCH (cgAtom env atom)]
+                            [handler,atom] -> cgAtom env handler ++ [CATCH [EVAL 0 ((cgAtom env atom)++[ENTER])]]
                             other          -> error ("AsmToCode.cgPrim: CATCH expects 2 arguments")
                      else result instr
   where

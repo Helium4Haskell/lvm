@@ -18,7 +18,7 @@
 value prim_string_of_chars( long len, value chars )
 {
   CAMLparam1(chars);
-  CAMLlocal1(str);
+  CAMLlocal2(str,charval);
   char* s;
   long i;
 
@@ -27,9 +27,13 @@ value prim_string_of_chars( long len, value chars )
 
   for( i = 0; i < len; i++ ) {
     if (Is_atom(chars)) break;
-    if (!is_heap_val(chars) || Tag_val(chars) != 1) break;
-    if (!Is_long(Field(chars,0))) break;
-    s[i] = (char)Long_val(Field(chars,0));
+    if (!is_heap_val(chars)) break;
+    while (Tag_val(chars) == Ind_tag) { chars = Field(chars,0); }
+    if (Tag_val(chars) != 1) break;
+    charval = Field(chars,0);
+    while (is_heap_val(charval) && Tag_val(charval)==Ind_tag) { charval = Field(charval,0); }
+    if (!Is_long(charval)) break;
+    s[i] = (char)Long_val(charval);
     chars = Field(chars,1);
   }
   if (i < len) s[i] = 0;
