@@ -31,17 +31,6 @@
 # include <windows.h>
 #endif
 
-/* Version string */
-static const char* version(void)
-{
-  const char* _version = "$Revision$";
-  static char version_buf[40];
-
-  strncpy( version_buf, _version + 2 + strlen("Revision"), 100 );
-  version_buf[strlen(version_buf)-1] = 0;
-  return version_buf;
-}
-
 
 /* initial heap parameters */
 /* Initial speed setting for the major GC.  The heap will grow until
@@ -86,8 +75,8 @@ const char* argv0   = NULL;
 void show_options(void)
 {
   const char* env;
-
-  print( "version:%s %s\n", version(), __DATE__ );
+ 
+  print( "version: %s\n", __DATE__ ); 
   print( "usage:\n" );
   print( " lvmrun [lvm options] <file> [program options]\n" );
   print( "\n" );
@@ -148,8 +137,8 @@ void show_options(void)
   print( " shared libs  <system path>\n" );
   } else {
   print( " shared libs  \"%s%c<system path>\"\n", dllpath, PATHSEP );
-  print( "\n" );
   }
+  print( "\n" );  
 }
 
 

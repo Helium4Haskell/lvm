@@ -5,9 +5,12 @@
 -- $Author$
 -- $Date$
 ----------------------------------------------------------------
-module LvmException where
+module LvmException( Exception(..), RuntimeException(..), SystemException(..)
+                   , ArithmeticException(..), SignalException(..)
+                   , catch, raise, error, patternFail
+                   ) where
 
-import LvmLang
+import LvmLang( packedFromString, '':()'' )
 
 instruction primCatch "catch" :: (Exception -> a) -> a -> a
 instruction primRaise "raise" :: Exception! -> a

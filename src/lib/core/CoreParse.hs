@@ -90,7 +90,7 @@ parseModule
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
       ; (abstracts,absConDecls) <- pabstracts
-      ; imports   <- semiTerm pimport
+      ; importss  <- semiTerm pimport
       ; externs   <- semiTerm pextern
       ; datas     <- semiTerm pdata
       ; types     <- semiTerm ptypeTopDecl
@@ -104,7 +104,7 @@ parseModule
             exportConDecls = setFromList (concatMap (map fst . snd) (filter (\x -> elemSet (fst x) exportData) datas))
                              `unionSet` exportCons
 
-            mod0  = Module moduleId 0 0 ds abstracts conDecls externDecls emptyMap imports
+            mod0  = Module moduleId 0 0 ds abstracts conDecls externDecls emptyMap (concat importss)
             mod1  = modulePublic exports exportConDecls mod0
       ; return mod1
       }
@@ -218,24 +218,30 @@ pabstractCon
 ----------------------------------------------------------------
 -- import declarations
 ----------------------------------------------------------------
-pimport :: TokenParser (Id,DImport)
+pimport :: TokenParser [(Id,DImport)]
 pimport
   = do{ lexeme LexIMPORT
-      ; pimportValue <|> pimportCon
+      ; id <- conid
+      ; imports <- commaParens (pimportValue id <|> pimportCon id)
+      ; return imports
       }
 
-pimportValue 
+pimportValue modid
   = do{ id <- variable
-      ; lexeme LexASG
-      ; (modid,impid) <- qualifiedVar
-      ; return (id, DImport (Import False modid impid 0  0) declValue)
+      ; do{ lexeme LexASG
+          ; impid <- variable
+          ; return (id,DImport (Import False modid impid 0 0) declValue)
+          }
+      <|> return (id,DImport (Import False modid id 0 0) declValue)
       }
 
-pimportCon
-  = do{ id <- conid
-      ; lexeme LexASG
-      ; (modid,impid) <- qualifiedCon
-      ; return (id, DImport (Import False modid impid 0 0) declCon)
+pimportCon modid
+  = do{ id <- constructor
+      ; do{ lexeme LexASG
+          ; impid <- constructor
+          ; return (id,DImport (Import False modid impid 0 0) declCon)
+          }
+      <|> return (id,DImport (Import False modid id 0 0) declCon)
       }
 
 ----------------------------------------------------------------
@@ -551,18 +557,22 @@ ptypeAp
 
 ptypeAtom
   = do{ id <- typeid
-      ; do{ lexeme LexEXCL
-          ; return (TStrict (TCon id))
-          }
-        <|> return (TCon id)
+      ; ptypeStrict (TCon id) 
       }
   <|>
     do{ id <- typevarid
-      ; return (TVar id)
+      ; ptypeStrict (TVar id)
       }
   <|> listType
   <|> parenType
   <?> "atomic type"
+
+ptypeStrict tp
+  = do{ lexeme LexEXCL
+      ; return (TStrict tp)
+      }
+  <|> return tp
+      
 
 parenType
   = do{ lexeme LexLPAREN

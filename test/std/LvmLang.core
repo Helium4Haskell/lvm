@@ -5,7 +5,13 @@
 -- $Author$
 -- $Date$
 ----------------------------------------------------------------
-module LvmLang where
+module LvmLang( Bytes(), Int(), Float()
+              , Bool(False,True), '':[]''(''::'','':[]'')
+              , IO(), Char(), Double(), PackedString(), String()
+
+              , packedFromString, stringFromPacked, packedLength
+              , bindIO, returnIO, primIO, unsafePerformIO, unsafePerformStrictIO
+              ) where
 
 {----------------------------------------------------------
   Instructions
@@ -48,9 +54,9 @@ extern prim_string_length   :: "la"
   Basic data types
 ----------------------------------------------------------}
 data '':()''    = '':()''
-data PackedString
+data Bytes
 data Int
-data Double
+data Float
 data Bool       = False
                 | True
 
@@ -62,10 +68,12 @@ type IO a       = () -> IORes a
 {----------------------------------------------------------
   Type definitions
 ----------------------------------------------------------}
-type Bytes      = PackedString
-type Char       = Int
-type Float      = Double
-type String     = [Char]
+type Char         = Int
+type Double       = Float
+
+type PackedString = Bytes
+type String       = [Char]
+
 
 {----------------------------------------------------------
   Strictness

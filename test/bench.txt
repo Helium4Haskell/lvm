@@ -1,4 +1,63 @@
 -----------------------------------------------------------
+Feb 15 2002: better codegen, better gc (removes indirection chains) 
+and better header file setup
+-----------------------------------------------------------
+[daan@~/cvs/lvm/src/runtime]$lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         1.802s   (user:   1.792s  system:   0.010s)
+  evaluator:            1.792s   (user:   1.782s  system:   0.010s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       99%
+[daan@~/cvs/lvm/src/runtime]$lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         1.091s   (user:   1.081s  system:   0.010s)
+  evaluator:            1.041s   (user:   1.041s  system:   0.000s)
+  garbage collector:    0.040s   (user:   0.040s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.000s  system:   0.010s)
+ effective time:       95%
+[daan@~/cvs/lvm/src/runtime]$lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         2.593s   (user:   2.583s  system:   0.010s)
+  evaluator:            1.872s   (user:   1.872s  system:   0.000s)
+  garbage collector:    0.701s   (user:   0.701s  system:   0.000s)
+  runtime manager:      0.020s   (user:   0.010s  system:   0.010s)
+ effective time:       72%
+[daan@~/cvs/lvm/src/runtime]$lvmrun -t nfibstrict
+final value: [int 635621]
+
+timings:
+ process total:         0.390s   (user:   0.380s  system:   0.010s)
+  evaluator:            0.390s   (user:   0.380s  system:   0.010s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+[daan@~/cvs/lvm/src/runtime]$lvmrun -t queensstrict
+final value: [int 352]
+
+timings:
+ process total:         0.410s   (user:   0.400s  system:   0.010s)
+  evaluator:            0.390s   (user:   0.380s  system:   0.010s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       95%
+[daan@~/cvs/lvm/src/runtime]$lvmrun -t sievestrict
+final value: [int 7927]
+
+timings:
+ process total:         1.912s   (user:   1.892s  system:   0.020s)
+  evaluator:            1.342s   (user:   1.331s  system:   0.010s)
+  garbage collector:    0.550s   (user:   0.551s  system:   0.000s)
+  runtime manager:      0.020s   (user:   0.010s  system:   0.010s)
+ effective time:       70%
+ 
+-----------------------------------------------------------
 Nov 5 2002: Hugs benchmarks
 -----------------------------------------------------------
 C:\docs\cvs\lvm\src\test\nfib.hs

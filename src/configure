@@ -456,7 +456,6 @@ esac
 
 echo "#define EXE \"$exe\""  >> s.h
 echo "#define DLL \"$dll\""  >> s.h
-echo "#define MAXPATH 1024"  >> s.h
 
 # Check the semantics of signal handlers
 

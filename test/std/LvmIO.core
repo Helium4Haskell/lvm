@@ -5,9 +5,14 @@
 -- $Author$
 -- $Date$
 ----------------------------------------------------------------
-module LvmIO where
+module LvmIO( Input(), Output(), Channel(), Descriptor()
+            , stdin, stdout, stderr
+            , flush, close
+            , outputChar, outputPacked, outputString
+            , inputChar
+            ) where
 
-import LvmLang
+import LvmLang( primIO, packedLength, packedFromString, bindIO, False, True )
 
 {----------------------------------------------------------
   Primitive I/O operations

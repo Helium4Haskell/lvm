@@ -105,7 +105,7 @@ readModule
          
     isPublic acc
       = case acc of
-          Private -> True
+          Private -> False
           Public  -> True
           Import public _ _ _ _ -> public
 
