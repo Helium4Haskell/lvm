@@ -29,7 +29,7 @@ import ModulePretty( modulePretty )
   Magic numbers
 --------------------------------------------------------------}
 lvmMajor, lvmMinor :: Int
-lvmMajor  = 14
+lvmMajor  = 15
 lvmMinor  = 0
 
 data Record v   = RecDecl       (Decl v)
