@@ -38,7 +38,7 @@
 #endif
 
 #define VERSION_MAJOR 9
-#define VERSION_MINOR 0
+#define VERSION_MINOR 1
 
 /*----------------------------------------------------------------------
   alignment & endianess
@@ -76,7 +76,6 @@ III)
    ) test for circularity on import declarations
 
 ----------------------------------------------------------------------*/
-
 static value* load_symbol( value module, const char* modname, long major_version
                          , const char* name, enum rec_kind rec );
 
@@ -595,19 +594,22 @@ static value read_module( value parent, const char* modname )
 
   records = alloc_fixed( header.records_count );
   Store_field( module, Module_records, records );
-
+debug_gc();
   read_records( fname, handle, is_rev_endian,
                 header.records_length, records );
 
   file_close(handle);
 
   /* resolve */
+debug_gc();
   resolve_module_name( module, header.module_name );
+debug_gc();
   resolve_internal_records( module );
 
   /* [resolve_external_records] recursively reads other modules */
+debug_gc();
   resolve_external_records( module );
-
+debug_gc();
   /* print( "module %s\n", String_val(Field(module,Module_name)));   */
 
   CAMLreturn(module);
@@ -698,7 +700,9 @@ value load_module( const char* name )
   /* resolve all references in the code */
   mod = module;
   do{
+debug_gc();
     resolve_code(mod);
+debug_gc();
     mod = Field(mod,Module_next);
   } while (mod != module);
 
