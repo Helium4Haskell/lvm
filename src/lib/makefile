@@ -20,7 +20,7 @@ MAIN	= coreasm
 
 #the haskell compiler
 HC	= ghc
-HC_OPTS	= -static -package lang -i$(IFACES)
+HC_OPTS = -cpp -static -package lang -i$(IFACES)
 
 #Haskell sources
 COMMON	= common/Id.hs common/IdMap.hs common/IdSet.hs common/IntMap.hs \
@@ -112,6 +112,7 @@ common/Standard.o : common/Standard.hs
 common/Standard.o : common/ghc/Special.hi
 common/PPrint.o : common/PPrint.hs
 common/TopSort.o : common/TopSort.hs
+common/TopSort.o : common/ghc/Special.hi
 common/ghc/Special.o : common/ghc/Special.hs
 lvm/Lvm.o : lvm/Lvm.hs
 lvm/Lvm.o : lvm/Module.hi
@@ -175,6 +176,7 @@ lvm/InstrResolve.o : common/IdMap.hi
 lvm/InstrResolve.o : common/Id.hi
 lvm/InstrResolve.o : common/Standard.hi
 lvm/InstrRewrite.o : lvm/InstrRewrite.hs
+lvm/InstrRewrite.o : lvm/InstrPretty.hi
 lvm/InstrRewrite.o : lvm/Instr.hi
 lvm/InstrRewrite.o : common/Id.hi
 lvm/InstrRewrite.o : common/Standard.hi
@@ -299,8 +301,8 @@ core/Main.o : core/Main.hs
 core/Main.o : lvm/LvmImport.hi
 core/Main.o : lvm/LvmWrite.hi
 core/Main.o : lvm/LvmPretty.hi
-core/Main.o : asm/AsmOptimize.hi
 core/Main.o : asm/AsmToLvm.hi
+core/Main.o : asm/AsmOptimize.hi
 core/Main.o : asm/AsmPretty.hi
 core/Main.o : core/CoreToAsm.hi
 core/Main.o : core/CoreParse.hi
