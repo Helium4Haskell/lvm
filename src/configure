@@ -243,13 +243,15 @@ case "$cc,$host" in
     cccompopts="$gcc_warnings"
     exe=".exe"
     dll=".dll"
-    ostype="cygwin";;
+    ostype="cygwin"
+    mathlib="";;
   gcc*,*-*-mingw*|gcc*,*-*-windows*)
     cccompopts="-mno-cygwin $gcc_warnings"
     cclinkopts="-mno-cygwin"
     exe=".exe"
     dll=".dll"
-    ostype="windows";;
+    ostype="windows"
+    mathlib="";;
   gcc*)
     cccompopts="-fno-defer-pop $gcc_warnings";;
   cl*,*-*-windows*)
@@ -257,15 +259,16 @@ case "$cc,$host" in
     cccompopts="-nologo -W3"
     exe=".exe"
     dll=".dll"
-    ostype="windows";;
+    ostype="windows"
+    mathlib="";;
 esac
 
 # Configure compiler to use in further tests
 
-cclinkopts="$cclinkopts $mathlib"
 ccomp=$cc
 cc="$cc $cclinkopts"
 export cc cclibs verbose
+cclinkopts="$cclinkopts $mathlib"
 
 # Check C compiler
 
