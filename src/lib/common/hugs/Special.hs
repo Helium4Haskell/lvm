@@ -16,11 +16,13 @@
 ---------------------------------------------------------------}
 module Special( doesFileExist
               , openBinary, closeBinary, readBinary, writeBinaryChar
+              , ST, STArray, runST, newSTArray, readSTArray, writeSTArray
               ) where
 
 import IO           ( IOMode(..), openFile, ReadMode, hClose )
 import IOExtensions ( readBinaryFile, writeBinaryFile )
 import IOExts       ( IORef, newIORef, writeIORef, readIORef )
+import LazyST       ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray )
 
 doesFileExist fname
   = do{ h <- openFile fname ReadMode

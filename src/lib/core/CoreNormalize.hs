@@ -98,6 +98,7 @@ normAtom env expr
   = case expr of
       Match _ _         -> freshBinding
       Lam _ _           -> freshBinding
+      Let (Strict _) _  -> freshBinding
       Let binds expr    -> let (env1,env2) = splitEnv env
                                (atom,f)    = normAtom env1 expr
                                (abinds,g)  = normAtomBinds env2 binds
@@ -115,6 +116,8 @@ normAtom env expr
                                id          = uniqueId env2
                            in  (Var id, Let (NonRec (Bind id expr')))
 
+-- normAtomBinds returns two functions: one that adds atomic
+-- let bindings and one that adds non-atomic bindings
 normAtomBinds :: Env -> Binds -> (Expr -> Expr, Expr -> Expr)
 normAtomBinds env binds
   = let (binds',(env',f)) = mapAccumBinds norm (env,id) binds 
