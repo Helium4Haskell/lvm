@@ -15,16 +15,16 @@ import LvmIO( outputString, stdout, outputPacked )
   Test
 ----------------------------------------------------------}
 hoi :: String
-hoi = (:) 'h' ((:) 'o' ((:) 'i' []))
+hoi = ['h','o','i']
 
 user :: String
-user = (:) 'u' ((:) 's' ((:) 'r' []))
+user = ['u','s','e','r']
 
 err :: String
-err = (:) 'e' ((:) 'r' ((:) 'r' []))
+err = ['e','r','r']
 
 unk :: String
-unk = (:) 'u' ((:) 'n' ((:) 'k' []))
+unk = ['u','n','k']
 
 
 main :: IO ()

@@ -10,7 +10,7 @@ module LvmException( Exception(..), RuntimeException(..), SystemException(..)
                    , catch, raise, error, patternFail
                    ) where
 
-import LvmLang( packedFromString, '':()'' )
+import LvmLang( packedFromString )
 
 instruction primCatch "catch" :: (Exception -> a) -> a -> a
 instruction primRaise "raise" :: Exception! -> a
@@ -94,8 +94,7 @@ data SignalException
 ----------------------------------------------------------}
 raise :: Exception -> a
 raise exn
-  = case exn of
-      exn -> primRaise exn
+  = let! exn = exn in primRaise exn
 
 catch :: IO a -> (Exception -> IO a) -> IO a
 catch action handler
@@ -106,11 +105,10 @@ catch action handler
 ----------------------------------------------------------}
 error :: String -> a
 error msg
-  = case (packedFromString msg) of
-      s -> raise (UserError s)
+  = let! s = (packedFromString msg) in raise (UserError s)
 
 patternFail :: String -> a
 patternFail msg
-  = case (packedFromString msg) of
-      s -> case (PatternFailure s) of
-             exn -> raise (Runtime exn)
+  = let! s   = packedFromString msg
+         exn = PatternFailure s
+    in raise (Runtime exn)

@@ -186,7 +186,6 @@ data Lexeme     = LexUnknown Char
                 | LexINSTR
                 | LexEXTERN
 
-                | LexLINK
                 | LexNOTHING
                 | LexCUSTOM
 
@@ -223,7 +222,6 @@ lexer pos ('t':'y':'p':'e':cs)      | nonId cs    = (pos,LexTYPE) : nextinc lexe
 lexer pos ('m':'o':'d':'u':'l':'e':cs)      | nonId cs = (pos,LexMODULE) : nextinc lexer pos 6 cs
 lexer pos ('i':'m':'p':'o':'r':'t':cs)      | nonId cs = (pos,LexIMPORT) : nextinc lexer pos 6 cs
 -- not standard
-lexer pos ('l':'i':'n':'k':cs)              | nonId cs = (pos,LexLINK)   : nextinc lexer pos 4 cs
 lexer pos ('w':'i':'t':'h':cs)              | nonId cs = (pos,LexWITH)   : nextinc lexer pos 4 cs
 lexer pos ('m':'a':'t':'c':'h':cs)          | nonId cs = (pos,LexMATCH)   : nextinc lexer pos 5 cs
 lexer pos ('c':'c':'a':'l':'l':cs)          | nonId cs = (pos,LexCCALL)   : nextinc lexer pos 5 cs

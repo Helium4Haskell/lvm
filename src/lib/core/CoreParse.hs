@@ -100,6 +100,7 @@ ppType tp
 ppTypeEx level tp
   = parenthesized $
     case tp of
+      TAp (TCon id) t2 | id == idFromString "[]" -> text "[" <> ppType t2 <> text "]" 
       TFun    t1 t2   -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
       TForall id t    -> text "forall" <+> ppId id <> text "." <+> ppEq t
@@ -211,13 +212,15 @@ modulePublic (exports,exportCons,exportData,exportDataCon,exportMods) mod
           DeclAbstract{}  -> elemSet (declName decl) exports
           DeclExtern{}    -> elemSet (declName decl) exports
           DeclCon{}       -> elemSet (declName decl) exportCons || elemSet (conTypeName decl) exportDataCon
-          DeclCustom{}    -> declKind decl == customData && elemSet (declName decl) exportData
+          DeclCustom{}    -> (declKind decl == customData || declKind decl==customTypeDecl) 
+                             && elemSet (declName decl) exportData
           DeclImport{}    -> case importKind (declAccess decl) of
                                DeclKindValue  -> elemSet (declName decl) exports
                                DeclKindExtern -> elemSet (declName decl) exports
                                DeclKindCon    -> elemSet (declName decl) exportCons 
                                DeclKindModule -> elemSet (declName decl) exportMods
-                               DeclKindCustom id -> id==idFromString "data" && elemSet (declName decl) exportData
+                               DeclKindCustom id -> (id==idFromString "data" || id==idFromString "typedecl")
+                                                    && elemSet (declName decl) exportData
                                other          -> False
           other           -> False
 
@@ -254,22 +257,29 @@ pexport
       }
   <|>
     do{ id <- typeid
-      ; lexeme LexLPAREN
-      ; do{ lexeme LexDOTDOT
+      ; do{ lexeme LexLPAREN
+          ; cons <- pexportCons id
           ; lexeme LexRPAREN
-          ; return [ExportData id,ExportDataCon id]
+          ; return (ExportData id:cons)
           }
         <|>
-        do{ ids <- sepBy conid (lexeme LexCOMMA)
-          ; lexeme LexRPAREN
-          ; return (ExportData id:map ExportCon ids)
-          }
-      }
+        return [ExportData id]
+      }      
   <|>
     do{ lexeme LexMODULE
       ; id <- conid
       ; return [ExportModule id]
       }
+
+pexportCons id
+  = do{ lexeme LexDOTDOT
+      ; return [ExportDataCon id]
+      }
+  <|>
+    do{ ids <- sepBy conid (lexeme LexCOMMA)
+      ; return (map ExportCon ids)
+      }
+
 
 ----------------------------------------------------------------
 -- abstract declarations
@@ -428,7 +438,9 @@ ptypeTopDecl
       ; tp   <- ptype
       ; let kind  = foldr KFun KStar (map (const KStar) args)
             tpstr = show $ (ppId id <+> hsep (map ppId args) <+> text "=" <+> ppType tp)
-      ; return [DeclCustom id private customTypeDecl [CustomBytes (bytesFromString tpstr)]]
+      ; return [DeclCustom id private customTypeDecl 
+                     [CustomBytes (bytesFromString tpstr)
+                     ,customKind kind]]
       }
 
 ----------------------------------------------------------------
@@ -469,15 +481,15 @@ pcustom
   <|> do{ s <- lexString; return (CustomBytes (bytesFromString s)) }
   <|> do{ id <- variable <|> constructor; return (CustomName id) }
   <|> do{ lexeme LexNOTHING; return (CustomNothing) }
-  <|> do{ lexeme LexLINK  
+  <|> do{ lexeme LexCUSTOM 
         ; kind <- pdeclKind
-        ; id   <- customid
-        ; return (CustomLink id kind)
-        }
-  <|> do{ lexeme LexCUSTOM
-        ; kind <- pdeclKind
-        ; cs   <- pcustoms
-        ; return (CustomDecl kind cs)
+        ; do{ id   <- customid
+            ; return (CustomLink id kind)
+            }
+        <|>
+          do{ cs   <- pcustoms
+            ; return (CustomDecl kind cs)
+            }
         }
   <?> "custom value"
 
@@ -514,6 +526,15 @@ pexpr
           [Alt PatDefault rhs] -> return (Let (Strict (Bind id expr)) rhs)
           other                -> return (Let (Strict (Bind id expr)) (Match id alts))
       }
+  <|>
+    do{ lexeme LexMATCH
+      ; id <- variable
+      ; lexeme LexWITH
+      ; (defid,alts) <- palts
+      ; case alts of
+          [Alt PatDefault rhs] -> return (Let (NonRec (Bind defid (Var id))) rhs)
+          other                -> return (Let (NonRec (Bind defid (Var id))) (Match defid alts))
+      }
   <|> 
     do{ lexeme LexLETSTRICT
       ; binds <- semiBraces pbind
@@ -534,7 +555,19 @@ patom
   <|> do{ id <- conid; return (Con (ConId id))  }
   <|> do{ lit <- pliteral; return (Lit lit) }
   <|> parenExpr
+  <|> listExpr
   <?> "atomic expression"
+
+
+listExpr
+  = do{ lexeme LexLBRACKET
+      ; exprs <- sepBy pexpr (lexeme LexCOMMA)
+      ; lexeme LexRBRACKET
+      ; return (foldl cons nil exprs)
+      }
+  where
+    cons x xs   = Ap (Ap (Con (ConId (idFromString ":"))) x) xs
+    nil         = Con (ConId (idFromString "[]"))
 
 
 parenExpr
@@ -638,20 +671,20 @@ ppatParens
           ; return (PatCon (ConTag (fromInteger tag) (fromInteger arity)) ids)
           }
         <|>
-        do{ pat <- ppat <|> ppatTuple <|> ppatConOp 
+        do{ id <- conopid
+          ; lexeme LexRPAREN
+          ; ids <- many bindid
+          ; return (PatCon (ConId id) ids)
+          }
+        <|>
+        do{ pat <- ppat <|> ppatTuple 
           ; lexeme LexRPAREN
           ; return pat
           }
       }
 
 ppatCon
-  = do{ id   <- conid
-      ; args <- many bindid
-      ; return (PatCon (ConId id) args)
-      }
-
-ppatConOp
-  = do{ id <- conopid
+  = do{ id   <- conid <|> do{ lexeme LexLBRACKET; lexeme LexRBRACKET; return (idFromString "[]") }      
       ; args <- many bindid
       ; return (PatCon (ConId id) args)
       }
@@ -775,15 +808,12 @@ ptypeStrict tp
 
 parenType
   = do{ lexeme LexLPAREN
-      ; do{ lexeme LexRPAREN
-          ; id <- identifier (return "()")
-          ; return (TVar id) -- (setSortId SortType id))
-          }
-      <|>
-        do{ tp <- ptype
-          ; lexeme LexRPAREN
-          ; return tp
-          }
+      ; tps <- sepBy ptype (lexeme LexCOMMA)
+      ; lexeme LexRPAREN
+      ; case tps of
+          []    -> do{ id <- identifier (return "()"); return (TCon id) } -- (setSortId SortType id))
+          [tp]  -> return tp
+          other -> return (foldl TAp (TCon (idFromString "()")) tps)  
       }
 
 listType
@@ -889,15 +919,12 @@ constructor
   = conid <|> parens conopid
 
 conopid
-  = identifier lexConOp
+  =   identifier lexConOp
+  <|> do{ lexeme LexCOLON; return (idFromString ":") }
   <?> "constructor operator"
 
 conid
   =   identifier lexCon
-  <|> do{ lexeme LexLBRACKET
-        ; lexeme LexRBRACKET
-        ; identifier (return "[]")
-        }
   <?> "constructor"
 
 qualifiedCon

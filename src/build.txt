@@ -32,8 +32,9 @@ Windows:
 > make depend
 > make
 
-Windows: If you are using VC++, you can click on the runtime
-workspace file "runtime.dsw" and build it with Visual Studio.
+Windows: 
+  If you are using VC++, you can click on the runtime
+  workspace file "runtime.dsw" and build it with Visual Studio.
 
 4) This builds the LVM runtime, "lvmrun". You can test it on
 some test files in the "test" subdirectory.
@@ -66,5 +67,5 @@ or run it from Hugs:
 > cd src/lib/core
 > hugs Main.hs
 
-For Hugs you need to set the path to all
-subdirectories of src/lib
+For Hugs you need to set the path to all direct
+subdirectories of "src/lib" and the "src/lib/common/hugs" directory.

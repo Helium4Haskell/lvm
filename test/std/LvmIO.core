@@ -5,14 +5,14 @@
 -- $Author$
 -- $Date$
 ----------------------------------------------------------------
-module LvmIO( Input(), Output(), Channel(), Descriptor()
+module LvmIO( Input, Output, Channel, Descriptor
             , stdin, stdout, stderr
             , flush, close
             , outputChar, outputPacked, outputString
             , inputChar
             ) where
 
-import LvmLang( primIO, packedLength, packedFromString, bindIO, False, True )
+import LvmLang( primIO, packedLength, packedFromString, bindIO, unsafePerformStrictIO, False, True )
 
 {----------------------------------------------------------
   Primitive I/O operations
@@ -66,32 +66,34 @@ stderr
 
 flush :: Channel Output -> IO ()
 flush out
-  = let action _ = case out of out -> prim_flush out in
-    primIO action
+  = let action _ = (let! out = out in prim_flush out) 
+    in primIO action
 
 close :: Channel a -> IO ()
 close chan
-  = let action _ = case chan of chan -> prim_close chan in
-    primIO action
+  = let action _ = (let! chan = chan in prim_close chan) 
+    in primIO action
 
 outputChar :: Channel Output -> Char -> IO ()
 outputChar out c
-  = let action _ = case out of out -> case c of c -> prim_output_char out c in
-    primIO action
+  = let action _ = let! out = out
+                        c   = c
+                   in prim_output_char out c 
+    in primIO action
 
 inputChar :: Channel Input -> IO Char
 inputChar inp
-  = let action _ = case inp of inp -> prim_input_char inp in
-    primIO action
+  = let action _ = let! inp = inp in prim_input_char inp 
+    in primIO action
 
 
 outputPacked :: Channel Output -> PackedString -> IO ()
 outputPacked chan s
-  = let action _ = case chan of
-                     chan -> case s of
-                               s -> case packedLength s of
-                                      len -> prim_output chan s 0 len in
-    primIO action
+  = let action _ = let! chan = chan
+                        s    = s
+                        len  = packedLength s 
+                   in prim_output chan s 0 len 
+    in primIO action
 
 -- TODO: use direct I/O primitive for strings
 outputString :: Channel Output -> String -> IO ()
@@ -104,4 +106,4 @@ outputString chan s
 ----------------------------------------------------------}
 main :: IO ()
 main
-  = bindIO (inputChar stdin) (\c -> outputChar stdout c)
+  = unsafePerformStrictIO (bindIO (inputChar stdin) (\c -> outputChar stdout c))

@@ -5,12 +5,13 @@
 -- $Author$
 -- $Date$
 ----------------------------------------------------------------
-module LvmLang( Bytes(), Int(), Float()
-              , Bool(False,True), '':[]''(''::'','':[]'')
-              , IO(), Char(), Double(), PackedString(), String()
+module LvmLang( Bytes, Int, Float
+              , Bool(..), '':[]''(..)
+              , IO, Char, Double, PackedString, String
 
               , packedFromString, stringFromPacked, packedLength
-              , bindIO, returnIO, primIO, unsafePerformIO, unsafePerformStrictIO
+              , bindIO, returnIO
+              , primIO, unsafePerformIO, unsafePerformStrictIO
               ) where
 
 {----------------------------------------------------------
@@ -53,7 +54,6 @@ extern prim_string_length   :: "la"
 {----------------------------------------------------------
   Basic data types
 ----------------------------------------------------------}
-data '':()''    = '':()''
 data Bytes
 data Int
 data Float
@@ -79,76 +79,76 @@ type String       = [Char]
   Strictness
 ----------------------------------------------------------}
 ($!) :: (a -> b) -> a -> b
-($!) f x   = case x of x -> f x
+($!) f x   = let! x = x in f x
 
 seq :: a -> b -> b
-seq x y    = case x of x -> y
+seq x y    = let! x = x in y
 
 {----------------------------------------------------------
   Basic arithmetic on Int's
 ----------------------------------------------------------}
 (+) :: Int -> Int -> Int!
-(+) x y    = case y of y -> case x of x -> primAddInt x y
+(+) x y    = let! y = y in let! x = x in primAddInt x y
 
 (-) :: Int -> Int -> Int!
-(-) x y    = case y of y -> case x of x -> primSubInt x y
+(-) x y    = let! y = y in let! x = x in primSubInt x y
 
 (*) :: Int -> Int -> Int!
-(*) x y    = case y of y -> case x of x -> primMulInt x y
+(*) x y    = let! y = y in let! x = x in primMulInt x y
 
 (/) :: Int -> Int -> Int!
-(/) x y    = case y of y -> case x of x -> primDivInt x y
+(/) x y    = let! y = y in let! x = x in primDivInt x y
 
 (%) :: Int -> Int -> Int!
-(%) x y    = case y of y -> case x of x -> primModInt x y
+(%) x y    = let! y = y in let! x = x in primModInt x y
 
 quot :: Int -> Int -> Int!
-quot x y    = case y of y -> case x of x -> primQuotInt x y
+quot x y    = let! y = y in let! x = x in primQuotInt x y
 
 rem :: Int -> Int -> Int!
-rem x y    = case y of y -> case x of x -> primRemInt x y
+rem x y    = let! y = y in let! x = x in primRemInt x y
 
 and :: Int -> Int -> Int!
-and x y    = case y of y -> case x of x -> primAndInt x y
+and x y    = let! y = y in let! x = x in primAndInt x y
 
 xor :: Int -> Int -> Int!
-xor x y    = case y of y -> case x of x -> primXorInt x y
+xor x y    = let! y = y in let! x = x in primXorInt x y
 
 or :: Int -> Int -> Int!
-or x y    = case y of y -> case x of x -> primOrInt x y
+or x y    = let! y = y in let! x = x in primOrInt x y
 
 shr :: Int -> Int -> Int!
-shr x y    = case y of y -> case x of x -> primShrInt x y
+shr x y    = let! y = y in let! x = x in primShrInt x y
 
 shl :: Int -> Int -> Int!
-shl x y    = case y of y -> case x of x -> primShlInt x y
+shl x y    = let! y = y in let! x = x in primShlInt x y
 
 shrNat :: Int -> Int -> Int!
-shrNat x y    = case y of y -> case x of x -> primShrNat x y
+shrNat x y = let! y = y in let! x = x in primShrNat x y
 
 neg :: Int -> Int!
-neg x      = case x of x -> primNegInt x
+neg x      = let! x = x in primNegInt x
 
 {----------------------------------------------------------
   Comparisons on Int's
 ----------------------------------------------------------}
 (==) :: Int -> Int -> Bool!
-(==) x y   = case y of y -> case x of x -> primEqInt x y
+(==) x y   = let! y = y in let! x = x in primEqInt x y
 
 (/=) :: Int -> Int -> Bool!
-(/=) x y   = case y of y -> case x of x -> primNeInt x y
+(/=) x y   = let! y = y in let! x = x in primNeInt x y
 
 (<) :: Int -> Int -> Bool!
-(<) x y   = case y of y -> case x of x -> primLtInt x y
+(<) x y   = let! y = y in let! x = x in primLtInt x y
 
 (>) :: Int -> Int -> Bool!
-(>) x y   = case y of y -> case x of x -> primGtInt x y
+(>) x y   = let! y = y in let! x = x in primGtInt x y
 
 (<=) :: Int -> Int -> Bool!
-(<=) x y   = case y of y -> case x of x -> primLeInt x y
+(<=) x y   = let! y = y in let! x = x in primLeInt x y
 
 (>=) :: Int -> Int -> Bool!
-(>=) x y   = case y of y -> case x of x -> primGeInt x y
+(>=) x y   = let! y = y in let! x = x in primGeInt x y
 
 {----------------------------------------------------------
   Boolean expressions
@@ -158,7 +158,6 @@ neg x      = case x of x -> primNegInt x
   = case x of
       False   -> False
       True    -> y
-      default -> (&&) y x   -- error "just for analysis"
 
 
 (||) :: Bool -> Bool -> Bool
@@ -166,7 +165,6 @@ neg x      = case x of x -> primNegInt x
   = case x of
       True  -> True
       False -> y
-      default -> (||) y x   -- error "just for analysis"
 
 not :: Bool -> Bool
 not x
@@ -179,21 +177,20 @@ not x
 ----------------------------------------------------------}
 stringFromPacked :: PackedString -> String
 stringFromPacked packed
-  = case packed of packed -> prim_chars_of_string packed
+  = let! packed = packed in prim_chars_of_string packed
 
 packedFromString :: String -> PackedString
 packedFromString s
   = let forceLength n xs = case xs of
-                             (:) x xx -> case x of
-                                           _ -> forceLength ((+) n 1) xx
-                             []       -> n in
-    case forceLength 0 s of
-      len -> case s of
-               s -> prim_string_of_chars len s
+                             (:) x xx -> seq x (forceLength ((+) n 1) xx)
+                             []       -> n 
+    in let! len = forceLength 0 s 
+            s   = s 
+       in prim_string_of_chars len s
 
 packedLength :: PackedString -> Int
 packedLength s
-  = case s of s -> prim_string_length s
+  = let! s = s in prim_string_length s
 
 {----------------------------------------------------------
   List helpers
@@ -226,8 +223,7 @@ returnIO x
 
 primIO :: (() -> a) -> IO a
 primIO f
-  = \_ -> case f () of
-            x -> IORes x
+  = \_ -> let! x = f () in IORes x
 
 unsafePerformIO :: IO a -> a
 unsafePerformIO io
@@ -237,5 +233,4 @@ unsafePerformIO io
 -- used to execute "main"
 unsafePerformStrictIO :: IO a -> a
 unsafePerformStrictIO io
-  = case unsafePerformIO io of
-      x -> x
+  = let! x = unsafePerformIO io in x
