@@ -32,16 +32,26 @@ void start_module( const char* name )
   debug_gc();
   stat_end_init();
 
-  code = find_code(module,"main$" );
-  if (code==0) {
-    code = find_code(module,"main");
+  /* main is specified */
+  if (mainfun!=NULL) {
+    code = find_code(module,mainfun);
     if (code==0) {
-      fatal_error( "fatal error: neither \"main\" or \"main$\" is defined\n" );   
+      fatal_error( "fatal error: \"%s\" is not exported from module \"%s\"\n", mainfun, name );
       CAMLreturn0;
     }
-    showfinal = true;
   }
-
+  /* otherwise search for "main$" and than "main" */
+  else {
+    code = find_code(module,"main$" );
+    if (code==0) {
+      code = find_code(module,"main");
+      if (code==0) {
+        fatal_error( "fatal error: neither \"main\" or \"main$\" is defined\n" );   
+        CAMLreturn0;
+      }
+      showfinal = true;
+    }
+  }
   evaluate_code( module, code, showfinal );
   CAMLreturn0;
 }

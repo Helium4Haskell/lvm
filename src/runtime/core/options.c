@@ -66,6 +66,7 @@ wsize_t stack_wsize_peak  = 0;
 /* search paths */
 const char* lvmpath = NULL; /* malloc'd */
 const char* dllpath = NULL; /* malloc'd */
+const char* mainfun = NULL; /* malloc'd */
 const char* argv0   = NULL;
 
 
@@ -86,6 +87,9 @@ void show_options(void)
   print( " -s<size>     the initial stack size. (%4s)\n", Bstring_of_wsize(stack_wsize_init) );
   print( " -S<size>     the maximal stack size. (%4s)\n", Bstring_of_wsize(stack_wsize_max) );
   print( " -P<path>     the search path.\n" );
+  print( " -m<name>     the initial start function." );
+  if (mainfun!=NULL) print( " (%s)\n", mainfun );
+                else print( "\n" );
   print( " -t           print timing report on stderr after execution. (%s)\n", (timings_report ? "on" : "off" ) );
   print( " -?           show this help screen.\n" );
   print( "\n" );
@@ -111,6 +115,8 @@ void show_options(void)
   print( "              the current path value is available as $current.\n" );
   print( "              the lvm installation path is available as $lvmdir.\n" );
   print( "              example: lvmrun -P%%current:/usr/lib/lvm <file>\n" );
+  print( " <name>       a function name\n" );
+  print( "              example: lvmrun -mmymain <file>\n" );
   print( "\n" );
   print( "environment variables:\n" );
 
@@ -335,6 +341,24 @@ static void parse_malloc_path( const char** path, const char* newpath )
   *path = p;
 }
 
+static void parse_malloc_name( const char** name, const char* newname )
+{
+  char* p;
+  int   len;
+  Assert(name);
+  Assert(newname);
+  
+  /* determine length */
+  if (newname==NULL) return;
+  for(len=0;newname[len]!='\0' && newname[len]!=' ';len++) { /*nothing*/ }
+  if (len==0) return;
+
+  /* allocate new name */
+  p = (char*)malloc(len+1);
+  str_cpy(p,newname,len+1);
+  if (*name!=NULL) free((char*)*name); 
+  *name = p;
+}
 
 static void parse_percent( const char* s, unsigned long* var )
 {
@@ -386,7 +410,7 @@ static void parse_size( const char* what
   case 'b': p++; break;
   }
 
-  if (*p != '\0') goto err_format;
+  if (*p != '\0' && *p != ' ') goto err_format;
 
   /* last adjustments */
   if (words) res = res / sizeof(value);
@@ -423,6 +447,8 @@ static void parse_option( const char* option )
   case 'S': parse_size( "maximal stack size", option+1, stack_wsize_threshold*2, Max_long, &stack_wsize_max, true );
             break;
   case 'P': parse_malloc_path( &lvmpath, option+1 );
+            break;
+  case 'm': parse_malloc_name( &mainfun, option+1 );
             break;
   case '?': options_report = true;
             break;
@@ -581,6 +607,7 @@ void done_options(bool showreports)
   done_dynamic(); /* must be after [done_gc] */
   if (lvmpath) free((char*)lvmpath);
   if (dllpath) free((char*)dllpath);
+  if (mainfun) free((char*)mainfun);
   stat_end_done();
   stat_end_total();
 
