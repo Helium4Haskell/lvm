@@ -439,8 +439,8 @@ static void done_fpe_handler( void )
 }
 
 
-/* POSIX 
-#elif defined(POSIX_SIGNALS) && defined(FPE_FLTINV)
+/* POSIX */
+#elif defined(POSIX_SIGNALS) && defined(FPE_FLTINV) && defined(SA_SIGINFO)
 static struct fpe_info  fpe_table[] = {
   { FPE_FLTINV, Fpe_invalid },
   { FPE_FLTDIV, Fpe_zerodivide },
@@ -481,7 +481,7 @@ static void done_fpe_handler( void )
   sigdelset(&signals_installed, SIGFPE );
   oldfpe = SIG_DFL;
 }
-*/
+
 /* other systems, including mingw32 */
 #else
 enum exn_arithmetic info_table[] =
