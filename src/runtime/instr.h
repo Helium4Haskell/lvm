@@ -19,7 +19,7 @@
   Ins( PUSHVAR, 1 ),    \
   Ins( PUSHINT, 1 ),    \
   Ins( PUSHDOUBLE, 2 ), \
-  Ins( PUSHSTRING, 1 ), \
+  Ins( PUSHBYTES, 1 ),  \
   Ins( SLIDE, 2 ),      \
   Ins( STUB, 1 ),       \
   \
@@ -109,8 +109,6 @@
   Ins( MATCHCON, 2 ),   \
   Ins( SWITCHCON, 2 ),  \
   Ins( MATCHINT, 2 ),   \
-  Ins( PUSHEAGER, 1 ),  \
-  Ins( INCINT, 1 ),     \
   \
   /* internal instructions */ \
   Ins( PUSHCAF, 1 ),    \
@@ -124,5 +122,3 @@ extern int instr_arg_count( enum instruction instr );
 extern char* instr_name( enum instruction instr );
 
 #endif /* _instr_ */
-
-

@@ -38,9 +38,10 @@ value alloc (mlsize_t wosize, tag_t tag)
   value result;
   mlsize_t i;
 
-  Assert (wosize > 0);
   Assert (tag < 256);
-  if (wosize <= Max_young_wosize){
+  if (wosize == 0){
+    result = Atom (tag);
+  } else if (wosize <= Max_young_wosize){
     Alloc_small (result, wosize, tag);
     if (tag < No_scan_tag){
       for (i = 0; i < wosize; i++) Field (result, i) = 0;
@@ -157,7 +158,7 @@ value alloc_dummy(value size) /* ML */
 
 value update_dummy(value dummy, value newval) /* ML */
 {
-  mlsize_t size, i;
+  wsize_t size, i;
   size = Wosize_val(newval);
   Assert (size == Wosize_val(dummy));
   Tag_val(dummy) = Tag_val(newval);

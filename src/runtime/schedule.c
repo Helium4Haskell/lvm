@@ -70,7 +70,7 @@ void evaluate_name( value module, char* name )
   struct thread_state* thread;
   value code = find_code( module, name );
 
-extern nat stack_wsize_max, stack_wsize_threshold, stack_wsize_init;
+extern wsize_t stack_wsize_max, stack_wsize_threshold, stack_wsize_init;
 
   if (code == 0) {
     fatal_error( "fatal error: function \"%s\" is not defined\n", name );

@@ -56,8 +56,6 @@ extern void shrink_heap (char *);              /* memory.c */
 #define Tag_ehd(h) (((h) >> 2) & 0xFF)
 #define Ecolor(w) ((w) & 3)
 
-typedef unsigned long word;
-
 static void invert_pointer_at (word *p)
 {
   word q = *p;
@@ -141,7 +139,7 @@ static char *compact_allocate (mlsize_t size)
     compact_fl = Chunk_next (compact_fl);
   }
   chunk = compact_fl;
-  while (Chunk_size (chunk) - Chunk_alloc (chunk) < size){
+  while (Chunk_size (chunk) - Chunk_alloc (chunk) < (asize_t)size){
     chunk = Chunk_next (chunk);                         Assert (chunk != NULL);
   }
   adr = chunk + Chunk_alloc (chunk);

@@ -12,6 +12,8 @@
 
 #include <string.h>
 #include "mlvalues.h"
+#include "lvmmemory.h"
+
 #include "alloc.h"  /* alloc_small */
 #include "fail.h"
 #include "print.h"
@@ -23,17 +25,12 @@
 #include "stack.h"
 #include "evaluator.h"
 
+
 #ifdef DEBUG
-#define TRACE_TRACE
-#define TRACE_INSTR
-#define TRACE_STACK
-#endif
-
-
-#ifdef LVM_EAGER_LIMITS
-extern unsigned long max_eager_stack;
-extern unsigned long min_eager_stack;
-extern unsigned long max_eager_heap;
+#undef TRACE_TRACE
+#undef TRACE_INSTR
+#undef TRACE_STACK
+#undef GC_AT_EACH_INSTR
 #endif
 
 
@@ -92,16 +89,9 @@ extern unsigned long max_eager_heap;
                                 Set_instr_base; \
                               }
 
-#ifdef LVM_EAGER_LIMITS
-#define Setup_for_gc          { thread->eager_heap_lim = young_start; /* reset & force suspend */ \
-                                lazy_blackhole(fp); \
-                                Setup_for_exn(); \
-                              }
-#else
 #define Setup_for_gc          { Setup_for_exn(); \
                                 lazy_blackhole(fp); \
                               }
-#endif
 
 #define Restore_after_gc      { Restore_after_exn(); }
 
@@ -119,45 +109,15 @@ extern unsigned long max_eager_heap;
 
 #define Safe_signal_check(v)  { if (pending_signal()) { (v); Return(Thread_yield); }}
 
-#ifdef LVM_EAGER_LIMITS
-#define Safe_stack_check(v)   { if (sp < thread->stack_lim) { \
-                                  if (thread->eager_top != NULL) { \
-                                    (v); \
-                                    Trace_value2( "stack check: suspend eager", v, Frame_value(thread->eager_top) ); \
-                                    Setup_for_exn(); \
-                                    recover_eager(thread); \
-                                    Restore_after_exn(); \
-                                    pc = Code_val(thread->code); \
-                                    Next; \
-                                  } else { \
-                                    Setup_for_gc;       \
-                                    thread_grow_stack(thread);  \
-                                    Restore_after_gc;  } \
-                                } \
-                              }
-#else
 #define Safe_stack_check(v)   { if (sp < thread->stack_lim) { \
                                   Setup_for_gc;       \
                                   thread_grow_stack(thread);  \
                                   Restore_after_gc;  \
                                 } \
                               }
-#endif
 
-#ifdef LVM_EAGER_LIMITS
-#define Safe_heap_check(v)    { if (thread->eager_top != NULL && young_ptr > thread->eager_heap_lim) { \
-                                  (v); \
-                                  Trace_value2( "heap check: suspend eager", v, Frame_value(thread->eager_top) ); \
-                                  Setup_for_exn(); \
-                                  recover_eager(thread); \
-                                  Restore_after_exn(); \
-                                  pc = Code_val(Pop()); \
-                                  Next; \
-                                }; \
-                              }
-#else
-#define Safe_heap_check(v)
-#endif
+
+#define Safe_heap_check(v)    /* nothing to do :-) */
 
 
 
@@ -172,37 +132,11 @@ extern unsigned long max_eager_heap;
 #define Raise_runtime_exn(exn)    { Setup_for_exn(); raise_runtime_exn_1( exn, copy_string(find_name_of_code( thread->module, thread->code )) ); }
 #define Raise_arithmetic_exn(exn) { Setup_for_exn(); raise_arithmetic_exn( exn ); }
 
-#define Allocate(v,sz,t)  { if (sz == 0) { (v) = Atom(t); } \
-                            else if (sz < Max_young_wosize) { Alloc_small(v,sz,t); } \
-                            else { Alloc_large(v,sz,t); } \
-                          }
-
-#define Alloc_large(v,sz,t)  { Setup_for_gc; \
-                               (v) = alloc_shr(sz,t); \
-                               Restore_after_gc; \
-                             }
-
-#define Alloc_con(v,sz,t) { if (t >= Con_max_tag) {\
-                               Allocate(v,sz+1,Con_max_tag); \
-                               Field(v,sz) = Val_long(t); \
-                            } else { \
-                               Allocate(v,sz,t); \
-                            } \
-                          }
 
 #ifdef DEBUG
 #define Debug_pcstart(pc)  pcstart = pc;
 #else
 #define Debug_pcstart(pc)
-#endif
-
-#ifdef LVM_EAGER_LIMITS
-#define Eager_restore()   { if (fp > thread->eager_top) { \
-                              thread->stack_lim = thread->eager_stack_lim; \
-                              thread->eager_top = NULL; \
-                          }}
-#else
-#define Eager_restore()
 #endif
 
 
@@ -240,7 +174,7 @@ extern unsigned long max_eager_heap;
 #ifdef DEBUG
 static value* Frame_limit( value* fp )
 {
-  while (Frame_frame(fp) == frame_cont || Frame_frame(fp) == frame_catch || Frame_frame(fp) == frame_eager) {
+  while (Frame_frame(fp) == frame_cont || Frame_frame(fp) == frame_catch) {
           fp = Frame_next(fp);
   }
   return fp;
@@ -437,7 +371,11 @@ void evaluate( struct thread_state* thread )
  #ifdef TRACE_INSTR
     print( "%4i: ", (char*)pc - (char*)pcstart ); print_instr( thread->module, sp, pc );
  #endif
-    /* Setup_for_gc;    debug_gc();    Restore_after_gc;   */
+ #ifdef GC_AT_EACH_INSTR
+    Setup_for_gc;
+    debug_gc();
+    Restore_after_gc;
+ #endif
 #endif
 
 #if !defined(THREADED_CODE)
@@ -453,7 +391,6 @@ void evaluate( struct thread_state* thread )
   Optimized Enter instructions
 ----------------------------------------------------------------------*/
     Instr(ENTERCODE): {
-      Trace ("ENTERCODE");
       pc = Code_fixup(*pc);
       Debug_pcstart(pc);
       Safe_check(Val_code(pc));
@@ -466,9 +403,7 @@ void evaluate( struct thread_state* thread )
 
     Instr(EVALVAR): {
       value v     = sp[*pc++];
-      Trace ("EVALVAR");
-
-      Assert( v != 0x4 || Is_long(v) || Is_heap_val(v) || Tag_val(v) == Code_tag || Is_atom(v) );
+      Assert( Is_long(v) || Is_heap_val(v) || Tag_val(v) == Code_tag || Is_atom(v) );
       if ((Is_long(v) || Tag_val(v) <= Con_max_tag) /* && !pending_signal() */) {
         Trace( "evalvar: already evaluated var" );
         Push(v);
@@ -491,8 +426,6 @@ enter:
       /* Safe_signal_check(accu);  -- it will find an ARGCHK sooner or later */
 
 enterloop:
-      Trace_stack("ENTER");
-
       Require( sp > thread->stack );
       Require( sp < thread->stack_top );
       Require( sp < fp );
@@ -514,7 +447,7 @@ enterloop:
 
         case Ap_tag: {
           /* push update frame and arguments and continue */
-          nat n    = Wosize_val(accu);
+          wsize_t n = Wosize_val(accu);
           Require( n > 0 );
           Trace_enter( "ap node", accu);
           Push_frame(frame_update);
@@ -527,7 +460,7 @@ enterloop:
 
         case Nap_tag: {
           /* push arguments and continue */
-          nat   n   = Wosize_val(accu);
+          wsize_t n   = Wosize_val(accu);
           Require( n > 0 );
           Trace_enter( "nap node", accu );
           Push_n(n-1);  /* overwrite sp[0] */
@@ -571,14 +504,11 @@ enterloop:
 
         case Suspend_tag: {
           /* restore the stack from a suspension */
-          nat   i;
-          value susp  = Popx();
-          nat   ssize = Wosize_val(susp) - Susp_info_wosize;
-  #ifdef LVM_EAGER_LIMITS
-          long  eager = Long_val(Field(susp,Field_susp_eager));
-  #endif
-          long  base  = Long_val(Field(susp,Field_susp_base));
-          long  top   = Long_val(Field(susp,Field_susp_top));
+          wsize_t i;
+          value   susp  = Popx();
+          wsize_t ssize = Wosize_val(susp) - Susp_info_wosize;
+          long    base  = Long_val(Field(susp,Field_susp_base));
+          long    top   = Long_val(Field(susp,Field_susp_top));
 
           Require(ssize > Frame_size);
           Trace_enter( "suspension", susp );
@@ -593,16 +523,6 @@ enterloop:
             fp        = sp + base;
           }
 
-  #ifdef LVM_EAGER_LIMITS
-          if (eager >= 0 && thread->eager_top == NULL) {
-            Trace( "enter suspension: restore eager limit" );
-            thread->eager_top = sp + eager;
-            thread->eager_stack_lim = thread->stack_lim;
-            thread->eager_heap_lim  = young_ptr + max_eager_heap;
-            thread->stack_lim = thread->eager_top - max_eager_stack;
-            if (thread->stack_lim < thread->eager_stack_lim) thread->stack_lim = thread->eager_stack_lim;
-          }
-  #endif
           accu = sp[0];
           goto enterloop;
         }
@@ -618,12 +538,11 @@ enterloop:
   Argument check: rivals enter in complexity :-)
 ----------------------------------------------------------------------*/
     Instr(ARGCHK): {
-      nat n = *pc++;
-      Trace ("ARGCHK");
+      long n = *pc++;
       Safe_check(Val_code(pc-2));
       Require( sp <= fp  );
       while (sp + n > fp) {  /* too few arguments? */
-        nat args = fp-sp;
+        long args = fp-sp;
         switch (Frame_frame(fp)) {
         case frame_cont: {
           /* case on functional value */
@@ -632,7 +551,8 @@ enterloop:
           if (args == 0)
             nap = Val_code((pc-2));
           else {
-            nat i;
+            long i;
+
             Allocate(nap,args+1,Nap_tag);
             Field(nap,0) = Val_code((pc-2));
             for( i = 0; i < args; i++) { Field(nap,i+1) = sp[i]; }
@@ -654,64 +574,22 @@ enterloop:
         case frame_update: {
           /* update with functional value */
           value upd  = Frame_value(fp);
-          nat   i;
           fp = Frame_next(fp);
           if (args == 0) {
             Trace_argchk( "update with indirection", upd );
-            Tag_val(upd) = Ind_tag;
-            Store_field(upd,0,Val_code((pc-2)));
-            for( i = 1; i < Wosize_val(upd); i++) { Store_field_0(upd,i); }
-            }
+            Indirect(upd,Val_code(pc-2));
+          }
           else {
-            nat n = Wosize_val(upd);
-            #ifdef LVM_UPDATE_INPLACE
-            if (n > args) {
-              Trace_argchk( "update in place", upd );
-              Tag_val(upd) = Nap_tag;
-              Field(upd,0) = Val_code((pc-2));
-              for( i = args; i > 0; i--)   { value x = sp[i-1]; sp[i+2] = x; Store_field(upd,i,x); }
-              for( i = args+1; i < n; i++) { Store_field_0(upd,i); }
-            } else
-            #endif
-            { value nap;
-              Trace_argchk( "update with indirect nap", upd );
-              Allocate(nap,args+1,Nap_tag);
-              Field(nap,0) = Val_code((pc-2));
-              for( i = args; i > 0; i--) { Field(nap,i) = sp[i+2] = sp[i-1]; }
-              Tag_val(upd) = Ind_tag;
-              Store_field(upd,0,nap);
-              for( i = 1; i < n; i++) { Store_field_0(upd,i); }
-            }
+            value nap;
+            word  i;
+            UpdateAlloc(upd,nap,args+1,Nap_tag);
+            Field(nap,0) = Val_code((pc-2));
+            for( i = args; i > 0; i--)   { value x = sp[i-1]; sp[i+2] = x; Store_field(nap,i,x); }
           }
           Pop_n(Frame_size);
           break;
         }
 
-
-#ifdef LVM_EAGER_FRAMES
-        case frame_eager: { /* functional value as result */
-          /* return a nap */
-          value nap;
-          if (args == 0)
-            nap = Val_code((pc-2));
-          else {
-            nat i;
-            Allocate(nap,args+1,Nap_tag);
-            Field(nap,0) = Val_code((pc-2));
-            for( i = 0; i < args; i++) { Field(nap,i+1) = sp[i]; }
-            Pop_n(args);
-          }
-          Trace_argchk( "eager functional value", nap );
-
-          /* push the value on the stack an continue */
-          pc    = Code_val( Frame_value(fp) );
-          fp    = Frame_next(fp);
-          Pop_n(Frame_size-1);
-          sp[0] = nap;
-          Eager_restore();
-          Next;
-        }
-#endif
         case frame_catch: {
           /* functional value without exceptions */
           /* zap the frame and things behind it */
@@ -730,7 +608,7 @@ enterloop:
           if (args == 0)
             nap = Val_code((pc-2));
           else {
-            nat i;
+            long i;
             Allocate(nap,args+1,Nap_tag);
             Field(nap,0) = Val_code((pc-2));
             for( i = 0; i < args; i++) { Field(nap,i+1) = sp[i]; }
@@ -754,14 +632,12 @@ enterloop:
   Exceptions
 ----------------------------------------------------------------------*/
     Instr(CATCH): {
-      Trace ("CATCH");
       Push_frame(frame_catch);
       Next;
     }
 
     Instr(RAISE): {
       value exn;
-      Trace ("RAISE");
 
 raise_exception:
       Require( sp < fp );
@@ -787,56 +663,16 @@ raise_exception:
           handler = Frame_value(fp);
           fp = Frame_next(fp);
           sp = fp;  /* zap things behind the frame */
-          Eager_restore();
           thread->code_exn = 0;
           Push(exn);
           Push(handler);
           goto enter;
         }
 
-#ifdef LVM_EAGER_FRAMES
-        case frame_eager: {
-          value v;
-          Trace( "raise: eager frame" );
-          /* note: the exception is synchronous (since recover_asynchronous suspends eager frames)
-          except for heap_overflow -- unfortunately, we lost
-          the original application and can't restore the original situation
-          but we can't allocate a suspension or raise node either
-          ...uurgh, we just re-raise the exception :-( */
-          if (Tag_val(exn) == Exn_async_heap_overflow) {
-            fp = Frame_next(fp);
-            sp = fp;
-            Eager_restore();
-            Push(exn);
-            goto raise_exception;
-          }
-
-          /* restore the stack and pc */
-          Trace_raise( "eager frame", exn );
-          pc = Code_val( Frame_value(fp) );
-          Debug_pcstart(pc);
-          sp = fp;
-          fp = Frame_next(fp);
-          Pop_n(Frame_size-1);
-
-          /* now allocate a "raise" block */
-          Alloc_small(v,1,Raise_tag);
-          Field(v,0) = exn;
-          sp[0] = v;
-
-          thread->code_exn = 0;
-
-          /* and continue at the pc */
-          Eager_restore();
-          Next;
-        }
-#endif
-
         case frame_stop: {
           /* uncaught exception */
           Trace_raise( "uncaught exception", exn );
           sp = fp;
-          Eager_restore();
           Push(exn);
           Return(Thread_exception);
         }
@@ -857,13 +693,11 @@ raise_exception:
   RETURN: enter an int or constructor
 ----------------------------------------------------------------------*/
     Instr(RETURNCON0): {
-      Trace ("RETURNCON0");
       Push(Atom(pc[0]));
       goto return_enter;
     }
 
     Instr(RETURNINT):{
-      Trace ("RETURNINT");
       Push(Val_long(pc[0]));
       /* fall through */
     }
@@ -879,9 +713,6 @@ return_enter:
 
 returnloop:
       switch(Frame_frame(fp)) {
-#if defined(LVM_EAGER_FRAMES) && !defined(LVM_EAGER_LIMITS)
-        case frame_eager:
-#endif
         case frame_cont: {
           /* jump to the continuation */
           pc = Code_val( Frame_value(fp) );
@@ -894,45 +725,14 @@ returnloop:
           Next;
         }
 
-       case frame_update: {
+        case frame_update: {
           /* overwrite updated value with constructor */
-          nat i;
           value upd = Frame_value(fp);
           Require( Is_block(upd) && Wosize_val(upd) > 0 && (Tag_val(upd) == Ap_tag || Tag_val(upd) == Inv_tag || Tag_val(upd) == Caf_tag || Tag_val(upd) == Ind_tag || Tag_val(upd) == Suspend_tag) );
-
-          #ifdef LVM_UPDATE_INPLACE
-          if (Is_block(accu) && Wosize_val(upd) >= Wosize_val(accu)) {
-            /* update in place */
-            Trace_value2( "enter con: frame update (inplace)", accu, upd );
-            Tag_val(upd) = Tag_val(accu);
-            i = 0;
-            while (i < Wosize_val(accu)) { Store_field( upd,i,Field(accu,i)); i++; }
-            while (i < Wosize_val(upd) ) { Store_field_0( upd, i ); i++; }
-          } else
-          #endif
-          { /* update with indirection */
-            Trace_value2( "enter con: frame update (with indirection)", accu, upd );
-            Tag_val(upd) = Ind_tag;
-            Store_field(upd,0,accu);
-            for (i = 1; i < Wosize_val(upd); i++) { Store_field_0( upd, i ); }
-          }
+          Update(upd,accu);
           fp = Frame_next(fp);
           goto returnloop;
         }
-
-  #if defined(LVM_EAGER_FRAMES) && defined(LVM_EAGER_LIMITS)
-        case frame_eager: {
-          /* push the value on the stack an continue */
-          pc = Code_val( Frame_value(fp) );
-          Debug_pcstart(pc);
-          sp  = fp + Frame_size - 1;
-          fp  = Frame_next(fp);
-          sp[0] = accu;
-          Eager_restore();
-          Trace_value2( "enter con: eager continue", Val_code(pc), accu );
-          Next;
-        }
-  #endif
 
         case frame_catch: {
           /* ignore the frame */
@@ -961,27 +761,31 @@ returnloop:
 ----------------------------------------------------------------------*/
 #define AllocCon() \
     if (con==0) { \
-      if (n==0) \
-        con = Atom(tag); \
-      else if (n <= Max_young_wosize) { \
-        nat i; \
+      Assert(n > 0); \
+      if (n <= Max_young_wosize) { \
+        wsize_t i; \
         Alloc_small(con,n,tag);\
         for( i = 0; i < n; i++) { Field(con,i) = sp[i]; }\
       } else {\
-        nat i; \
+        wsize_t i; \
         Alloc_large(con,n,tag);\
         for( i = 0; i < n; i++) { Init_field(con,i,sp[i]); }\
       }\
     }
 
     Instr(RETURNCON): {
-      nat tag  = *pc++;
-      nat n   = *pc++;
-      value con = 0;
+      con_tag_t tag = *pc++;
+      wsize_t   n   = *pc++;
+      value     con = 0;
 
       Require( sp + n <= fp );
-      Require( tag < Con_max_tag );
       Trace_stack("RETURNCON");
+
+      /* return atomic constructors via RETURN */
+      if (n == 0) {
+        Push(Atom(tag));
+        goto return_enter;
+      }
 
 returncon:
       switch(Frame_frame(fp)) {
@@ -999,7 +803,7 @@ returncon:
             bp = fp + Frame_size - n;
             fp = Frame_next(fp);
             if (bp != sp) {
-              nat i = n;
+              wsize_t i = n;
               while (i > 0) { i--; bp[i] = sp[i]; }
               sp  = bp;
             }
@@ -1007,8 +811,8 @@ returncon:
             /* interpret the SWITCHCON instruction */
             pc++;
             {
-              nat count  = pc[0];
-              nat ofs;
+              word_t count  = pc[0];
+              word_t ofs;
 
               if (tag >= count) {
                 /* default case: we have to allocate */
@@ -1039,7 +843,7 @@ returncon:
             bp = fp + Frame_size - n;
             fp = Frame_next(fp);
             if (bp != sp) {
-              nat i = n;
+              wsize_t i = n;
               while (i > 0) { i--; bp[i] = sp[i]; }
               sp  = bp;
             }
@@ -1084,45 +888,28 @@ returncon:
 
         case frame_update: {
           /* overwrite update value with the constructor */
-          nat i;
-          value upd = Frame_value(fp);
+          value   upd     = Frame_value(fp);
+          wsize_t updsize = Wosize_val(upd);
 
           /* and update */
-          if (Wosize_val(upd) >= n) {
+          if (updsize >= n
+              /* && (updsize!= n+1 || Is_young(upd) ) // avoid gc bug */
+             ) {
             /* update in place */
+            wsize_t i;
             Trace_value( "returncon: update frame in-place: ", upd );
-            Tag_val(upd) = (char)tag;
-            i = 0;
-            while (i < n)               { Store_field( upd, i, sp[i] ); i++; }
-            while (i < Wosize_val(upd)) { Store_field_0( upd, i ); i++; }
+            Downsize(upd,updsize,n,(tag_t)tag);
+            for( i = 0; i < n; i++) { Store_field(upd,i,sp[i] ); }
           } else {
             /* update with indirection */
             Trace_value( "returncon: update frame: ", upd );
             AllocCon();
-
-            Tag_val(upd) = Ind_tag;
-            Store_field( upd, 0, con );
-            for( i = 1; i < Wosize_val(upd); i++) { Store_field_0( upd, i ); }
+            Indirect(upd,con);
           }
 
           fp = Frame_next(fp);
           goto returncon;
         }
-
-#ifdef LVM_EAGER_FRAMES
-        case frame_eager: {
-          AllocCon();
-
-          pc = Code_val(Frame_value(fp));
-          Trace_value( "returncon: failed unshared continue into", Val_code(pc) );
-          Debug_pcstart(pc);
-          sp    = fp + Frame_size - 1;
-          fp    = Frame_next(fp);
-          sp[0] = con;
-          Eager_restore();
-          Next;
-        }
-#endif
 
         case frame_catch: {
           /* ignore this frame */
@@ -1152,10 +939,10 @@ returncon:
   Matching
 ----------------------------------------------------------------------*/
     Instr(SWITCHCON): {
-      nat tag = Tag_val(sp[0]);
-      nat count = pc[0];
-      nat ofs;
-      Trace ("SWITCHCON");
+      con_tag_t tag;
+      con_tag_t count = pc[0];
+      long      ofs;
+      Con_tag_val(tag,sp[0]);
 
       Require( sp < fp );
       Require( Is_long(sp[0]) || (Is_block(sp[0]) && Tag_val(sp[0]) < Con_max_tag ));
@@ -1167,8 +954,8 @@ returncon:
         pc += ofs;
       }
       else {
-        value con;
-        nat j;
+        value   con;
+        wsize_t j;
 
         ofs = pc[tag+2];
         if (ofs == 0) { Raise_runtime_exn(Exn_failed_pattern); }
@@ -1185,22 +972,21 @@ returncon:
     }
 
     Instr(MATCHCON): {
-      nat i;
-      nat tag;
-      nat n   = pc[0];
-      nat ofs = pc[1];
-      Trace ("MATCHCON");
+      long       i;
+      con_tag_t  tag;
+      long       n   = pc[0];
+      long       ofs = pc[1];
 
       Require( sp < fp );
       Require( Is_long(sp[0]) || (Is_block(sp[0]) && Tag_val(sp[0]) < Con_max_tag ));
 
-      tag = Tag_val(sp[0]);
+      Con_tag_val(tag,sp[0]);
       for( i = 1; i <= n; i++ ) {
-        if (pc[i*2] == tag) {
+        if ((con_tag_t)pc[i*2] == tag) {
           /* we have a match, unpack constructor to the stack */
-          value con = Popx();
-          nat j   = Wosize_val(con);
-          ofs       = pc[i*2+1];
+          value   con = Popx();
+          wsize_t j   = Wosize_val(con);
+          ofs         = pc[i*2+1];
           Push_n(j);
           while (j > 0) { sp[j-1] = Field(con,j-1); j--; }
           break;
@@ -1249,15 +1035,6 @@ returncon:
       Trace_stack ("PUSHCONT");
       Next;
     }
-
-#ifdef LVM_EAGER_FRAMES
-    Instr(PUSHEAGER): {
-      long ofs = *pc++;
-      Trace ("PUSHEAGER");
-      Push_frame_val( frame_eager, Val_code(pc+ofs) );
-      Next;
-    }
-#endif
 
     Instr(PUSHVAR): {
       Require( sp + *pc < Frame_limit(fp) );
@@ -1321,11 +1098,11 @@ returncon:
 
     todoInstr(PUSHDOUBLE)
 
-    Instr(PUSHSTRING): {
+    Instr(PUSHBYTES): {
       value decl = *(Valptr_fixup(*pc++));
       Require(Is_block(decl) && Tag_val(decl) == Rec_bytes);
       Push(Field(decl,Field_bytes_string));
-      Trace_stack ("PUSHSTRING");
+      Trace_stack ("PUSHBYTES");
       Next;
     }
 
@@ -1353,8 +1130,8 @@ returncon:
   Application nodes
 ----------------------------------------------------------------------*/
     Instr(ALLOCAP): {
-      value ap;
-      nat   size = *pc++;
+      value   ap;
+      wsize_t size = *pc++;
       Trace ("ALLOCAP");
       Require( size > 0 );
       Allocate(ap,size,Inv_tag);
@@ -1364,9 +1141,9 @@ returncon:
     }
 
     Instr(PACKAP): {
-      nat ofs = *pc++;
-      nat n   = *pc++;
-      nat i;
+      long    ofs = *pc++;
+      wsize_t n   = *pc++;
+      wsize_t i;
       value ap;
       Trace ("PACKAP");
       Require( sp + ofs <= fp );
@@ -1379,11 +1156,10 @@ returncon:
     }
 
     Instr(PACKNAP): {
-      nat ofs = *pc++;
-      nat n   = *pc++;
-      nat i;
+      long ofs  = *pc++;
+      wsize_t n = *pc++;
+      wsize_t i;
       value nap;
-      Trace ("PACKNAP");
       Require( sp + ofs <= fp );
       nap = sp[ofs];
       Require( Wosize_val(nap) == n && Tag_val(nap) == Inv_tag );
@@ -1394,14 +1170,9 @@ returncon:
     }
 
     Instr(NEWAP): {
-      value ap;
-      nat   n;
-      nat   i;
-      Trace ("NEWAP");
-      #ifdef LVM_EAGER
-      // if (sp - thread->stack_lim > min_eager_stack)
-      goto eager_ap;
-      #endif
+      value   ap;
+      wsize_t n;
+      wsize_t i;
       n = *pc++;
       Require( sp + n <= fp );
       Allocate(ap,n,Ap_tag);
@@ -1412,15 +1183,9 @@ returncon:
     }
 
     Instr(NEWNAP): {
-      value ap;
-      nat   n;
-      nat   i;
-      Trace ("NEWNAP");
-
-      #ifdef LVM_EAGER
-      // if (sp - thread->stack_lim > min_eager_stack)
-      // goto eager_ap;
-      #endif
+      value   ap;
+      wsize_t n;
+      wsize_t i;
       n = *pc++;
       Require( sp + n <= fp );
       Allocate(ap,n,Nap_tag);
@@ -1429,36 +1194,6 @@ returncon:
       Pop_n(n-1);
       Next;
     }
-
-#ifdef LVM_EAGER
-    eager_ap: {
-      value* bp;
-      nat n = *pc++;
-      nat i;
-
-      Trace_value( "eager evaluation: ", Val_code(pc) );
-      /* insert an eager frame */
-      Require( sp + n <= fp );
-      Push_n(Frame_size);
-      for( i = 0; i < n; i++) { sp[i] = sp[i+Frame_size]; }
-      bp = sp;
-      sp = sp + Frame_size + n;
-      Push_frame_val( frame_eager, Val_code(pc) );
-      sp = bp;
-
-#ifdef LVM_EAGER_LIMITS
-      if (thread->eager_top == NULL) {
-        /* set up a stack bound */
-        thread->eager_top = fp;
-        thread->eager_stack_lim = thread->stack_lim;
-        thread->eager_heap_lim  = young_ptr + max_eager_heap;
-        thread->stack_lim = fp - max_eager_stack;
-        if (thread->stack_lim < thread->eager_stack_lim) thread->stack_lim = thread->eager_stack_lim;
-      }
-#endif
-      goto enter;
-    }
-#endif
 
     Instr(NEWAP1): {
       value ap;
@@ -1567,9 +1302,8 @@ returncon:
       value v  = sp[0];
       long  i  = Long_val(sp[1]);
       long sz;
-      Trace ("GETFIELD");
       Require( Is_block(v) && Is_long(sp[1]) );
-      Con_size_val(sz,v);
+      sz = Fsize_val(v);
       if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
       sp[1] = Field(v,i);
       Pop();
@@ -1581,9 +1315,8 @@ returncon:
       long  i  = Long_val(sp[1]);
       value x  = sp[2];
       long sz;
-      Trace ("SETFIELD");
       Require( Is_block(v) && Is_long(sp[1]) );
-      Con_size_val(sz,v);
+      sz = Fsize_val(v);
       if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
       Store_field(v,i,x);
       Pop_n(3);
@@ -1591,13 +1324,12 @@ returncon:
     }
 
     Instr(ALLOC): {
-      long tag  = Long_val(sp[0]);
-      long size = Long_val(sp[1]);
-      long i;
-      value con;
-      Trace ("ALLOC");
+      con_tag_t tag  = Long_val(sp[0]);
+      wsize_t   size = Long_val(sp[1]);
+      wsize_t   i;
+      value     con;
       if (size < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
-      Alloc_con(con,(nat)size,tag);
+      Alloc_con(con,size,tag);
       for( i = 0; i < size; i++ ) { Field(con,i) = 0; }
       sp[1] = con;
       Pop();
@@ -1605,14 +1337,13 @@ returncon:
     }
 
     Instr(NEW): {
-      long size = *pc++;
-      long tag  = Long_val(sp[0]);
-      long i;
-      value con;
-      Trace ("NEW");
+      wsize_t   size = *pc++;
+      con_tag_t tag  = Long_val(sp[0]);
+      wsize_t   i;
+      value     con;
       Pop();
       if (size < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
-      Alloc_con(con,(nat)size,tag);
+      Alloc_con(con,size,tag);
       for( i = 0; i < size; i++ ) { Field(con,i) = sp[i]; }
       Pop_n(size);
       Push(con);
@@ -1620,17 +1351,15 @@ returncon:
     }
 
     Instr(GETTAG): {
-      Trace ("GETTAG");
       Require( Is_block(sp[0]) );
       sp[0] = Val_long( Tag_val(sp[0]) );
       Next;
     }
 
     Instr(GETSIZE): {
-      long sz;
-      Trace ("GETSIZE");
+      wsize_t sz;
       Require( Is_block(sp[0]) );
-      Con_size_val(sz,sp[0]);
+      sz = Fsize_val(sp[0]);
       sp[0] = Val_long( sz );
       Next;
     }
@@ -1640,9 +1369,8 @@ returncon:
       value v = sp[0];
       long  sz;
       long  i;
-      Trace ("PACK");
       Require( Is_block(v) );
-      Con_size_val(sz,v);
+      sz = Fsize_val(v);
       if (n >= sz) { Raise_runtime_exn( Exn_out_of_bounds ); }
       Pop();
       for( i = 0; i < n; i++) { Field(v,i) = sp[i]; }
@@ -1655,9 +1383,8 @@ returncon:
       value v  = sp[0];
       long  sz;
       long  i;
-      Trace ("UNPACK");
       Require( Is_block(v) );
-      Con_size_val(sz,v);
+      sz = Fsize_val(v);
       if (n > sz) { Raise_runtime_exn( Exn_out_of_bounds ); }
       Pop();
       Push_n(n);
@@ -1669,15 +1396,15 @@ returncon:
   Constructors
 ----------------------------------------------------------------------*/
     Instr(ALLOCCON): {
-      value con;
-      long  tag = *pc++;
-      nat n   = *pc++;
+      value     con;
+      con_tag_t tag = *pc++;
+      wsize_t   n   = *pc++;
       Trace ("ALLOCCON");
       if (n == 0) {
         con = Atom(tag);
       }
       else {
-        nat i;
+        wsize_t i;
         Allocate(con,n,tag)
         for( i = 0; i < n; i++ ) { Field(con,i) = 0; }
       }
@@ -1700,11 +1427,10 @@ returncon:
     }
 
     Instr(NEWCON): {
-      value con;
-      nat tag = *pc++;
-      nat n   = *pc++;
-      nat i;
-      Trace ("NEWCON");
+      value     con;
+      con_tag_t tag = *pc++;
+      wsize_t   n   = *pc++;
+      wsize_t   i;
       Require( sp + n <= fp );
       if (n == 0) con = Atom(tag);
              else Allocate(con,n,tag);
@@ -1715,16 +1441,14 @@ returncon:
     }
 
     Instr(NEWCON0): {
-      nat tag = *pc++;
-      Trace ("NEWCON0");
+      con_tag_t tag = *pc++;
       Push(Atom(tag));
       Next;
     }
 
     Instr(NEWCON1): {
-      nat tag = *pc++;
-      value con;
-      Trace ("NEWCON1");
+      con_tag_t tag = *pc++;
+      value     con;
       Alloc_small(con,1,tag);
       Field(con,0) = sp[0];
       sp[0] = con;
@@ -1732,8 +1456,8 @@ returncon:
     }
 
     Instr(NEWCON2): {
-      nat tag = *pc++;
-      value con;
+      con_tag_t tag = *pc++;
+      value     con;
       Trace ("NEWCON2");
       Alloc_small(con,2,tag);
       Field(con,0) = sp[0];
@@ -1744,8 +1468,8 @@ returncon:
     }
 
     Instr(NEWCON3): {
-      nat tag = *pc++;
-      value con;
+      con_tag_t tag = *pc++;
+      value     con;
       Trace ("NEWCON3");
       Alloc_small(con,3,tag);
       Field(con,0) = sp[0];
@@ -1758,8 +1482,8 @@ returncon:
 
 
     Instr(TESTCON): {
-      nat tag   = *pc++;
-      nat ofs   = *pc++;
+      con_tag_t tag = *pc++;
+      long      ofs = *pc++;
       Trace ("TESTCON");
       Require( Is_block(sp[0]) && Tag_val(sp[0]) <= Con_max_tag );
       if (Tag_val(sp[0]) != tag) pc += ofs;
@@ -1767,8 +1491,8 @@ returncon:
     }
 
     Instr(UNPACKCON): {
-      nat n     = *pc++;
-      value con = sp[0];
+      wsize_t n   = *pc++;
+      value   con = sp[0];
       Trace ("UNPACKCON");
       Require( Is_block(con) && Tag_val(con) <= Con_max_tag && Wosize_val(con) == n );
       Push_n(n);
@@ -1782,7 +1506,7 @@ returncon:
 ----------------------------------------------------------------------*/
     Instr(TESTINT): {
       long i   = *pc++;
-      nat ofs  = *pc++;
+      long ofs = *pc++;
       Trace ("TESTINT");
       if (sp[0] != Val_long(i)) pc += ofs;
       Next;
@@ -1831,7 +1555,6 @@ returncon:
       long x = Long_val(sp[0]);
       long y = Long_val(sp[1]);
       long r = x*y;
-      Trace ("MULINT");
       Pop();
       /* has the result overflowed a long? */
       if (x != 0 && y != 0 &&  (x > Max_half_long || y > Max_half_long)) { /* cheap test */
@@ -1849,7 +1572,6 @@ returncon:
 
       sp[0] = Val_long( r );
     #else
-      Trace ("MULINT");
       sp[1] = Val_long( Long_val(sp[0]) * Long_val(sp[1]) );
       Pop();
     #endif
@@ -1862,7 +1584,6 @@ returncon:
     */
     Instr(QUOTINT): {
       long divisor = Long_val(sp[1]);
-      Trace ("QUOTINT");
       if (divisor == 0) Raise_arithmetic_exn( Int_zerodivide );
       sp[1] = Val_long( Long_val(sp[0]) / divisor );
       Pop();
@@ -1871,7 +1592,6 @@ returncon:
 
     Instr(REMINT): {
       long divisor = Long_val(sp[1]);
-      Trace ("REMINT");
       if (divisor == 0) Raise_arithmetic_exn( Int_zerodivide );
       sp[1] = Val_long( Long_val(sp[0]) % divisor );
       Pop();
@@ -1886,7 +1606,6 @@ returncon:
       long divisor = Long_val(sp[1]);
       long div;
       long mod;
-      Trace ("DIVINT");
 
       if (divisor == 0) { Raise_arithmetic_exn( Int_zerodivide );}
       div = Long_val(sp[0]) / divisor;
@@ -1907,7 +1626,6 @@ returncon:
       /* modulo is always positive */
       long divisor = Long_val(sp[1]);
       long mod;
-      Trace ("MODINT");
 
       if (divisor == 0) { Raise_arithmetic_exn( Int_zerodivide ); }
       mod = Long_val(sp[0]) % divisor;
@@ -1926,71 +1644,50 @@ returncon:
     Instr(NEGINT): {
     #if defined(LVM_CHECK_BOUNDS)
       long i = - Long_val(sp[0]);
-      Trace ("NEGINT");
       if (i > Max_long) Raise_arithmetic_exn( Int_overflow );
       if (i < Min_long) Raise_arithmetic_exn( Int_underflow );
       sp[0] = Val_long(i);
     #else
-      Trace ("NEGINT");
       sp[0] = (value)(2 - (long)sp[0]);
     #endif
       Next;
     }
 
-    Instr(INCINT): {
-    #if defined(LVM_CHECK_BOUNDS)
-      long i = Long_val(sp[0]) + (long)(*pc++);
-      Trace ("INCINT");
-      if (i > Max_long) Raise_arithmetic_exn( Int_overflow );
-      if (i < Min_long) Raise_arithmetic_exn( Int_underflow );
-      sp[0] = Val_long(i);
-    #else
-      Trace ("INCINT");
-      sp[0] = (value)( (long)sp[0] + 2*(long)(*pc++) );
-    #endif
-      Next;
-    }
 
 /*----------------------------------------------------------------------
   Bitwise integer operations
 ----------------------------------------------------------------------*/
     Instr(ANDINT): {
-      Trace ("ANDINT");
       sp[1] = (value)( (long)sp[0] & (long)sp[1] );
       Pop();
       Next;
     }
 
     Instr(XORINT): {
-      Trace ("XORINT");
       sp[1] = (value)( ((long)sp[0] ^ (long)sp[1]) | 1 );
       Pop();
       Next;
     }
 
     Instr(ORINT): {
-      Trace ("ORINT");
       sp[1] = (value)( (long)sp[0] | (long)sp[1] );
       Pop();
       Next;
     }
 
     Instr(SHRINT): {
-      Trace ("SHRINT");
       sp[1] = (value)( ((long)sp[0] >> Long_val(sp[1])) | 1);
       Pop();
       Next;
     }
 
     Instr(SHLINT): {
-      Trace ("SHLINT");
       sp[1] = (value)( (((long)sp[0]-1) << Long_val(sp[1])) | 1);
       Pop();
       Next;
     }
 
     Instr(SHRNAT): {
-      Trace ("SHRNAT");
       sp[1] = (value)( ((unsigned long)sp[0] >> Long_val(sp[1]))| 1);
       Pop();
       Next;
@@ -2017,10 +1714,9 @@ returncon:
   Call External functions
 ----------------------------------------------------------------------*/
     Instr(CALL): {
-      value v;
-      value decl = *(Valptr_fixup(*pc++));
-      nat n      = *pc++;
-      Trace ("CALL");
+      value   v;
+      value   decl = *(Valptr_fixup(*pc++));
+      wsize_t n    = *pc++;
       Require( Is_block(decl) && Tag_val(decl) == Rec_extern );
 
       /* check number of arguments */

@@ -55,7 +55,7 @@ static enum load_status sys_load_lib_ordinal( char* lib_name_buf, int ordinal
 int type_size( const char* type );
 int arg_size ( char rep );
 
-static void decorate_symbol( char* name_buf, const char* name, nat size
+static void decorate_symbol( char* name_buf, const char* name, wsize_t size
                            , enum call_conv cconv, const char* type )
 {
    Assert( name_buf );

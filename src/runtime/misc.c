@@ -62,9 +62,6 @@ END_ARGS(args)
 ---------------------------------------------------------*/
 void Noreturn sys_exit( int code )
 {
-#if defined(DEBUG) && defined(_MSC_VER)
-  getchar();
-#endif
   exit(code);
 }
 
@@ -242,7 +239,7 @@ void memmov (char * dst, char * src, unsigned long length)
 
 #endif /* USING_MEMMOV */
 
-char *aligned_malloc (asize_t size, int modulo, void **block)
+char *aligned_malloc (size_t size, int modulo, void **block)
 {
   char *raw_mem;
   unsigned long aligned_mem;

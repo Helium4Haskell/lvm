@@ -122,7 +122,7 @@ typedef int bool;
 #define UNUSED
 #endif
 
-/* units: use 1000 instead of 1024 to avoid possibly bad direct-mapped cache effects */
+/* units: use 1000 instead of 1024 to avoid possibly bad effects on direct-mapped cache */
 #define Kilo  (1000L)
 #define Mega  (Kilo*Kilo)
 #define Giga  (Kilo*Mega)
@@ -166,13 +166,9 @@ typedef int bool;
 /*----------------------------------------------------------------------
   LVM evaluator configuration options
 ----------------------------------------------------------------------*/
-#define LVM_UPDATE_INPLACE    /* try to update in place     */
-#define LVM_CHECK_BOUNDS      /* check bounds on operations */
-#undef  LVM_EAGER             /* speculative eager evaluation */
-#undef  LVM_EAGER_LIMITS      /* place limits on eager evaluation */
-#define LVM_EAGER_FRAMES      /* eager frames due to explicit EAGERAP instructions */
-
-
+#define LVM_UPDATE_INPLACE      /* try to update in place     */
+#define LVM_UPDATE_CON_INPLACE  /* even try to copy constructors to update in place (instead of indirection) */
+#define LVM_CHECK_BOUNDS        /* check bounds on operations */
 
 
 #endif /* _config_ */

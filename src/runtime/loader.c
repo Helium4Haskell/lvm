@@ -50,7 +50,7 @@
 #define Reverse_word(w1,w2)  Reverse_32(w1,w2)
 
 
-static void reverse_endian( word_t* data, nat count )
+static void reverse_endian( word_t* data, wsize_t count )
 {
   word_t* p;
   for(p = data; p < data + count; p++)
@@ -81,7 +81,7 @@ static value* load_symbol( value module, const char* modname, long major_version
                          , const char* name, enum rec_kind rec );
 
 
-static void resolve_instrs( const char* name, nat code_len, opcode_t* code
+static void resolve_instrs( const char* name, wsize_t code_len, opcode_t* code
                           , value records );
 
 /*----------------------------------------------------------------------
@@ -163,11 +163,11 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
   CAMLparam1(records);
   CAMLlocal2(rec,instrs);
 
-  nat     read_count;
+  wsize_t read_count;
   void*   buffer;
-  struct module_footer_t footer;
+  struct  module_footer_t footer;
 
-  nat     i;    /* index in records */
+  wsize_t i;    /* index in records */
   word_t* p;    /* pointer in the read buffer */
 
   /* read this section first into a statically allocated buffer */
@@ -273,7 +273,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       case Rec_code: {
         value code;
         char* instrs;
-        nat   instrlen = len;
+        wsize_t instrlen = len;
         Trace_i ("Rec_code", i);
 
         if (!Is_aligned(instrlen)) Rec_raise( "unaligned instructions" );
@@ -361,7 +361,7 @@ static void resolve_internal_records( value module )
   CAMLparam1(module);
   CAMLlocal3(rec,val,records);
   const char* fname;
-  nat i;
+  wsize_t i;
 
   records = Records_module(module);
   fname   = String_val(Field(module,Module_fname));
@@ -462,7 +462,7 @@ static void resolve_external_records( value module )
   CAMLparam1(module);
   CAMLlocal2(rec,records);
   const char* fname;
-  nat i;
+  wsize_t i;
 
   records = Records_module(module);
   fname   = String_val(Field(module,Module_fname));
@@ -531,7 +531,7 @@ static void resolve_code( value module )
   CAMLparam1(module);
   CAMLlocal3(rec,val,records);
   const char* fname;
-  nat i;
+  wsize_t i;
 
   records = Records_module(module);
   fname   = String_val(Field(module,Module_fname));
@@ -542,7 +542,7 @@ static void resolve_code( value module )
     rec = Record( records, i );
     switch (Tag_val(rec)) {
       case Rec_code: {
-        nat len;
+        wsize_t len;
 
         /* load the instruction pointer & length */
         val = Code_code(rec);
@@ -653,7 +653,7 @@ static value* find_symbol( value module, const char* name, enum rec_kind kind )
 {
   CAMLparam1(module);
   CAMLlocal2(records,rec);
-  nat i;
+  wsize_t i;
 
   if (kind == Rec_value || kind == Rec_con || kind == Rec_extern)
   {
@@ -824,7 +824,7 @@ static value* resolve_rec( const char* name, const char* instr_name,
 /*----------------------------------------------------------------------
   resolve instructions
 ----------------------------------------------------------------------*/
-static void resolve_instrs( const char* name, nat code_len, opcode_t* code
+static void resolve_instrs( const char* name, wsize_t code_len, opcode_t* code
                           , value records )
 {
   CAMLparam1(records);
@@ -852,8 +852,8 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
       break;
 
     case MATCHCON: {
-      nat n = opcode[0];
-      nat i;
+      wsize_t n = opcode[0];
+      wsize_t i;
       for (i = 1; i <= n; i++) {
         resolve_con( name, "MATCHCON", opcode + (2*i), records );
       }
@@ -884,7 +884,7 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
     case CALL: {
       value* prec = resolve_rec( name, "CALL", opcode, records, Rec_extern );
 
-      if (opcode[1]+1 != strlen(Type_extern(*prec))) {
+      if (opcode[1]+1 != (opcode_t)strlen(Type_extern(*prec))) {
         raise_module( name, "type doesn't match number of arguments in external call \"%s\"",
                       Name_field(*prec,Field_name));
       }
@@ -892,7 +892,7 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
       break;
     }
 
-    case PUSHSTRING: {
+    case PUSHBYTES: {
       resolve_rec( name, "PUSHBYTES", opcode, records, Rec_bytes );
       break;
     }
@@ -917,7 +917,6 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
 
     case RETURNINT:
     case PUSHINT:
-    case INCINT:
     case TESTINT: {
       #ifdef CHECK_BOUNDS
       long i = opcode[0];

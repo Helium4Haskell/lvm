@@ -49,22 +49,7 @@ void check_heap_size(void);
 /* convenience macro */
 #define Store_field(block, offset, val) Modify (&Field (block, offset), val)
 #define Init_field(block, offset, val)  Initialize( &Field(block,offset), val )
-
-/* LVM */
 #define Is_heap_val(v)  (Is_block(v) && (Is_young(v) || Is_in_heap(v)))
-#define Create_indirection(v,w) { nat i; \
-                                  Tag_val(v) = Ind_tag; \
-                                  Store_field(v,0,w); \
-                                  for( i = 1; i < Wosize_val(v); i++ ) { Store_field_0(v,i); } \
-                                }
-
-struct inv_block_t {
-  header_t header;
-  value    body;
-};
-
-struct inv_block_t inv_block;
-#define Store_field_0(v,i)      Store_field(v,i,(value)(&(inv_block.body)))
 
 
 #ifdef NATIVE_CODE
@@ -75,7 +60,7 @@ struct inv_block_t inv_block;
 
 #ifdef DEBUG
 #define DEBUG_clear(result, wosize) { \
-  unsigned long __DEBUG_i; \
+  wsize_t __DEBUG_i; \
   for (__DEBUG_i = 0; __DEBUG_i < wosize; ++ __DEBUG_i){ \
     Field (result, __DEBUG_i) = Debug_uninit_minor; \
   } \

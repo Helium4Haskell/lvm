@@ -29,9 +29,9 @@ static void raise_system_exn( enum exn_system tag ) Noreturn;
   print an exception
 ----------------------------------------------------------------------*/
 struct exn_info {
-  int   tag;
-  nat   arg_count;
-  char* msg;
+  con_tag_t tag;
+  long      arg_count;
+  char*     msg;
 };
 
 static struct exn_info exn_infos[] = {
@@ -95,7 +95,7 @@ void fatal_uncaught_exception( value exn )
   const char*  msg    = NULL;
   const char*  inside = NULL;
   struct thread_state* thread;
-  nat    arg_count;
+  wsize_t arg_count;
 
   value  subexn = exn;
 

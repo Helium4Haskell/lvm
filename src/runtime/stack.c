@@ -12,7 +12,7 @@
 #include <string.h>
 #include "mlvalues.h"
 #include "fail.h"
-#include "memory.h"
+#include "lvmmemory.h"
 #include "alloc.h"
 #include "thread.h"
 
@@ -27,10 +27,10 @@ void lazy_blackhole( value* fp )
     switch(Frame_frame(fp)) {
     case frame_update: {
       value upd = Frame_value(fp);
-      nat   tag = Tag_val(upd);
+      tag_t tag = Tag_val(upd);
       Assert( Is_block(upd) );
       if (tag == Ap_tag) {
-        nat   i;
+        wsize_t i;
         Tag_val(upd) = Inv_tag;
         for (i = 0; i < Wosize_val(upd); i++) { Store_field( upd, i, 0 ); }
       }
@@ -44,7 +44,6 @@ void lazy_blackhole( value* fp )
     }
     case frame_catch:
     case frame_cont:
-    case frame_eager:
       break;
     case frame_stop:
       return;
@@ -82,7 +81,7 @@ value* recover_synchronous( value* fp, value exn )
     case frame_update: {
       value upd = Frame_value(fp);
       if (Tag_val(upd) != Raise_tag) {
-        nat i;
+        wsize_t i;
         Tag_val(upd) = Raise_tag;
         Store_field(upd,0,exn);
         for (i = 1; i < Wosize_val(upd); i++) { Store_field(upd,i,0); }
@@ -98,18 +97,17 @@ value* recover_synchronous( value* fp, value exn )
   }
 }
 
-static value alloc_suspension( value* sp, nat ssize, long base, long top, long eager )
+static value alloc_suspension( value* sp, wsize_t ssize, long base, long top )
 {
   CAMLparam0();
   CAMLlocal1(susp);
 
-  nat size = ssize + Susp_info_wosize;
-  nat i;
+  wsize_t size = ssize + Susp_info_wosize;
+  wsize_t i;
 
   /* allocate a new suspension */
   if (size >  Max_young_wosize) susp = alloc_shr(size,Suspend_tag);
                          else   susp = alloc_small(size,Suspend_tag);
-  Field(susp,Field_susp_eager)= Val_long(eager);
   Field(susp,Field_susp_base) = Val_long(base);
   Field(susp,Field_susp_top)  = Val_long(top);
   if (size >  Max_young_wosize) {
@@ -129,16 +127,13 @@ value* recover_asynchronous( value* fp, value* sp )
   while(1) {
     long base;
     long top;
-    long eager;
 
-    eager = -1;
     top   = -1;
     base  = fp - sp;
     Assert( base > 0 );
 
-    /* ignore continuation & eager frames */
-    while(Frame_frame(fp) == frame_cont || Frame_frame(fp) == frame_eager) {
-      if (Frame_frame(fp) == frame_eager) eager = fp-sp;
+    /* ignore continuation frames */
+    while(Frame_frame(fp) == frame_cont) {
       fp = Frame_next(fp);
     }
 
@@ -147,9 +142,9 @@ value* recover_asynchronous( value* fp, value* sp )
     /* create a suspension if we hit an update frame */
     if(Frame_frame(fp) == frame_update) {
       /* update with a suspension */
-      susp = alloc_suspension( sp, fp - sp + Frame_size, base, top, eager );
+      susp = alloc_suspension( sp, fp - sp + Frame_size, base, top );
       upd  = Frame_value(fp);
-      Create_indirection(upd,susp);
+      Indirect(upd,susp);
 
       /* cut the stack & push the suspension
          this will change the stack but everything is still GC-safe and
@@ -160,78 +155,6 @@ value* recover_asynchronous( value* fp, value* sp )
     }
     else {
       CAMLreturn(fp);
-    }
-  }
-}
-
-
-/*----------------------------------------------------------------------
-   Suspend a speculative eager computation
-----------------------------------------------------------------------*/
-void recover_eager( struct thread_state* thread )
-{
-  CAMLparam0();
-  CAMLlocal3(susp,upd,ap);
-
-  value* sp   = thread->stack_sp;
-  value* fp   = thread->stack_fp;
-  Assert(thread->eager_top != NULL);
-
-  while(1) {
-    long base;
-    long top;
-    long eager;
-
-    eager = -1;
-    top   = -1;
-    base  = fp - sp;
-    Assert( base > 0 );
-
-    /* skip any frame other than an update or the top eager frame */
-    while(Frame_frame(fp) != frame_update && thread->eager_top > fp) {
-      if (Frame_frame(fp) == frame_eager) eager = fp - sp;
-      top = fp - sp;
-      fp  = Frame_next(fp);
-    }
-
-
-    /* create a suspension if we hit an update frame */
-    if(Frame_frame(fp) == frame_update) {
-      /* update with a suspension */
-      top = fp - sp;
-      susp = alloc_suspension( sp, fp-sp+Frame_size,base,top,eager);
-
-      upd = Frame_value(fp);
-      Create_indirection(upd,susp);
-
-      /* cut the stack & push the suspension
-         this will change the stack but everything is still GC-safe and
-         the stack is always cut at the catch or stop frame */
-      sp = fp + Frame_size - 1;
-      fp = Frame_next(fp);
-      sp[0] = susp;
-    }
-    else {
-      /* we are at the eager_top frame */
-
-      /* allocate a new suspension */
-      susp = alloc_suspension( sp, thread->eager_top - sp, base, top, eager );
-
-      /* allocate an update node */
-      ap = alloc_small(1,Ap_tag);
-      Field(ap,0) = susp;
-
-      /* reorder the stack */
-      fp           = Frame_next(thread->eager_top);
-      thread->code = Frame_value(thread->eager_top);
-      sp           = thread->eager_top + Frame_size - 1;
-      sp[0]        = ap;
-
-      thread->eager_top = NULL;
-      thread->stack_lim = thread->eager_stack_lim;
-      thread->stack_fp = fp;
-      thread->stack_sp = sp;
-      CAMLreturn0;
     }
   }
 }

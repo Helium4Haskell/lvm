@@ -69,11 +69,11 @@ value find_qualified_code( value module, const char* modname, const char* name )
 /*---------------------------------------------------------
   find value declaration from pc
 ---------------------------------------------------------*/
-static void find_decl_of_code_in_module( value module, opcode_t* pc, value* _rec, nat* _ofs )
+static void find_decl_of_code_in_module( value module, opcode_t* pc, value* _rec, long* _ofs )
 {
   CAMLparam1(module);
   CAMLlocal3(records,rec,code);
-  nat i;
+  wsize_t i;
 
   if (_rec) *_rec = 0;
   if (_ofs) *_ofs = 0;
@@ -84,7 +84,7 @@ static void find_decl_of_code_in_module( value module, opcode_t* pc, value* _rec
   {
     rec = Record(records,i);
     if (Tag_val(rec) == Rec_value) {
-      nat len;
+      wsize_t len;
       code = Code_value(rec);
       len  = Wosize_val(code); /* in bytes! */
       if ((char*)pc >= (char*)code && (char*)pc <= (char*)code + len) {
@@ -99,7 +99,7 @@ static void find_decl_of_code_in_module( value module, opcode_t* pc, value* _rec
   CAMLreturn0;
 }
 
-static void find_decl_of_code( value module, value valpc, value* _module, value* _rec, nat* _ofs )
+static void find_decl_of_code( value module, value valpc, value* _module, value* _rec, long* _ofs )
 {
   CAMLparam2(module,valpc);
   CAMLlocal1(mod);
@@ -151,7 +151,7 @@ bool is_code_val( value module, value valpc )
 /*---------------------------------------------------------
     find the name of the code belonging to a pc
 ---------------------------------------------------------*/
-static void format_name( char* buf, nat max, value module, value rec, nat ofs )
+static void format_name( char* buf, wsize_t max, value module, value rec, long ofs )
 {
   CAMLparam2(module,rec);
   CAMLlocal1(recEnc);
@@ -198,7 +198,7 @@ const char* find_name_of_code( value module, value valpc )
   CAMLparam2(module,valpc);
   CAMLlocal3(mod,decl,declEnc);
   static char name[MAXSTR];
-  nat ofs;
+  long ofs;
 
   find_decl_of_code( module, valpc, &mod, &decl, &ofs );
   format_name( name, MAXSTR, mod, decl, ofs );

@@ -20,8 +20,8 @@
 #include "signals.h"
 #include "thread.h"
 
-extern nat stack_wsize_peak;
-extern nat stack_wsize_total;
+extern wsize_t stack_wsize_peak;
+extern wsize_t stack_wsize_total;
 
 /*----------------------------------------------------------------------
   thread states: a toplevel module, a stack and registers
@@ -48,10 +48,6 @@ struct thread_state* thread_create( unsigned long stack_init_wsize, unsigned lon
   thread->stack_sp = thread->stack_fp = thread->exn_fp = NULL;
   thread->exn_frame  = NULL;
   for( i = 0; i < Sig_count; i++) thread->save_signals[i] = 0;
-
-  thread->eager_top       = NULL;
-  thread->eager_stack_lim = NULL;
-  thread->eager_heap_lim  = NULL;
 
   /* insert into the threads list: this makes the module & stack visible to the GC */
   thread->next = threads;
@@ -120,14 +116,13 @@ void thread_destroy( struct thread_state* thread )
 
 void thread_grow_stack( struct thread_state* thread )
 {
-  asize_t size;
+  wsize_t size;
   value*  new_stack;
   value*  new_top;
   value*  new_sp;
 
   Assert(thread);
   Assert(thread->stack_sp >= thread->stack);
-  Assert(thread->eager_top == NULL);
 
   /* allocate the new stack */
   size = thread->stack_top - thread->stack;
@@ -154,6 +149,8 @@ void thread_grow_stack( struct thread_state* thread )
 
   /* adjust the frame pointers */
   thread->stack_fp = (value*) shift(thread->stack_fp);
+
+  /* jul 2001: the frame links are now relative :-) */
   /*
   for( fp = thread->stack_fp; Frame_frame(fp) != frame_stop; ) {
     fp = Frame_next(fp) = (value*)shift(Frame_next(fp));
@@ -192,7 +189,7 @@ struct thread_state* get_current_thread( void )
 void thread_set_stack_max_wsize( struct thread_state* thread, unsigned long new_max_wsize )
 {
   if (thread != NULL) {
-    nat wsize = thread->stack_top - thread->stack;
+    wsize_t wsize = thread->stack_top - thread->stack;
     if (wsize < new_max_wsize) {
       thread->stack_max_wsize = new_max_wsize;
     }

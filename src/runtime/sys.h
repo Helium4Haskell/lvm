@@ -38,10 +38,10 @@ int file_read( int handle, void* buffer, unsigned int count );
 long file_skip( int handle, long count );
 const char * searchpath (const char* path, const char * name, const char* ext );
 
-nat msecs_of_ticks(nat ticks );
-nat get_msec_count(void);
-nat get_tick_count(void);
-void  get_process_ticks( nat* tick_total, nat* tick_user, nat* tick_system );
+ulong msecs_of_ticks(ulong ticks );
+ulong get_msec_count(void);
+ulong get_tick_count(void);
+void  get_process_ticks( ulong* tick_total, ulong* tick_user, ulong* tick_system );
 
 
 #endif /* _sys_ */

@@ -17,10 +17,10 @@
 #include "print.h"
 #include "stats.h"
 
-static nat ticks_total, ticks_user, ticks_system;
-static nat ticks_init, ticks_init_system, ticks_init_user;
-static nat ticks_done, ticks_done_system, ticks_done_user;
-static nat ticks_gc,   ticks_gc_system, ticks_gc_user;
+static ulong ticks_total, ticks_user, ticks_system;
+static ulong ticks_init, ticks_init_system, ticks_init_user;
+static ulong ticks_done, ticks_done_system, ticks_done_user;
+static ulong ticks_gc,   ticks_gc_system, ticks_gc_user;
 
 void stat_start_init(void)
 {
@@ -32,7 +32,7 @@ void stat_start_init(void)
 
 void stat_end_init(void)
 {
-  nat total, user, system;
+  ulong total, user, system;
   get_process_ticks( &total, &user, &system );
   ticks_init        = total  - ticks_init;
   ticks_init_system = system - ticks_init_system;
@@ -53,7 +53,7 @@ void stat_end_done(void)
 }
 
 
-static nat _ticks_gc, _ticks_gc_system, _ticks_gc_user;
+static ulong _ticks_gc, _ticks_gc_system, _ticks_gc_user;
 
 void stat_start_gc(void)
 {
@@ -62,7 +62,7 @@ void stat_start_gc(void)
 
 void stat_end_gc(void)
 {
-  nat total,system,user;
+  ulong total,system,user;
   get_process_ticks( &total, &user, &system );
   ticks_gc        += (total - _ticks_gc);
   ticks_gc_system += (system - _ticks_gc_system );
@@ -74,7 +74,7 @@ void stat_end_gc(void)
 void stat_timings_report(void)
 {
 #define TICKS(t) (msecs_of_ticks(t) / 1000), (msecs_of_ticks(t) % 1000)
-  nat ticks_eval, ticks_eval_user, ticks_eval_system;
+  ulong ticks_eval, ticks_eval_user, ticks_eval_system;
   ticks_eval        = ticks_total - ticks_gc - ticks_init - ticks_done;
   ticks_eval_user   = ticks_user - ticks_gc_user - ticks_init_user - ticks_done_user;
   ticks_eval_system = ticks_system - ticks_gc_system - ticks_init_system - ticks_done_system;
@@ -95,9 +95,9 @@ void stat_timings_report(void)
 
 void stat_heap_report(void)
 {
-extern nat stack_wsize_peak;
-  nat major_alloced = stat_major_words + allocated_words;
-  nat minor_alloced = stat_minor_words + Wsize_bsize(young_end - young_ptr);
+extern wsize_t stack_wsize_peak;
+  wsize_t major_alloced = stat_major_words + allocated_words;
+  wsize_t minor_alloced = stat_minor_words + Wsize_bsize(young_end - young_ptr);
   char minor_size_str[100];
   strcpy(minor_size_str,Bstring_of_bsize(minor_heap_size));
 

@@ -298,6 +298,10 @@ SOURCE=.\loader.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\lvmmemory.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\major_gc.h
 # End Source File
 # Begin Source File

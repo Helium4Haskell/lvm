@@ -33,8 +33,8 @@ struct thread_state {
   struct thread_state* next;
   enum thread_result   result;
 
-  nat     stack_max_wsize;
-  nat     stack_threshold_wsize;
+  wsize_t stack_max_wsize;
+  wsize_t stack_threshold_wsize;
   value   code;
   value   code_exn;
   value   module;
@@ -45,10 +45,6 @@ struct thread_state {
   value*  stack_sp;
   value*  stack_fp;
   value*  exn_fp;
-
-  value*  eager_top;
-  value*  eager_stack_lim;
-  char*   eager_heap_lim;
 
   value   save_signals[Sig_count];
   struct  exception_frame* exn_frame;
@@ -87,7 +83,6 @@ struct thread_state* get_current_thread( void );
 #define frame_update  ((value)(8))
 #define frame_catch   ((value)(12))
 #define frame_stop    ((value)(16))
-#define frame_eager   ((value)(20))
 
 #define Frame_frame(fp)   (fp[0])
 #define Frame_next(fp)    (fp + Long_val(fp[1]))
@@ -96,7 +91,6 @@ struct thread_state* get_current_thread( void );
 
 /* suspension fields */
 enum susp_field {
-  Field_susp_eager,
   Field_susp_base,
   Field_susp_top,
   Susp_info_wosize

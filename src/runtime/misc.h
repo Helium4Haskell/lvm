@@ -37,8 +37,6 @@
 
 /* Basic types and constants */
 
-typedef size_t asize_t;
-
 #ifndef NULL
 #define NULL 0
 #endif
@@ -125,7 +123,7 @@ int stricmp( const char* s, const char* t );
 
 /* Memory routines */
 void memmov (char *, char *, unsigned long);
-char *aligned_malloc (asize_t, int, void **);
+char *aligned_malloc (size_t, int, void **);
 
 #ifdef DEBUG
 #ifdef ARCH_64

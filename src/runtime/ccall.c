@@ -43,7 +43,7 @@ typedef long (STDCALL *fun_std4)(long,long,long,long);
 static long long_val( char type, value v, const char* name );
 static value val_long( char type, long l, const char* name );
 
-value call_extern( value* sp, nat arg_count, void* fun
+value call_extern( value* sp, long arg_count, void* fun
                  , enum call_conv cconv
                  , value vtype, value vname )
 {
@@ -52,7 +52,7 @@ value call_extern( value* sp, nat arg_count, void* fun
   const char* name;
   long result = 0;
   long args[MAX_ARG];
-  nat i;
+  long i;
 
   Assert( Is_heap_val(vtype) && Tag_val(vtype) == String_tag );
   Assert( Is_heap_val(vname) && Tag_val(vname) == String_tag );
@@ -60,7 +60,7 @@ value call_extern( value* sp, nat arg_count, void* fun
   name = String_val(vname);
 
   /* checks */
-  if( (arg_count != strlen(type)-1) )
+  if( (arg_count != (long)strlen(type)-1) )
     raise_internal("extern call \"%s\": type doesn't match number of arguments (\"%s\")", name, type );
 
   if (arg_count > MAX_ARG)
@@ -184,10 +184,11 @@ static long long_val( char type, value v, const char* name )
   if (Is_long(v)) {
     return Long_val(v);
   } else if (Is_heap_val(v) && Tag_val(v) <= Con_max_tag) {
-    nat tag;
+    con_tag_t tag;
     Con_tag_val(tag,v);
     return tag;
   } else {
+    /* or should we just return it 'as is' ? */
     raise_internal( "extern call \"%s\": invalid argument value", name );
     return 0;
   }

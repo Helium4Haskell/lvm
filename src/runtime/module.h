@@ -15,8 +15,6 @@
 #include "mlvalues.h"
 #include "fixed.h"
 
-typedef opcode_t  word_t;
-
 #define Module_tag              0
 struct module_header_t
 {

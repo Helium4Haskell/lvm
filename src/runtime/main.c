@@ -45,37 +45,31 @@ static const char* version(void)
 /* Initial speed setting for the major GC.  The heap will grow until
    the dead objects and the free list represent this percentage of the
    heap size.  The rest of the heap is live objects. */
-static nat heap_percent_free_init     = 42;
-static nat heap_max_percent_free_init = 100; /* Initial setting for the compacter: off */
+static ulong heap_percent_free_init     = 42;
+static ulong heap_max_percent_free_init = 100; /* Initial setting for the compacter: off */
 
-static nat heap_minor_wsize_init      = 32*Kilo; /* Initial size of the minor zone. (words)  */
-static nat heap_chunk_wsize_init      = 64*Kilo; /* Initial size increment when growing the heap. Must be a multiple of [Page_size / sizeof (value)]. */
+static wsize_t heap_minor_wsize_init      = 32*Kilo; /* Initial size of the minor zone. (words)  */
+static wsize_t heap_chunk_wsize_init      = 64*Kilo; /* Initial size increment when growing the heap. Must be a multiple of [Page_size / sizeof (value)]. */
 
-static nat heap_wsize_init            = 64*Kilo; /* Default initial size of the major heap (words); same constraints as for Heap_chunk_def. */
-static nat heap_wsize_max_init        = Wsize_bsize(64*Mega); /* Default maximum size of the heap */
+static wsize_t heap_wsize_init            = 64*Kilo; /* Default initial size of the major heap (words); same constraints as for Heap_chunk_def. */
+static wsize_t heap_wsize_max_init        = Wsize_bsize(64*Mega); /* Default maximum size of the heap */
 
 #ifdef DEBUG
-static nat heap_verbose_init          = 3;
+static ulong heap_verbose_init          = 3;
 #else
-static nat heap_verbose_init          = 0;
+static ulong heap_verbose_init          = 0;
 #endif
 
 static bool heap_report               = false;
 static bool timings_report            = false;
 
 /* global options */
-nat stack_wsize_init       = 4*Kilo;
-nat stack_wsize_max        = Wsize_bsize(64*Mega);
-nat stack_wsize_threshold  = Kilo;
+wsize_t stack_wsize_init       = 4*Kilo;
+wsize_t stack_wsize_max        = Wsize_bsize(64*Mega);
+wsize_t stack_wsize_threshold  = Kilo;
 
-nat stack_wsize_total = 0;
-nat stack_wsize_peak  = 0;
-
-#ifdef LVM_EAGER_LIMITS
-nat eager_wsize_max_stack  = 32;
-nat eager_wsize_min_stack  = 16;
-nat eager_wsize_max_heap   = 32;
-#endif
+wsize_t stack_wsize_total = 0;
+wsize_t stack_wsize_peak  = 0;
 
 const char* lvmpath = NULL;
 
@@ -107,12 +101,6 @@ static void show_options(void)
   print( " -hv<level>   the heap verbose level. (%lu)\n", heap_verbose_init );
   print( "              level is off (0), only major gc (1), every gc (2) or detailed (3)\n" );
   print( "\n" );
-#ifdef LVM_EAGER_LIMITS
-  print( " -es<size>    the minimal eager stack size.  (%4s)\n", Wstring_of_wsize(eager_wsize_min_stack)  );
-  print( " -eS<size>    the maximal eager stack usage. (%4s)\n", Wstring_of_wsize(eager_wsize_max_stack) );
-  print( " -eH<size>    the maximal eager heap usage.  (%4s)\n", Wstring_of_wsize(eager_wsize_max_heap) );
-  print( "\n" );
-#endif
   print( "values:\n" );
 
   print( " <size>       number with an optional scale and optional unit.\n" );
@@ -202,13 +190,13 @@ static void parse_percent( const char* s, unsigned long* var )
 }
 
 static void parse_size( const char* what
-                      , const char* s, unsigned long min, unsigned long max
-                      , unsigned long* var
+                      , const char* s, wsize_t min, wsize_t max
+                      , wsize_t* var
                       , bool words )
 {
-#define assign(x,y) { nat _check = (y); if (_check < (x)) goto err_overflow; (x) = _check; }
+#define assign(x,y) { wsize_t _check = (y); if (_check < (x)) goto err_overflow; (x) = _check; }
 
-  nat res;
+  wsize_t res;
   const char* p;
 
   /* skip leading '=' */
@@ -311,20 +299,6 @@ static void parse_option( const char* option )
                       break;
             }
             break;
-#ifdef LVM_EAGER
-  case 'e': switch (option[1]) {
-            case 's': parse_size( "minimal eager stack", option+2, 4, Max_long, &eager_wsize_min_stack, true );
-                      break;
-            case 'S': parse_size( "maximal eager stack", option+2, 4, Max_long, &eager_wsize_max_stack, true );
-                      if (Bsize_wsize(eager_wsize_max_stack) > stack_bsize_threshold) stack_bsize_threshold = Bsize_wsize(eager_wsize_max_stack);
-                      break;
-            case 'H': parse_size( "maximal eager heap", option+2, 4, Max_long, &eager_wsize_max_heap, true );
-                      break;
-            default : options_fatal_error( "unrecognised option (%s)", option );
-                      break;
-            }
-            break;
-#endif
   default:  options_fatal_error( "unrecognised option (%s)", option );
             break;
   }
@@ -370,13 +344,6 @@ static void options_check(void)
     options_fatal_error( "maximal heap size smaller than initial heap size" );
   if (heap_chunk_wsize_init > heap_wsize_init)
     options_fatal_error( "initial heap smaller than heap expansion size" );
-
-#ifdef LVM_EAGER
-  if (eager_wsize_min_stack > eager_wsize_max_stack)
-    options_fatal_error( "maximal eager stack smaller than minimal eager stack" );
-  if (eager_wsize_max_heap > heap_minor_wsize_init)
-    options_fatal_error( "maximal eager heap greater than minor heap size" );
-#endif
 }
 
 
@@ -409,7 +376,7 @@ char* fixup_base;
 int main( int argc, const char** argv )
 {
   const char** args;
-  nat          gc_verbose_init = 0;
+  ulong        gc_verbose_init = 0;
 #ifdef DEBUG
   /* debug_level       = 2; */
 #endif

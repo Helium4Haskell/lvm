@@ -15,7 +15,7 @@
 #include "mlvalues.h"
 #include "module.h"
 
-const char* String_of_size( nat size, const char* modifier );
+const char* String_of_size( wsize_t size, const char* modifier );
 #define Bstring_of_bsize(sz) String_of_size(sz,"")
 #define Wstring_of_wsize(sz) String_of_size(sz,"w")
 #define Bstring_of_wsize(sz) Bstring_of_bsize(Bsize_wsize(sz))

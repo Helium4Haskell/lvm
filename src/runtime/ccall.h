@@ -15,7 +15,7 @@
 #include "mlvalues.h"
 #include "thread.h"
 
-value call_extern( value* args, nat arg_count, void* fun
+value call_extern( value* args, long arg_count, void* fun
                  , enum call_conv cconv
                  , value type, value name );
 

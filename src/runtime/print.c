@@ -16,7 +16,7 @@
 #include "print.h"
 #include "thread.h"
 
-const char* String_of_size( nat size, const char* mod )
+const char* String_of_size( wsize_t size, const char* mod )
 {
 static char buf[MAXSTR];
   if (size < Kilo)
@@ -50,7 +50,7 @@ END_ARGS(args);
 static void _print_value( int level, value module, value v );
 static void _print_block( int level, const char* name, value module, value v )
 {
-  nat i;
+  wsize_t i;
   if (level > Max_level) { print("..."); return; }
 
   print( "[%s", name );
@@ -157,7 +157,7 @@ void print_instr( value module, value* sp, opcode_t* code )
 ----------------------------------------------------------------------*/
 void print_stack( value module, const value* sp, const value* fp )
 {
-  nat local;
+  long local;
 
   Assert( fp >= sp );
   local = 0;
@@ -171,7 +171,6 @@ void print_stack( value module, const value* sp, const value* fp )
     switch( Frame_frame(fp) ) {
     case frame_cont:    print( "continuation" ); break;
     case frame_update:  print( "update" ); break;
-    case frame_eager:   print( "eager" ); break;
     case frame_catch:   print( "catch" ); break;
     case frame_stop:    print( "stop\n" ); return;
     default:            print( "unknown frame!" ); return;
@@ -205,7 +204,6 @@ void print_stack_trace( value module, const value* fp, int max_trace )
   while(Frame_frame(fp) != frame_stop) {
     switch (Frame_frame(fp)) {
     case frame_cont:
-    case frame_eager:
       trace_total++;
       /* are we in the bottom traces */
       if (trace_count < Max_trace) {

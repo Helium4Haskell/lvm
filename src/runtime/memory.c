@@ -34,6 +34,11 @@
 #include "print.h" /* Bstring_of_bsize */
 
 /* LVM */
+struct inv_block_t {
+  header_t header;
+  value    body;
+};
+
 struct inv_block_t inv_block = { Make_header(1, Inv_tag, Caml_white), 0 };
 
 /* call "check_heap_size" from "major_slice".
@@ -343,14 +348,10 @@ void * stat_alloc (asize_t sz)
 {
   void * result = malloc (sz);
 
-  if (result == NULL) raise_out_of_memory (stat_heap_size);
+  /* malloc() may return NULL if size is 0 */
+  if (result == NULL && sz != 0) raise_out_of_memory (stat_heap_size);
 #ifdef DEBUG
-  {
-    value *p;
-    for (p = result; p < (value *) ((char *) result + sz); p++){
-      *p = Debug_uninit_stat;
-    }
-  }
+  memset (result, Debug_uninit_stat, sz);
 #endif
   return result;
 }

@@ -16,9 +16,9 @@ dynamic.o: dynamic.c mlvalues.h config.h ../config/m.h ../config/s.h \
  misc.h fail.h roots.h memory.h gc.h major_gc.h freelist.h minor_gc.h \
  thread.h module.h fixed.h signals.h dynamic.h
 evaluator.o: evaluator.c mlvalues.h config.h ../config/m.h \
- ../config/s.h misc.h alloc.h fail.h roots.h memory.h gc.h major_gc.h \
- freelist.h minor_gc.h thread.h module.h fixed.h signals.h print.h \
- instr.h ccall.h stack.h evaluator.h
+ ../config/s.h misc.h lvmmemory.h memory.h gc.h major_gc.h freelist.h \
+ minor_gc.h alloc.h fail.h roots.h thread.h module.h fixed.h signals.h \
+ print.h instr.h ccall.h stack.h evaluator.h
 fail.o: fail.c mlvalues.h config.h ../config/m.h ../config/s.h misc.h \
  memory.h gc.h major_gc.h freelist.h minor_gc.h alloc.h fail.h roots.h \
  thread.h module.h fixed.h signals.h print.h
@@ -86,7 +86,7 @@ signals.o: signals.c mlvalues.h config.h ../config/m.h ../config/s.h \
  minor_gc.h thread.h module.h fixed.h signals.h systhread.h
 stack.o: stack.c mlvalues.h config.h ../config/m.h ../config/s.h \
  misc.h fail.h roots.h memory.h gc.h major_gc.h freelist.h minor_gc.h \
- thread.h module.h fixed.h signals.h alloc.h
+ thread.h module.h fixed.h signals.h lvmmemory.h alloc.h
 static.o: static.c mlvalues.h config.h ../config/m.h ../config/s.h \
  misc.h module.h fixed.h fail.h roots.h memory.h gc.h major_gc.h \
  freelist.h minor_gc.h thread.h signals.h static.h sys.h primio.h \

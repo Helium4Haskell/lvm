@@ -59,13 +59,28 @@
          This is for use only by the GC.
 */
 
+typedef unsigned long word;
+typedef unsigned long ulong;
+
 typedef long value;
-typedef unsigned long header_t;
-typedef unsigned long mlsize_t;
-typedef unsigned int  tag_t;             /* Actually, an unsigned char */
-typedef unsigned long color_t;
-typedef unsigned long mark_t;
-typedef unsigned long nat;
+typedef long con_tag_t;
+
+typedef word wsize_t;
+typedef word header_t;
+typedef unsigned int tag_t;             /* Actually, an unsigned char */
+typedef word color_t;
+typedef word mark_t;
+
+/* for compatibility with original o'caml code */
+typedef wsize_t     mlsize_t;
+typedef wsize_t     asize_t;
+
+/* lvm binary files use signed 32 bit int's */
+typedef int32       opcode_t;
+typedef opcode_t    word_t;
+typedef opcode_t *  code_t;
+
+
 /* Longs vs blocks. */
 #define Is_long(x)   (((x) & 1) != 0)
 #define Is_block(x)  (((x) & 1) == 0)
@@ -78,6 +93,14 @@ typedef unsigned long nat;
 #define Min_long (-(1L << (8 * (long)sizeof(value) - 2)))
 #define Val_int Val_long
 #define Int_val(x) ((int) Long_val(x))
+
+/* Foreign (C) pointers */
+#define Val_ptr(p)  ((value)(p))
+#define Ptr_val(v)  ((void*)(v))
+
+
+#define Code_val(v)   ((word_t*)(Ptr_val(v)))
+#define Val_code(c)   Val_ptr(c)
 
 /* Structure of the header:
 
@@ -97,7 +120,7 @@ bits  63    10 9     8 7   0
 */
 
 #define Tag_hd(hd) ((tag_t) ((hd) & 0xFF))
-#define Wosize_hd(hd) ((mlsize_t) ((hd) >> 10))
+#define Wosize_hd(hd) ((wsize_t) ((hd) >> 10))
 
 #define Hd_val(val) (((header_t *) (val)) [-1])        /* Also an l-value. */
 #define Hd_op(op) (Hd_val (op))                        /* Also an l-value. */
@@ -156,6 +179,7 @@ bits  63    10 9     8 7   0
                                                  /* Also an l-value. */
 #endif
 
+
 /* The lowest tag for blocks containing no value. */
 #define No_scan_tag 251
 
@@ -166,13 +190,6 @@ bits  63    10 9     8 7   0
 #define Op_val(x) ((value *) (x))
 /* Fields are numbered from 0. */
 #define Field(x, i) (((value *)(x)) [i])           /* Also an l-value. */
-
-
-typedef uint32     opcode_t;
-typedef opcode_t * code_t;
-
-#define Code_val(v)   ((code_t)((v)))
-#define Val_code(c)   ((value)(c))
 
 /* Special case of tuples of fields: closures */
 
@@ -209,7 +226,11 @@ typedef opcode_t * code_t;
 #define Con_max_tag 239
 
 #define Con_tag_val(t,v)  { (t) = Tag_val(v); if ((t) == Con_max_tag) { (t) = Long_val(Field(v,Wosize_val(v)-1)); }}
-#define Con_size_val(n,v) { (n) = (long)Wosize_val(v); if (Tag_val(v) == Con_max_tag) { (n) -= 1; }}
+
+/* fsize: fields size, doesn't include possible extended tag value at the end */
+#define Fsize_val(v)        (Tag_val(v) == Con_max_tag ? Wosize_val(v)-1 : Wosize_val(v))
+#define Wosize_fsize(t,n)   (t >= Con_max_tag ? n+1 : n)
+
 
 /* Another special case: variants */
 extern value hash_variant(char * tag);
@@ -299,15 +320,12 @@ extern char * static_data_start, * static_data_end;
 
 /* The unit value is 0 (tagged) */
 
-#define Val_unit Val_int(0)
+#define Val_unit (Val_long(0))
 
 /* The table of global identifiers */
 
 extern value global_data;
 
-/* Foreign (C) pointers */
-#define Val_ptr(p)  ((long)p+1)
-#define Ptr_val(v)  ((void*)((long)v-1))
 
 
 #endif /* _mlvalues_ */
