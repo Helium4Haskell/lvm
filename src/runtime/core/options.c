@@ -7,7 +7,113 @@
   distributed under the terms of the GNU Library General Public License.
 -----------------------------------------------------------------------*/
 
-/* $Id$<name> or %%<name> to insert an environment variable.\n" );
+/* $Id: */
+
+#include <string.h>
+#include <stdio.h>
+#include <ctype.h>
+#include "mlvalues.h"
+#include "memory.h"
+#include "heap/heap.h"
+#include "dynamic.h"
+#include "custom.h"
+
+#include "fail.h"
+#include "print.h"
+#include "module.h"
+#include "loader.h"
+#include "evaluator.h"
+#include "schedule.h"
+#include "stats.h"
+#include "sys.h"  /* searchpath */
+
+#ifdef OS_WINDOWS
+# include <windows.h>
+#endif
+
+
+/* initial heap parameters */
+/* Initial speed setting for the major GC.  The heap will grow until
+   the dead objects and the free list represent this percentage of the
+   heap size.  The rest of the heap is live objects. */
+static nat heap_percent_free_init     = 42;
+static nat heap_max_percent_free_init = 100; /* Initial setting for the compacter: off */
+
+static wsize_t heap_minor_wsize_init      = 32*Kilo; /* Initial size of the minor zone. (words)  */
+static wsize_t heap_chunk_wsize_init      = 64*Kilo; /* Initial size increment when growing the heap. Must be a multiple of [Page_size / sizeof (value)]. */
+
+static wsize_t heap_wsize_init            = 64*Kilo; /* Default initial size of the major heap (words); same constraints as for Heap_chunk_def. */
+static wsize_t heap_wsize_max_init        = Wsize_bsize(64*Mega); /* Default maximum size of the heap */
+
+#ifdef DEBUG
+static nat heap_verbose_init          = 3;
+#else
+static nat heap_verbose_init          = 0;
+#endif
+
+static bool heap_report               = false;
+static bool timings_report            = false;
+static bool options_report            = false;
+
+/* global options */
+wsize_t stack_wsize_init       = 4*Kilo;
+wsize_t stack_wsize_max        = Wsize_bsize(64*Mega);
+wsize_t stack_wsize_threshold  = Kilo;
+
+wsize_t stack_wsize_total = 0;
+wsize_t stack_wsize_peak  = 0;
+bool showfinal = false; /* print final value on stdout after execution */
+
+/* search paths */
+const char* lvmpath = NULL; /* malloc'd */
+const char* dllpath = NULL; /* malloc'd */
+const char* mainfun = NULL; /* malloc'd */
+const char* argv0   = NULL;
+
+
+/*----------------------------------------------------------------------
+-- show options
+----------------------------------------------------------------------*/
+void show_options(void)
+{
+  const char* env;
+
+  print( "version: %s\n", __DATE__ );
+  print( "usage:\n" );
+  print( " lvmrun [lvm options] <file> [program options]\n" );
+  print( "\n" );
+  print( "options:\n" );
+  print( " -h<size>     the initial heap size.  (%4s)\n", Bstring_of_wsize(heap_wsize_init) );
+  print( " -H<size>     the maximal heap size.  (%4s)\n", Bstring_of_wsize(heap_wsize_max_init)  );
+  print( " -s<size>     the initial stack size. (%4s)\n", Bstring_of_wsize(stack_wsize_init) );
+  print( " -S<size>     the maximal stack size. (%4s)\n", Bstring_of_wsize(stack_wsize_max) );
+  print( " -P<path>     the search path.\n" );
+  print( " -m<name>     the initial start function." );
+  if (mainfun!=NULL) print( " (%s)\n", mainfun );
+                else print( "\n" );
+  print( " -p           print final value on stdout after execution.   (%4s)\n", (showfinal ? "on" : "off" ));
+  print( " -t           print timing report on stderr after execution. (%s)\n", (timings_report ? "on" : "off" ) );
+  print( " -?           show this help screen.\n" );
+  print( "\n" );
+  print( "advanced options:\n" );
+  print( " -he<size>    the heap expansion size.   (%4s)\n", Bstring_of_wsize(heap_chunk_wsize_init) );
+  print( " -hm<size>    the minor generation size. (%4s)\n", Bstring_of_wsize(heap_minor_wsize_init) );
+  print( " -hf<percent> the percentage of free heap before a major collection. (%3li%%)\n", heap_percent_free_init );
+  print( " -hF<percent> the percentage of free heap before a compaction.       (%3li%%)\n", heap_max_percent_free_init );
+  print( " -hr          print heap report on stderr after execution.           (%4s)\n", (heap_report ? "on" : "off" ));
+  print( " -hv<level>   the heap verbose level. (%lu)\n", heap_verbose_init );
+  print( "              level is off (0), only major gc (1), every gc (2) or detailed (3)\n" );
+  print( "\n" );
+  print( "values:\n" );
+
+  print( " <size>       number with an optional scale and optional unit.\n" );
+  print( "              available scales are kilo (k), mega (m) or giga (g).\n" );
+  print( "              available units are machine words (w) or, by default, bytes (b).\n" );
+  print( "              example: lvmrun -H64m -s4kw -S512kb <file>\n" );
+  print( " <percent>    number between 0 and 100 followed by an optional '%%' character.\n" );
+  print( "              example: lvmrun -hF88%% <file>\n" );
+  print( " <path>       a list of directories seperated by ';' (or ':' on unix systems).\n" );
+  print( "              use $<name> or %%<name> to insert an environment variable.\n" );
   print( "              the current path value is available as $current.\n" );
   print( "              the lvm installation path is available as $lvmdir.\n" );
   print( "              example: lvmrun -P%%current:/usr/lib/lvm <file>\n" );
@@ -514,4 +620,3 @@ void done_options(bool showreports)
     if (heap_report)    stat_heap_report();
   }
 }
-
