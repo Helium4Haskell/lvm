@@ -262,6 +262,7 @@ esac
 
 # Configure compiler to use in further tests
 
+cclinkopts="$cclinkopts $mathlib"
 ccomp=$cc
 cc="$cc $cclinkopts"
 export cc cclibs verbose
