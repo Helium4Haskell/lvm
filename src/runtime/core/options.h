@@ -25,9 +25,12 @@ extern wsize_t stack_wsize_threshold;
 extern wsize_t stack_wsize_total;
 extern wsize_t stack_wsize_peak;
 
+extern bool showfinal;
 extern const char* lvmpath;
 extern const char* dllpath;
 extern const char* mainfun;
 extern const char* argv0;
 
 #endif /* _options_h */
+
+@

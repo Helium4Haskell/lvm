@@ -25,7 +25,6 @@ void start_module( const char* name )
 {
   CAMLparam0();
   CAMLlocal2(module,code);
-  bool showfinal = false;
 
   stat_start_init();
   module = load_module( name );
@@ -49,7 +48,6 @@ void start_module( const char* name )
         fatal_error( "fatal error: neither \"main\" or \"main$\" is defined\n" );
         CAMLreturn0;
       }
-      showfinal = true;
     }
   }
   evaluate_code( module, code, showfinal );
@@ -72,3 +70,4 @@ int main( int argc, const char** argv )
   sys_exit(0);
   return 0;
 }
+
