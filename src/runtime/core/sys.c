@@ -73,8 +73,6 @@
 #include "signals.h"
 #include "sys.h"
 
-#define MAXPATH_LEN  MAXPATH
-
 /*----------------------------------------------------------------------
 -- file open/close/read
 ----------------------------------------------------------------------*/
@@ -232,13 +230,13 @@ const char* searchpath_dll( const char* name )
 
 const char * searchpath(const char* path, const char * name, const char* ext )
 {
-  static char fullname[MAXPATH_LEN];
+  static char fullname[MAXPATH];
   char * filepart;
 
   if (SearchPath(path,
                  name,
                  ext,
-                 MAXPATH_LEN,   /* size of buffer */
+                 MAXPATH,   /* size of buffer */
                  fullname,
                  &filepart))
     return fullname;
@@ -280,7 +278,7 @@ static bool file_exist(const char * name)
 
 const char * searchpath(const char* path, const char * name, const char* ext )
 {
-  static char fullname[MAXPATH_LEN];
+  static char fullname[MAXPATH];
   const char * cp;
   char* p;
 
@@ -290,15 +288,15 @@ const char * searchpath(const char* path, const char * name, const char* ext )
 
   /* fullname length >= (strlen(name) + (path == NULL ? 0 : strlen(path)) + 6); */
   /* 6 = "/" plus ".exe" plus final "\0" */
-  if (strlen(name) + (path == NULL ? 0 : strlen(path)) + 6 > MAXPATH_LEN)
+  if (strlen(name) + (path == NULL ? 0 : strlen(path)) + 6 > MAXPATH)
     return 0;
 
   /* Check for absolute path name */
   for (cp = name; *cp != 0; cp++) {
     if (*cp == '/' || *cp == '\\') {
       if (file_exist(name)) return name;
-      str_copy(fullname, name, MAXPATH_LEN);
-      str_cat(fullname, ext, MAXPATH_LEN);
+      str_copy(fullname, name, MAXPATH);
+      str_cat(fullname, ext, MAXPATH);
       if (file_exist(fullname)) return fullname;
       break;
     }
@@ -307,13 +305,13 @@ const char * searchpath(const char* path, const char * name, const char* ext )
   while(path && *path != 0) {
     long len;
     for( len = 0; path[len] != 0 && path[len] != ':' && path[len] != ';' ) len++;
-    if (len < MAXPATH_LEN) {
+    if (len < MAXPATH) {
       str_copy( fullname, path, len+1 );
-      if (len > 0) str_cat( fullname, "/", MAXPATH_LEN );
-      str_cat( fullname, name, MAXPATH_LEN );
+      if (len > 0) str_cat( fullname, "/", MAXPATH );
+      str_cat( fullname, name, MAXPATH );
 
       if (file_exist(fullname)) return fullname;
-      str_cat(fullname, ext, MAXPATH_LEN);
+      str_cat(fullname, ext, MAXPATH);
       if (file_exist(fullname)) return fullname;
     }
     path = path+len;
