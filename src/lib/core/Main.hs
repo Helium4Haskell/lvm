@@ -22,18 +22,20 @@ import CoreParse  ( coreParse )         -- parse text into core
 import CoreToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
 
 import AsmPretty  ( asmPretty )         -- pretty print low-level core (Asm)
-import AsmToLvm   ( asmToLvm )          -- translate Asm to instructions
+import AsmOptimize( asmOptimize )       -- optimize Asm (ie. inlining)
+import AsmToLvm   ( asmToLvm )          -- translate Asm to Lvm instructions
 
-import LvmPretty  ( lvmPretty )
-import LvmWrite   ( lvmWriteFile )
-import LvmImport  ( lvmImport )
+
+import LvmPretty  ( lvmPretty )         -- pretty print instructions (Lvm)
+import LvmWrite   ( lvmWriteFile )      -- write a binary Lvm file
+import LvmImport  ( lvmImport )         -- resolve import declarations
 
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
 message s
-   = return () 
-   -- = putStr s
+ --  = return () 
+  = putStr s
 
 main
   = do{ [arg] <- getArgs
@@ -56,11 +58,13 @@ compile src
       ; nameSupply  <- newNameSupply
       ; messageLn ("generating code")
       ; let asmmod  = coreToAsm nameSupply coremod
-            lvmmod  = asmToLvm  asmmod
+            asmopt  = asmOptimize asmmod
+            lvmmod  = asmToLvm  asmopt
             target  = (reverse (drop 5 (reverse source)) ++ ".lvm")
 
       ; messageDoc "core"         (corePretty coremod)
       ; messageDoc "assembler"    (asmPretty asmmod)
+      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
       ; messageDoc "instructions" (lvmPretty lvmmod)
 
       ; messageLn  ("writing    : " ++ showFile target)

@@ -32,7 +32,8 @@ LVM	= lvm/Lvm.hs lvm/LvmPretty.hs lvm/LvmWrite.hs lvm/LvmRead.hs lvm/LvmImport.h
 	  lvm/Module.hs lvm/ModulePretty.hs \
 	  lvm/Instr.hs lvm/InstrPretty.hs lvm/InstrResolve.hs lvm/InstrRewrite.hs
 
-ASM	= asm/AsmOccur.hs asm/Asm.hs asm/AsmPretty.hs asm/AsmToLvm.hs
+ASM	= asm/AsmOptimize.hs asm/AsmInline.hs asm/AsmOccur.hs \
+          asm/Asm.hs asm/AsmPretty.hs asm/AsmToLvm.hs
 
 CORE	= core/Core.hs core/CorePretty.hs core/CoreToAsm.hs \
 	  core/CoreParse.hs core/CoreLexer.hs \
@@ -177,6 +178,16 @@ lvm/InstrRewrite.o : lvm/InstrRewrite.hs
 lvm/InstrRewrite.o : lvm/Instr.hi
 lvm/InstrRewrite.o : common/Id.hi
 lvm/InstrRewrite.o : common/Standard.hi
+asm/AsmOptimize.o : asm/AsmOptimize.hs
+asm/AsmOptimize.o : asm/AsmInline.hi
+asm/AsmOptimize.o : asm/Asm.hi
+asm/AsmInline.o : asm/AsmInline.hs
+asm/AsmInline.o : asm/AsmOccur.hi
+asm/AsmInline.o : asm/Asm.hi
+asm/AsmInline.o : lvm/Module.hi
+asm/AsmInline.o : common/IdMap.hi
+asm/AsmInline.o : common/Id.hi
+asm/AsmInline.o : common/Standard.hi
 asm/AsmOccur.o : asm/AsmOccur.hs
 asm/AsmOccur.o : asm/Asm.hi
 asm/AsmOccur.o : lvm/Module.hi
@@ -288,6 +299,7 @@ core/Main.o : core/Main.hs
 core/Main.o : lvm/LvmImport.hi
 core/Main.o : lvm/LvmWrite.hi
 core/Main.o : lvm/LvmPretty.hi
+core/Main.o : asm/AsmOptimize.hi
 core/Main.o : asm/AsmToLvm.hi
 core/Main.o : asm/AsmPretty.hi
 core/Main.o : core/CoreToAsm.hi

@@ -113,6 +113,7 @@ getLvmPath
   = do{ xs <- getEnv "LVMPATH"
       ; return (splitPath xs)
       }
+  `catch` \err -> return []
 
 splitPath :: String -> [String]
 splitPath xs

@@ -11,12 +11,8 @@
 module AsmOccur( asmOccur ) where
 
 import Id     ( Id )
-import IdMap  ( IdMap, emptyMap, insertMapWith, unionMapWith
-              , deleteMap, lookupMap
-              , extendMap, mapMapWithId
-              , unionMaps, filterMap, mapMap, listFromMap, mapFromList
-              )
-import Module (mapValues)
+import IdMap  ( IdMap, emptyMap, insertMapWith, unionMapWith, deleteMap, lookupMap )
+import Module ( mapValues )
 import Asm
 
 {---------------------------------------------------------------

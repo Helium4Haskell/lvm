@@ -41,6 +41,18 @@ rewrites instrs
         | not (useds [id0,id1,id2] is)
         -> rewrites (squeeze d2 3 is ++ [USE id0, USE id1, USE id2])
    -}
+      PUSHVAR (Var id 0 depth) : SLIDE 1 m d : ENTER : is
+        | m >= 1
+        -> rewrites (SLIDE 1 (m-1) (d-1) : ENTER : is)
+
+      PUSHVAR (Var id0 1 d0) : PUSHVAR (Var id1 1 d1) : SLIDE 2 m d : ENTER : is
+        | m >= 2
+        -> rewrites (SLIDE 2 (m-2) (d-2) : ENTER : is)
+
+      PUSHVAR (Var id0 2 d0) : PUSHVAR (Var id1 2 d1) : PUSHVAR (Var id2 2 d2) : SLIDE 3 m d : is
+        | m >= 3
+        -> rewrites (SLIDE 3 (m-3) (d-3) : ENTER : is)
+
       PUSHCODE f : is
         -> rewritePushCode f (rewrites is)
 
@@ -79,7 +91,7 @@ rewrites instrs
         -> [rewriteMatch MATCHINT alts is]
 
       SLIDE n0 m0 d0 : SLIDE n1 m1 d1 : is
-        | n1 <= n0  -> SLIDE n1 (m0+m1-(n0-n1)) d1 : rewrites is
+        | n1 <= n0  -> rewrites (SLIDE n1 (m0+m1-(n0-n1)) d1 : is)
 
       instr:instrs  -> instr:rewrites instrs
       []            -> []
