@@ -15,20 +15,24 @@ include ../config/makefile
 #LINKOPT    = $(LINKOPTS)
 #CCOPT_FAST = -O3 $(CCOPTS) -g -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
 
-CCOPT	   = -O2 $(CCOPTS)
+CCOPT	   = $(CCOPTS) -I. -Icommon
 LINKOPT    = $(LINKOPTS)
-CCOPT_FAST = -O3 $(CCOPTS)
+CCOPT_FAST = $(CCOPTS) -I. -Icommon
 
-SRCS	= main.c stats.c \
-	  primio.c primsys.c primstring.c primfloat.c \
+CORE	= main.c stats.c \
 	  schedule.c evaluator.c instr.c thread.c stack.c \
 	  loader.c module.c print.c \
-	  ccall.c dynamic.c static.c \
-	  fail.c misc.c signals.c systhread.c sys.c \
-	  fixed.c bytes.c \
+	  ccall.c dynamic.c \
+	  fail.c misc.c signals.c systhread.c sys.c primfloat.c 
+	  
+HEAP	= fixed.c bytes.c \
 	  alloc.c compact.c custom.c finalise.c freelist.c gc_ctrl.c \
 	  major_gc.c minor_gc.c memory.c roots.c weak.c
 
+PRIM	= prims.c \
+	  primio.c primsys.c primstring.c 
+
+SRCS	= $(patsubst %,core/%,$(CORE)) $(patsubst %,heap/%,$(HEAP)) $(patsubst %,prim/%,$(PRIM))
 OBJS	= $(SRCS:.c=.o)
 
 
@@ -39,21 +43,34 @@ lvmrun$(EXE): $(OBJS)
 	$(LINK) -o $@ $(LINKOPT) $(OBJS)
 	$(STRIP) $@
 
-evaluator.o: evaluator.c
-	$(CC) -c $< $(CCOPT_FAST)
+core/evaluator.o: core/evaluator.c
+	$(CC) -o $@ -c $< $(CCOPT_FAST)
 
 
 .SUFFIXES: .c .o
 
 .c.o:
-	$(CC) -c $< $(CCOPT)
+	$(CC) -o $@ -c $< $(CCOPT) 
 
 clean:
-	$(RM) *.o *.bak lvmrun$(EXE)
+	$(RM) core/*.o heap/*.o prim/*.o lvmrun$(EXE)
 	$(RM) runtime.ncb runtime.opt runtime.plg *.obj
 
-depend:
-	$(CC) -MM $(CCOPTS) *.c > .depend
+# dependencies
+# [gcc -MM] generates the dependencies without the full
+# directory name, ie. 
+#  evaluator.o: ... 
+# instead of
+#  core/evaluator.o: ..
+# we therefore use [sed] to append the directory name
+depend:	
+	$(CC) -MM $(CCOPT) core/*.c > .depend.temp
+	sed -e 's/\(.*\.o\)/core\/\1/' .depend.temp >  .depend
+	$(CC) -MM $(CCOPT) heap/*.c > .depend.temp
+	sed -e 's/\(.*\.o\)/heap\/\1/' .depend.temp >> .depend
+	$(CC) -MM $(CCOPT) prim/*.c > .depend.temp
+	sed -e 's/\(.*\.o\)/prim\/\1/' .depend.temp >> .depend
+	$(RM) .depend.temp
 
 include .depend
 
