@@ -60,8 +60,8 @@ cgExpr env expr
       Eval id expr expr'-> [EVAL (cgExpr env expr)] ++ [VAR id] ++ cgExpr env expr'
       Match id alts     -> cgVar env id ++ cgMatch env alts
       Prim id args      -> cgPrim env id args
-      Atom atom         -> [RESULT (cgAtom env atom)]
-      other             -> error "AsmToCode.cgExpr: undefined case"
+      atom              -> [RESULT (cgAtom env atom)]
+--      other             -> error "AsmToCode.cgExpr: undefined case"
 
 {---------------------------------------------------------------
  recursive bindings

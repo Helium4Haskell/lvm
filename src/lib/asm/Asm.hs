@@ -26,16 +26,16 @@ type AsmValue   = DValue Top
 ---------------------------------------------------------------}
 data Top    = Top ![Id] Expr      -- arguments expression
 
-data Expr   = LetRec ![(Id,Atom)] Expr
-            | Let    !Id Atom Expr
-            | Eval   !Id Expr Expr
+type Atom   = Expr
+data Expr   = Eval   !Id Expr Expr
             | Match  !Id ![Alt]
             | Prim   !Id ![Atom]
-            | Atom   Atom
-
-data Atom   = Ap  !Id [Atom]
-            | Con !Id [Atom]
-            | Lit !Lit
+            -- atomic
+            | LetRec ![(Id,Atom)] Expr
+            | Let    !Id Atom Expr
+            | Ap     !Id ![Atom]
+            | Con    !Id ![Atom]
+            | Lit    !Lit
 
 data Lit    = LitInt   !Int
             | LitFloat !Double

@@ -32,17 +32,29 @@ ppTop (Top args expr)
 {---------------------------------------------------------------
   expressions
 ---------------------------------------------------------------}
-ppExpr expr
+ppExpr expr 
+  = ppExprEx id expr
+
+ppArg expr
+  = ppExprEx parens expr
+
+ppExprEx pars expr
   = case expr of
-      Let id atom e   -> (text "let" <+> ppBind (id,atom)) <$> nest 3 (text "in" <+> ppExpr e)
-      LetRec binds e  -> nest 7 (text "letrec" <+> vcat (map ppBind binds)) <$> nest 3 (text "in" <+> ppExpr e)
-      Eval id e e'    -> align $ hang 7 (text "let!" <+> ppId id <+> text "=" </> ppExpr e) <$> nest 3 (text "in" <+> ppExpr e')
-      Match id alts   -> nest 2 (text "match" <+> ppId id <+> text "with" <$> vcat (map ppAlt alts))
-      Prim id args    -> text "prim" <> squares (ppId id) <+> hsep (map ppArg args)
-      Atom atom       -> ppAtom atom
+      Let id atom e   -> pars $ (text "let" <+> ppBind (id,atom)) <$> nest 3 (text "in" <+> ppExpr e)
+      LetRec binds e  -> pars $ nest 7 (text "letrec" <+> vcat (map ppBind binds)) <$> nest 3 (text "in" <+> ppExpr e)
+      Eval id e e'    -> pars $ align $ hang 7 (text "let!" <+> ppId id <+> text "=" </> ppExpr e) 
+                                        <$> nest 3 (text "in" <+> ppExpr e')
+      Match id alts   -> pars $ nest 2 (text "match" <+> ppId id <+> text "with" <$> vcat (map ppAlt alts))
+      Prim id args    -> pars $ text "prim" <> char '[' <> (ppId id) <+> hsep (map ppArg args) <> char ']'
+      Ap id []        -> ppId id
+      Ap id args      -> pars $ ppId id <+> hsep (map ppArg args)
+      Con id []       -> ppId id
+      Con id args     -> pars $ ppId id <+> hsep (map ppArg args)
+      Lit lit         -> ppLit lit
+
 
 ppBind (id,atom)
-  = ppId id <+> text "=" <+> ppAtom atom
+  = ppId id <+> text "=" <+> ppExpr atom
 
 
 {---------------------------------------------------------------
@@ -56,24 +68,6 @@ ppPat pat
       PatCon id params -> ppId id <+> hsep (map ppId params)
       PatVar id        -> ppId id
       PatLit lit       -> ppLit lit
-
-{---------------------------------------------------------------
-  atomic expressions
----------------------------------------------------------------}
-ppAtom atom
-  = ppAtomEx id atom
-
-ppArg atom
-  = ppAtomEx parens atom
-
-ppAtomEx :: (Doc -> Doc) -> Atom -> Doc
-ppAtomEx pars atom
-  = case atom of
-      Ap id args    | null args -> ppId id
-                    | otherwise -> pars $ ppId id <+> hsep (map ppArg args)
-      Con id args   | null args -> ppId id
-                    | otherwise -> pars $ ppId id <+> hsep (map ppArg args)
-      Lit lit       -> ppLit lit
 
 {---------------------------------------------------------------
   literals and variables
