@@ -1,5 +1,5 @@
 {- import/export -}
-module Abstract( sum, fromTo ) where
+module Abstract( main, sum, fromTo ) where
 
 abstract foldl  = Export.foldl  :: (a -> b -> a) -> a -> List b -> a
 abstract add    = Export.addint :: Int -> Int -> Int

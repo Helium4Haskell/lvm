@@ -1,5 +1,5 @@
 {- import/export -}
-module Import0( sum, fromTo ) where
+module Import0( main, sum, fromTo ) where
 
 import Export( foldl, add = addint, fromTo, Cons )
 

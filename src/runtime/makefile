@@ -50,7 +50,6 @@ OBJS	= $(SRCS:.c=.o)
 lvmrun$(EXE): $(OBJS)
 	$(LINK) -o $@ $(LINKOPT) $(OBJS)
 	$(STRIP) $@
-	$(CP) $@ //c/daan/data/bat
 
 core/evaluator.o: core/evaluator.c
 	$(CC) -o $@ -c $< $(CCOPT_FAST)

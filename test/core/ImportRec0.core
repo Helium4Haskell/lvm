@@ -1,5 +1,5 @@
 {- recursive modules -}
-module ImportRec0( square ) where
+module ImportRec0( main, square ) where
 
 abstract mulint = ImportRec1.mulint :: Int -> Int -> Int
 

@@ -1,7 +1,7 @@
 {- import/export -}
 module Export( List(..), Bool( False, True )
              , fromTo, foldr, foldl, foldlStrict
-             , addint, mulint, ltint ) where
+             , addint, mulint, ltint, main ) where
 
 instruction primadd "addint" :: Int! -> Int! -> Int!
 instruction primmul "mulint" :: Int! -> Int! -> Int!

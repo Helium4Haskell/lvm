@@ -4,7 +4,7 @@ ImportRec0 uses [mulint] from ImportRec1.
 On top of that, ImportRec1 imports [fromTo]
 from Abstract which is imported from Export.
 -}
-module ImportRec1( mulint ) where
+module ImportRec1(main,  mulint ) where
 
 abstract fromTo = Abstract.fromTo   :: Int -> Int -> List Int
 abstract sum    = Abstract.sum      :: List Int -> Int

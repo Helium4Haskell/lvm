@@ -1,5 +1,5 @@
 {- import/export -}
-module Import1 where
+module Import1(main) where
 
 import ImportRec0( square )
 import Abstract( sum, fromTo {- actually from Export  -} )

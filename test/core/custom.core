@@ -1,6 +1,6 @@
 {- import/export -}
 module Custom( List(..), Bool( False, True )
-             , foldlStrict ) where
+             , foldlStrict, main ) where
 
 data Bool   = False | True
 data List a = Nil | Cons a (List a)
