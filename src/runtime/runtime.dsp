@@ -126,13 +126,6 @@ SOURCE=.\core\main.c
 # Begin Source File
 
 SOURCE=.\core\misc.c
-
-!IF  "$(CFG)" == "runtime - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "runtime - Win32 Debug"
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
@@ -145,6 +138,15 @@ SOURCE=.\core\options.c
 # Begin Source File
 
 SOURCE=.\core\primfloat.c
+
+!IF  "$(CFG)" == "runtime - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "runtime - Win32 Debug"
+
+# ADD CPP /FAs
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 

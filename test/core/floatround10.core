@@ -2,7 +2,7 @@
 module FloatRound where
 
 extern float "float_of_string" :: "Fz"
-extern round "fp_nearest" :: "FF"
+extern round "fp_near" :: "FF"
 
 main = let! x = float "3.5"
             y = round x

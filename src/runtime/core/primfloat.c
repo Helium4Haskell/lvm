@@ -274,7 +274,7 @@ double fp_trunc( double x )
   return r;
 }
 
-double fp_nearest( double x )
+double fp_near( double x )
 {
   double r;
   fp_round_with(r,x,fp_round_near);
@@ -311,7 +311,7 @@ double fp_trunc( double x )
   return i;
 }
 
-double fp_nearest( double x )
+double fp_near( double x )
 {
   double y = x+0.5;       /* x + 0.5 */
   double z = fp_floor(y); /* result  */
@@ -326,7 +326,7 @@ double fp_round( double x )
     case fp_round_down: return fp_floor(x);
     case fp_round_zero: return fp_trunc(x);
     case fp_round_near:
-    default:            return fp_nearest(x);
+    default:            return fp_near(x);
   }
 }
 
