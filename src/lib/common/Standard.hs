@@ -15,7 +15,7 @@ module Standard( trace, warning, assert
                , strict, seqList
                , foldlStrict, foldrStrict
                , Force, force
-               , searchPath, getLvmPath
+               , searchPath, searchPathMaybe, getLvmPath
                , fst3, snd3, thd3
                , unsafeCoerce
                ) where
@@ -88,16 +88,24 @@ instance (Force a,Force b) => Force (a,b) where
 ----------------------------------------------------------------
 -- file searching
 ----------------------------------------------------------------
-searchPath path ext name
+searchPath :: [String] -> String -> String -> IO String
+searchPath path ext name = 
+    fmap
+        (maybe (fail ("could not find " ++ show nameext)) id)
+        (searchPathMaybe path ext name)
+  where
+    nameext
+      | isPrefixOf (reverse ext) (reverse name)  = name
+      | otherwise  = name ++ ext
+        
+searchPathMaybe :: [String] -> String -> String -> IO (Maybe String)
+searchPathMaybe  path ext name
   = walk (map makeFName ("":path))
   where
-    walk []         = fail ("could not find " ++ show nameext ++
-                            "; compile " ++ show name ++ " first" ++
-                            " (if that fails, you might have a circular import)"
-                            )
+    walk []         = return Nothing
     walk (fname:xs) = do{ exist <- doesFileExist fname
                         ; if exist
-                           then return fname
+                           then return (Just fname)
                            else walk xs
                         }
 
@@ -110,7 +118,6 @@ searchPath path ext name
     nameext
       | isPrefixOf (reverse ext) (reverse name)  = name
       | otherwise  = name ++ ext
-
 
 getLvmPath :: IO [String]
 getLvmPath

@@ -213,11 +213,16 @@ void get_process_ticks( nat* tick_total, nat* tick_user, nat* tick_system )
 ----------------------------------------------------------------------*/
 bool is_pathsep( const char c )
 {
-#if defined(OS_WINDOWS) || defined(OS_CYGWIN)
-  return (c==';');
-#else
+/* As someone might run the windows version of lvmrun in
+   bash, which uses ':' as path seperator, both ';' and ':'
+   should be recognized on Windows and Cygwin as well
+   Rijk-Jan
+   */
+/* #if defined(OS_WINDOWS) || defined(OS_CYGWIN)
+  return (c==';'); */
+/* #else */
   return (c==';' || c == ':');
-#endif
+/* #endif */
 }
 
 bool is_filesep( const char c )
