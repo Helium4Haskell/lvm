@@ -129,8 +129,15 @@ void thread_grow_stack( struct thread_state* thread )
 
   /* allocate the new stack */
   size = thread->stack_top - thread->stack;
-  if (size >= thread->stack_max_wsize) raise_stack_overflow(Bsize_wsize(thread->stack_max_wsize));
+  if (size >= thread->stack_max_wsize) {
+    raise_stack_overflow(Bsize_wsize(thread->stack_max_wsize));
+  }
+
   size *= 2;
+  if (size > thread->stack_max_wsize) {
+    size = thread->stack_max_wsize;
+  }
+
   gc_message( 0x08, "Growing stack to %luk bytes\n",
                     Bsize_wsize(size) / Kilo);
 

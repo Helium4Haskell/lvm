@@ -125,15 +125,17 @@ static void mark_slice (long work)
       if (Tag_hd (hd) < No_scan_tag){
         for (i = 0; i < size; i++){
           child = Field (v, i);
-        mark_again:
+        /* mark_again: */
           if (Is_block (child) && Is_in_heap (child)) {
             hd = Hd_val(child);
             if (Tag_hd (hd) == Forward_tag){
-              child = Forward_val (child);
+              /* child = Forward_val (child);
               Field (v, i) = child;
               goto mark_again;
+              */
+              Field(v,i) = Forward_val(child);
             }
-            if (Tag_hd(hd) == Infix_tag) {
+            else if (Tag_hd(hd) == Infix_tag) {
               child -= Infix_offset_val(child);
               hd = Hd_val(child);
             }
@@ -192,14 +194,16 @@ static void mark_slice (long work)
           for (i = 1; i < sz; i++){
             curfield = Field (cur, i);
           weak_again:
-            if (curfield != 0 && Is_block (curfield) && Is_in_heap (curfield)
-                && Is_white_val (curfield)){
+            if (curfield != 0 && Is_block (curfield) && Is_in_heap (curfield)) {
+               /* && Is_white_val (curfield)){ */
               if (Tag_val (curfield) == Forward_tag){
                 curfield = Forward_val (curfield);
                 Field (cur, i) = curfield;
                 goto weak_again;
               }
-              Field (cur, i) = 0;
+              if (Is_white_val(curfield)){
+                Field (cur, i) = 0;
+              }
             }
           }
           weak_prev = &Field (cur, 0);
@@ -284,11 +288,15 @@ long major_collection_slice (long howmuch)
   /*
      Free memory at the start of the GC cycle (garbage + free list) (assumed):
                  FM = stat_heap_size * percent_free / (100 + percent_free)
-     Garbage at the start of the GC cycle:
-                 G = FM * 2/3
-     Proportion of free memory consumed since the previous slice:
+     Assuming steady state and enforcing a constant allocation rate, then
+     FM is divided in 2/3 for garbage and 1/3 for free list.
+                 G = 2 * FM / 3
+     G is also the amount of memory that will be used during this slice
+     (still assuming steady state).
+
+     Proportion of G consumed since the previous slice:
                  PH = allocated_words / G
-                    = 3 * allocated_words * (100 + percent_free)
+                    = allocated_words * 3 * (100 + percent_free)
                       / (2 * stat_heap_size * percent_free)
      Proportion of extra-heap memory consumed since the previous slice:
                  PE = extra_heap_memory
@@ -307,12 +315,11 @@ long major_collection_slice (long howmuch)
      This slice will either mark 2*MS words or sweep 2*SS words.
   */
 
-#define Margin 100  /* Make it a little faster to be on the safe side. */
 
   if (gc_phase == Phase_idle) start_cycle ();
 
-  p = 1.5 * allocated_words * (100 + percent_free)
-      / stat_heap_size / percent_free;
+  p = (double) allocated_words * 3.0 * (100 + percent_free)
+      / stat_heap_size / percent_free / 2.0;
   if (p < extra_heap_memory) p = extra_heap_memory;
 
   gc_message (0x40, "allocated_words = %lu\n", allocated_words);
@@ -322,11 +329,11 @@ long major_collection_slice (long howmuch)
               (unsigned long) (p * 1000000));
 
   if (gc_phase == Phase_mark){
-    computed_work = (long) (p * stat_heap_size * 100 / (100+percent_free));
+    computed_work = 2 * (long) (p * stat_heap_size * 100 / (100+percent_free));
   }else{
-    computed_work = (long) (p * stat_heap_size);
+    computed_work = 2 * (long) (p * stat_heap_size);
   }
-  computed_work += Margin;
+
   gc_message (0x40, "ordered work = %ld words\n", howmuch);
   gc_message (0x40, "computed work = %ld words\n", computed_work);
   if (howmuch == 0) howmuch = computed_work;
@@ -365,37 +372,61 @@ void finish_major_cycle (void)
   allocated_words = 0;
 }
 
-asize_t round_heap_chunk_size (asize_t request)
-{                            Assert (major_heap_increment >= Heap_chunk_min_wsize);
+/* Clip the request to [Heap_chunk_min..Heap_chunk_max] and round it
+   to a multiple of the page size.
+*/
+static asize_t clip_heap_chunk_size (asize_t request)
+{                             Assert (Heap_chunk_max_wsize >= Heap_chunk_min_wsize);
+                              Assert (Heap_chunk_min_wsize <= major_heap_increment);
   if (request < major_heap_increment){
-                              Assert (major_heap_increment % Page_bsize == 0);
-    return major_heap_increment;
-  }else if (request <= Heap_chunk_max_wsize){
-    return ((request + Page_bsize - 1) >> Page_log) << Page_log;
-  }else{
-    raise_out_of_memory (stat_heap_size);
-    /* not reached */ return 0;
+    request = major_heap_increment;
   }
+  if (request > Heap_chunk_max_wsize){
+    request = Heap_chunk_max_wsize;
+  }
+  return ((request + Page_bsize - 1) >> Page_log) << Page_log;
 }
+
+/* Make sure the request is >= major_heap_increment, then call
+   clip_heap_chunk_size, then make sure the result is >= request.
+*/
+asize_t round_heap_chunk_size (asize_t request)
+{
+  asize_t result = request;
+
+  if (result < major_heap_increment){
+    result = major_heap_increment;
+  }
+  result = clip_heap_chunk_size (result);
+
+  if (result < request){
+    raise_out_of_memory (stat_heap_size);
+    return 0; /* not reached */
+  }
+  return result;
+}
+
 
 void init_major_heap (asize_t heap_size)
 {
   asize_t i;
-  void *block;
   asize_t page_table_size;
   page_table_entry *page_table_block;
 
-  stat_peak_heap_bsize = stat_heap_size = round_heap_chunk_size (heap_size);
+  stat_peak_heap_bsize = stat_heap_size = clip_heap_chunk_size (heap_size);
   Assert (stat_heap_size % Page_bsize == 0);
-  heap_start = aligned_malloc (stat_heap_size + sizeof (heap_chunk_head),
-                               sizeof (heap_chunk_head), &block);
+  /* heap_start = aligned_malloc (stat_heap_size + sizeof (heap_chunk_head),
+                               sizeof (heap_chunk_head), &block); */
+  heap_start = (char *) alloc_for_heap(stat_heap_size);
   if (heap_start == NULL)
     fatal_error ("Fatal error: not enough memory for the initial heap.\n");
+/*
   heap_start += sizeof (heap_chunk_head);
   Assert ((unsigned long) heap_start % Page_bsize == 0);
   Chunk_size (heap_start) = stat_heap_size;
+*/
   Chunk_next (heap_start) = NULL;
-  Chunk_block (heap_start) = block;
+/*  Chunk_block (heap_start) = block; */
   heap_end = heap_start + stat_heap_size;
   Assert ((unsigned long) heap_end % Page_bsize == 0);
 

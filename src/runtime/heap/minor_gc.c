@@ -166,11 +166,15 @@ void empty_minor_heap (void)
     in_minor_collection = 1;
     gc_message (0x02, "<", 0);
     oldify_local_roots();
-    for (r = ref_table; r < ref_table_ptr; r++) oldify_one (**r, *r);
+    for (r = ref_table; r < ref_table_ptr; r++) {
+      oldify_one (**r, *r);
+    }
     oldify_mopup ();
-    if (young_ptr < young_limit) young_ptr = young_limit;
+    /* if (young_ptr < young_limit) young_ptr = young_limit; */
+    if (young_ptr < young_start) young_ptr = young_start;
     stat_minor_words += Wsize_bsize (young_end - young_ptr);
     young_ptr = young_end;
+    young_limit = young_start;
     ref_table_ptr = ref_table;
     ref_table_limit = ref_table_threshold;
     gc_message (0x02, ">", 0);

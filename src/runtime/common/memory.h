@@ -33,9 +33,9 @@ value check_urgent_gc (value);
 void * stat_alloc (asize_t);              /* Size in bytes. */
 void stat_free (void *);
 void * stat_resize (void *, asize_t);     /* Size in bytes. */
-header_t *alloc_for_heap (asize_t request);   /* Size in bytes. */
-void free_for_heap (header_t *mem);
-int add_to_heap (header_t *mem);
+char *alloc_for_heap (asize_t request);   /* Size in bytes. */
+void free_for_heap (char *mem);
+int add_to_heap (char *mem);
 color_t allocation_color (void *hp);
 void check_heap_size(void);
 /* void shrink_heap (char *);        Only used in compact.c */

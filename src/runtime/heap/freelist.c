@@ -60,10 +60,12 @@ void fl_check (void)
 {
   char *cur, *prev;
   int prev_found = 0, merge_found = 0;
+  unsigned long size_found = 0;
 
   prev = Fl_head;
   cur = Next (prev);
   while (cur != NULL){
+    size_found += Whsize_bp(cur);
     Assert (Is_in_heap (cur));
     if (cur == fl_prev) prev_found = 1;
     if (cur == fl_merge) merge_found = 1;
@@ -72,6 +74,7 @@ void fl_check (void)
   }
   Assert (prev_found || fl_prev == Fl_head);
   Assert (merge_found || fl_merge == Fl_head);
+  Assert (size_found == fl_cur_size);
 }
 #endif
 
@@ -94,6 +97,7 @@ static char *allocate_block (mlsize_t wh_sz, char *prev, char *cur)
   header_t h = Hd_bp (cur);
                                              Assert (Whsize_hd (h) >= wh_sz);
   if (Wosize_hd (h) < wh_sz + 1){                        /* Cases 0 and 1. */
+    fl_cur_size -= Whsize_hd (h);
     Next (prev) = Next (cur);
                     Assert (Is_in_heap (Next (prev)) || Next (prev) == NULL);
     if (fl_merge == cur) fl_merge = prev;
@@ -105,6 +109,7 @@ static char *allocate_block (mlsize_t wh_sz, char *prev, char *cur)
          calling [fl_allocate] will overwrite it. */
     Hd_op (cur) = Make_header (0, 0, Caml_white);
   }else{                                                        /* Case 2. */
+    fl_cur_size -= wh_sz;
     Hd_op (cur) = Make_header (Wosize_hd (h) - wh_sz, 0, Caml_blue);
   }
   fl_prev = prev;
@@ -152,7 +157,7 @@ void fl_init_merge (void)
 {
   last_fragment = NULL;
   fl_merge = Fl_head;
-  fl_cur_size = 0;
+/*  fl_cur_size = 0; */
 #ifdef DEBUG
   fl_check ();
 #endif
@@ -163,6 +168,7 @@ void fl_reset (void)
 {
   Next (Fl_head) = 0;
   fl_prev = Fl_head;
+  fl_cur_size = 0;
   fl_init_merge ();
 }
 
@@ -234,6 +240,7 @@ char *fl_merge_block (char *bp)
     /* This is a fragment.  Leave it in white but remember it for eventual
        merging with the next block. */
     last_fragment = bp;
+    fl_cur_size -= Whsize_wosize (0);
   }
   return adj;
 }
@@ -257,6 +264,9 @@ void fl_add_block (char *bp)
     }
   }
 #endif
+
+  fl_cur_size += Whsize_bp(bp);
+
   if (bp > fl_last){
     Next (fl_last) = bp;
     Next (bp) = NULL;

@@ -124,6 +124,7 @@ static void check_block (char *hp)
 static value heap_stats (int returnstats)
 {
 /* LVM: changed [long] to [unsigned long] */
+  CAMLparam0();
   unsigned long live_words = 0, live_blocks = 0,
        free_words = 0, free_blocks = 0, largest_free = 0,
        fragments = 0, heap_chunks = 0;
@@ -215,26 +216,38 @@ static value heap_stats (int returnstats)
   Assert (live_words + free_words + fragments == Wsize_bsize (stat_heap_size));
 
   if (returnstats){
-    value res = alloc_small (14, 0);
+    CAMLlocal1 (res);
 
-    Field (res, 0) = Val_long (stat_minor_words
-                               + Wsize_bsize (young_end - young_ptr));
-    Field (res, 1) = Val_long (stat_promoted_words);
-    Field (res, 2) = Val_long (stat_major_words + allocated_words);
-    Field (res, 3) = Val_long (stat_minor_collections);
-    Field (res, 4) = Val_long (stat_major_collections);
-    Field (res, 5) = Val_long (Wsize_bsize (stat_heap_size));
-    Field (res, 6) = Val_long (heap_chunks);
-    Field (res, 7) = Val_long (live_words);
-    Field (res, 8) = Val_long (live_blocks);
-    Field (res, 9) = Val_long (free_words);
-    Field (res, 10) = Val_long (free_blocks);
-    Field (res, 11) = Val_long (largest_free);
-    Field (res, 12) = Val_long (fragments);
-    Field (res, 13) = Val_long (stat_compactions);
-    return res;
+    /* get a copy of these before allocating anything... */
+    double minwords = stat_minor_words
+                      + (double) Wsize_bsize (young_end - young_ptr);
+    double prowords = stat_promoted_words;
+    double majwords = stat_major_words + (double) allocated_words;
+    long mincoll = stat_minor_collections;
+    long majcoll = stat_major_collections;
+    long heap_words = Wsize_bsize (stat_heap_size);
+    long cpct = stat_compactions;
+    long top_heap_words = Wsize_bsize (stat_peak_heap_bsize);
+
+    res = alloc_tuple (15);
+    Store_field (res, 0, copy_double (minwords));
+    Store_field (res, 1, copy_double (prowords));
+    Store_field (res, 2, copy_double (majwords));
+    Store_field (res, 3, Val_long (mincoll));
+    Store_field (res, 4, Val_long (majcoll));
+    Store_field (res, 5, Val_long (heap_words));
+    Store_field (res, 6, Val_long (heap_chunks));
+    Store_field (res, 7, Val_long (live_words));
+    Store_field (res, 8, Val_long (live_blocks));
+    Store_field (res, 9, Val_long (free_words));
+    Store_field (res, 10, Val_long (free_blocks));
+    Store_field (res, 11, Val_long (largest_free));
+    Store_field (res, 12, Val_long (fragments));
+    Store_field (res, 13, Val_long (cpct));
+    Store_field (res, 14, Val_long (top_heap_words));
+    CAMLreturn (res);
   }else{
-    return Val_unit;
+    CAMLreturn (Val_unit);
   }
 }
 
@@ -254,15 +267,19 @@ value gc_stat(value v) /* ML */
 
 value gc_counters(value v) /* ML */
 {
-  CAMLparam1 (v);
+  CAMLparam0 ();   /* v is ignored */
   CAMLlocal1 (res);
 
-  Assert (v == Val_unit);
-  res = alloc_small (3, 0);
-  Field (res, 0) = Val_long (stat_minor_words
-                             + Wsize_bsize (young_end - young_ptr));
-  Field (res, 1) = Val_long (stat_promoted_words);
-  Field (res, 2) = Val_long (stat_major_words + allocated_words);
+  /* get a copy of these before allocating anything... */
+  double minwords = stat_minor_words
+                    + (double) Wsize_bsize (young_end - young_ptr);
+  double prowords = stat_promoted_words;
+  double majwords = stat_major_words + (double) allocated_words;
+
+  res = alloc_tuple (3);
+  Store_field (res, 0, copy_double (minwords));
+  Store_field (res, 1, copy_double (prowords));
+  Store_field (res, 2, copy_double (majwords));
   CAMLreturn (res);
 }
 

@@ -29,9 +29,9 @@
 
 
 #ifdef DEBUG
-#define TRACE_TRACE
-#define TRACE_INSTR
-#define TRACE_STACK
+#undef TRACE_TRACE
+#undef TRACE_INSTR
+#undef TRACE_STACK
 #undef GC_AT_EACH_INSTR
 #endif
 
@@ -648,7 +648,7 @@ enterloop:
 
 raise_exception:
       Require( sp < fp );
-      exn = Popx();
+      exn = sp[0];
       thread->exn_fp = fp;
 
       /* recover the stack */
@@ -661,6 +661,9 @@ raise_exception:
       } else {
         fp = recover_synchronous( fp, exn );
       }
+  
+      /* reload exn since a gc may have happened */
+      exn = Popx();
 
       switch (Frame_frame(fp)) {
         case frame_catch: {

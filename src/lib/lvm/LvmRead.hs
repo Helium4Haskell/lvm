@@ -71,7 +71,7 @@ readModule
       ; total  <- readint
       ; lvmmajor <- readint
       ; lvmminor <- readint
-      ; readGuard (lvmmajor == lvmMajor && lvmminor >= lvmMinor) "readHeader" "incompatible lvm version"
+      ; readGuard (lvmmajor == lvmMajor && lvmminor >= lvmMinor) "readHeader" ("incompatible lvm version " ++ show lvmmajor ++ "." ++ show lvmminor)
       ; count  <- readint
       ; bcount <- readint
       ; ~(id,major,minor)  <- readModuleIdx 

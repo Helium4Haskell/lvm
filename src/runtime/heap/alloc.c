@@ -109,6 +109,7 @@ value alloc_string_major (mlsize_t len)
   mlsize_t wosize = (len + sizeof (value)) / sizeof (value);
 
   result = alloc_shr (wosize, String_tag);
+  result = check_urgent_gc(result);
   
   Field (result, wosize - 1) = 0;
   offset_index = Bsize_wsize (wosize) - 1;

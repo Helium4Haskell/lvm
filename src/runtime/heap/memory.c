@@ -77,7 +77,7 @@ void indirect( value v, value w )
    The returned pointer is a hp, but the header must be initialized by
    the caller.
 */
-header_t *alloc_for_heap (asize_t request)
+char *alloc_for_heap (asize_t request)
 {
   char *mem;
   void *block;
@@ -88,13 +88,13 @@ header_t *alloc_for_heap (asize_t request)
   mem += sizeof (heap_chunk_head);
   Chunk_size (mem) = request;
   Chunk_block (mem) = block;
-  return (header_t *) mem;
+  return mem;
 }
 
 /* Use this function to free a block allocated with [alloc_for_heap]
    if you don't add it with [add_to_heap].
 */
-void free_for_heap (header_t *mem)
+void free_for_heap (char *mem)
 {
   free (Chunk_block (mem));
 }
@@ -108,10 +108,9 @@ void free_for_heap (header_t *mem)
    The caller must update [allocated_words] if applicable.
    Return value: 0 if no error; -1 in case of error.
 */
-int add_to_heap (header_t *mem)
+int add_to_heap (char *m)
 {
   asize_t i;
-  char *m = (char *) mem;
                                      Assert (Chunk_size (m) % Page_bsize == 0);
 #ifdef DEBUG
   /* Should check the contents of the block. */
@@ -173,6 +172,8 @@ int add_to_heap (header_t *mem)
     }
     Chunk_next (m) = cur;
     *last = m;
+
+    /* ++ stat_heap_chunks; */
   }
 
   /* Update the heap bounds as needed. */
@@ -191,7 +192,7 @@ int add_to_heap (header_t *mem)
 */
 static char *expand_heap (mlsize_t request)
 {
-  header_t *mem;
+  char *mem;
   asize_t malloc_request;
 
   malloc_request = round_heap_chunk_size (Bhsize_wosize (request));
@@ -207,7 +208,7 @@ static char *expand_heap (mlsize_t request)
   Hd_hp (mem) = Make_header (Wosize_bhsize (malloc_request), 0, Caml_blue);
 
   if (add_to_heap (mem) != 0){
-    free (mem);
+    free_for_heap(mem);
     return NULL;
   }
   return Bp_hp (mem);
@@ -242,6 +243,8 @@ void shrink_heap (char *chunk)
   }
 #endif
 
+  /* - stat_heap_chunks; */
+
   /* Remove [chunk] from the list of chunks. */
   cp = &heap_start;
   while (*cp != chunk) cp = &(Chunk_next (*cp));
@@ -253,7 +256,7 @@ void shrink_heap (char *chunk)
   }
 
   /* Free the [malloc]ed block that contains [chunk]. */
-  free (Chunk_block (chunk));
+  free_for_heap (chunk);
 }
 
 color_t allocation_color (void *hp)
@@ -272,6 +275,7 @@ value alloc_shr (mlsize_t wosize, tag_t tag)
 {
   char *hp, *new_block;
 
+  if (wosize > Max_wosize) raise_out_of_memory(stat_heap_size);
   hp = fl_allocate (wosize);
   if (hp == NULL){
     new_block = expand_heap (wosize);

@@ -171,8 +171,8 @@ static void read_header( const char* name, int handle,
 #define Raw_read(x)           {(x) = *p++; if (is_rev_endian) { Reverse_word(&x,&x); }; }
 #define Word_read(x)          { Raw_read(x); (x) = Decode(x); }
 #define String_read(v,n)      {(v) = alloc_string_major(n); bcopy(p,String_val(v),n); p += Word_bytes(n); }
-#define Store_read(fld)       { word_t x; Word_read(x); Store_field(rec,fld,Val_long(x)); }
-#define Store_zero(fld)       { Store_field(rec,fld,Val_long(0)); }
+#define Store_read(fld)       { word_t x; Word_read(x); Init_field(rec,fld,Val_long(x)); }
+#define Store_zero(fld)       { Init_field(rec,fld,Val_long(0)); }
 #define Alloc_record(size)    { rec = alloc_major(size,kind); Record(records,i) = rec; }
 
 
@@ -436,7 +436,7 @@ static void resolve_internal_records( value module )
 
         /* allocate a CAF if necessary */
         if (Long_val(Field(rec,Field_value_arity)) == 0) {
-          value caf = alloc_small(1,Caf_tag);
+          value caf = alloc_major(1,Caf_tag);
           Store_field(caf,0,Field(rec,Field_value_fun));
           Store_field(rec,Field_value_fun,caf);
         }
@@ -638,19 +638,20 @@ static value read_module( value parent, const char* modname )
   read_header( fname, handle, &header, &is_rev_endian );
 
   /* allocate the module */
-  module = alloc( Module_size, Module_tag );
+  module = alloc_major( Module_size, Module_tag );
 
   if (parent) {
-    Store_field(module,Module_next,Field(parent,Module_next));
+    Init_field(module,Module_next,Field(parent,Module_next));
     Store_field(parent,Module_next,module);
   } else {
-    Store_field( module, Module_next, module );
+    Init_field( module, Module_next, module );
   }
 
-  Store_field( module, Module_fname, copy_string(fname) );
-
+  Init_field( module, Module_fname, copy_string(fname) );
   records = alloc_fixed( header.records_count );
-  Store_field( module, Module_records, records );
+  Init_field( module, Module_records, records );
+
+  gc_full_major(); /* fixes GC bug for unknown reasons :-( */
 
 debug_gc();
   read_records( fname, handle, is_rev_endian,

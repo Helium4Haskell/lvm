@@ -43,7 +43,7 @@ value weak_create (value len)        /* ML */
   return res;
 }
 
-#define None_val Val_int(0)
+#define None_val (Val_int(0))
 #define Some_tag 0
 
 value weak_set (value ar, value n, value el)     /* ML */
@@ -99,7 +99,8 @@ value weak_get_copy (value ar, value n)        /* ML */
   if (Tag_val (v) < No_scan_tag){
     mlsize_t i;
     for (i = 0; i < Wosize_val (v); i++){
-      Store_field (elt, i, Field (v, i));
+      /* Store_field (elt, i, Field (v, i)); */
+      modify(&Field(elt,i),Field(v,i));
     }
   }else{
     memmove (Bp_val (elt), Bp_val (v), Bosize_val (v));

@@ -110,6 +110,7 @@ void _debug_gc(void);
 #define debug_gc()
 #endif
 
+
 /* GC flags and messages */
 extern int verb_gc;
 void gc_message (int level, const char* msg, unsigned long);
@@ -128,7 +129,7 @@ long str_len ( const char* src );
 void memmov (char *, char *, unsigned long);
 char *aligned_malloc (size_t, int, void **);
 
-#ifdef DEBUG
+/* #ifdef DEBUG */
 #ifdef ARCH_64
 #define Debug_tag(x) (0xD700D7D7D700D6D7ul \
                       | ((unsigned long) (x) << 16) \
@@ -157,6 +158,6 @@ char *aligned_malloc (size_t, int, void **);
 #define Debug_uninit_stat    Debug_tag (0x12)
 #define Debug_uninit_align   Debug_tag (0x15)
 #define Debug_filler_align   Debug_tag (0x85)
-#endif
+/* #endif */
 
 #endif /* _misc_ */

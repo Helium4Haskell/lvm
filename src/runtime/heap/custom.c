@@ -39,7 +39,7 @@ value alloc_custom(struct custom_operations * ops,
     result = alloc_small(wosize, Custom_tag);
     Custom_ops_val(result) = ops;
   } else {
-    result = alloc_shr(wosize, Custom_tag);
+    result = alloc_major(wosize, Custom_tag);
     Custom_ops_val(result) = ops;
     adjust_gc_speed(mem, max);
     result = check_urgent_gc(result);
