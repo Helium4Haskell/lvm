@@ -356,11 +356,15 @@ const char * searchpath(const char* path, const char * name, const char* ext )
   /* Search in path */
   while(path && *path != 0) {
     long len;
+    char filesep[2];
+    filesep[0] = FILESEP;
+    filesep[1] = 0;
+
     for( len = 0; path[len] != 0 && !is_pathsep(path[len]); len++) { /* nothing */ }
     if (len > 0 && len < MAXPATH) {
       str_cpy( fullname, path, len+1 );
       normalize_path(fullname);
-      if (len > 0) str_cat( fullname, FILESEP, MAXPATH );
+      if (len > 0) str_cat( fullname, filesep, MAXPATH );
       str_cat( fullname, normname, MAXPATH );
       if (file_exist(fullname)) return fullname;
       str_cat(fullname, ext, MAXPATH);
