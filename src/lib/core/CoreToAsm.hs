@@ -24,19 +24,26 @@ import CoreFreeVar    ( coreFreeVar )     -- attach free variable information at
 import CoreLetSort    ( coreLetSort )     -- find smallest recursive let binding groups
 import CoreLift       ( coreLift )        -- lambda-lift, ie. make free variables arguments
 
+{-
+import Standard    ( trace )
+import CorePretty  ( corePretty )
+
+traceCore core  = trace (show (corePretty core)) core
+-}
+
 {---------------------------------------------------------------
   coreToAsm: translate Core expressions into Asm expressions
 ---------------------------------------------------------------}
 coreToAsm :: NameSupply -> CoreModule -> Asm.AsmModule
 coreToAsm supply mod
   = exprToTop 
-          $ coreLift
-          $ coreLetSort
-          $ coreFreeVar
-          $ coreNormalize supply2
-          $ coreSaturate supply1
-          $ coreRename supply0
-          $ mod
+  $ coreLift
+  $ coreLetSort
+  $ coreFreeVar
+  $ coreNormalize supply2
+  $ coreSaturate supply1
+  $ coreRename supply0
+  $ mod
   where        
     (supply0:supply1:supply2:supplies) = splitNameSupplies supply
 

@@ -1,0 +1,14 @@
+{- naar aanleiding van een bug in Helium -}
+module Shadow7 where
+
+data Bool = False | True
+
+id x = x
+main = id (let _caseExpr = True in 
+           let _nextClause = 42 in
+           let! _caseExpr = _caseExpr in
+           case _caseExpr of
+                  True -> 42
+                  _ ->  _nextClause
+          )
+

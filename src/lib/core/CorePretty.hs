@@ -59,9 +59,9 @@ ppLams arrow next  x
 
 ppLetBinds binds doc
   = case binds of
-      NonRec bind -> nest 4 (text "let" <+> ppBind bind <+> doc)
-      Strict bind -> nest 5 (text "let!" <+> ppBind bind <+> doc)
-      Rec recs    -> nest 7 (text "letrec" <+> ppBinds recs <+> doc)
+      NonRec bind -> nest 4 (text "let" <+> ppBind bind) </> doc
+      Strict bind -> nest 5 (text "let!" <+> ppBind bind) </> doc
+      Rec recs    -> nest 7 (text "letrec" <+> ppBinds recs) </> doc
 
 ppBinds  binds
   = vcat (map ppBind binds)

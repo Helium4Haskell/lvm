@@ -99,11 +99,15 @@ normAtom env expr
       Match _ _         -> freshBinding
       Lam _ _           -> freshBinding
       Let (Strict _) _  -> freshBinding
+      -- we could leave let bindings in place when they are fully
+      -- atomic but otherwise the bindings get messed up (shadow7.core).
+      -- we lift all bindings out and rely on asmInline to put them
+      -- back again if possible.
       Let binds expr    -> let (env1,env2) = splitEnv env
                                (atom,f)    = normAtom env1 expr
-                               (abinds,g)  = normAtomBinds env2 binds
-                           in  -- (atom, Let (normBinds env2 binds) . f)
-                               (abinds atom, f . g)
+                               -- (abinds,g)  = normAtomBinds env2 binds
+                           in  (atom, Let (normBinds env2 binds) . f)
+                               -- (abinds atom, f . g)
       Ap expr1 expr2    -> let (env1,env2) = splitEnv env
                                (atom,f)    = normAtom env1 expr1
                                (arg,g)     = normArg  env2 expr2
