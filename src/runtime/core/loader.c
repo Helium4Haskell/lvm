@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>     /* strerror */
 #include <fcntl.h>
+#include <errno.h>     /* errno */
 #include "mlvalues.h"
 #include "memory.h"
 #include "alloc.h"
