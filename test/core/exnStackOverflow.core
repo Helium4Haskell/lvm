@@ -1,0 +1,7 @@
+-- overflow
+module ExnStackOverflow where
+
+main  = f 42
+
+f x   = let! y = f x in id y
+id x  = x
