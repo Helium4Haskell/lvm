@@ -1,0 +1,11 @@
+-- inline
+module Inline where
+
+instruction primAddInt  "addint" :: Int! -> Int! -> Int!
+instruction primMulInt  "mulint" :: Int! -> Int! -> Int!
+
+mul x y = let! y = y 
+               x = x
+          in primMulInt x y
+
+main  = let! x = mul 2 4 in x
