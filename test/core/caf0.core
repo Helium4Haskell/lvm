@@ -1,0 +1,6 @@
+{- bug due to Rijk Jan van Haaften -}
+module Caf0 where
+
+main = f 0
+f    = g
+g x  = 42
