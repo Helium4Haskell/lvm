@@ -230,10 +230,11 @@ bits  63    10 9     8 7   0
 #define Caf_tag     244
 #define Inv_tag     243   /* invalid or blackhole */
 #define Raise_tag   242
-#define Ind_tag     241   /* indirection */
-#define Suspend_tag 240
+#define Suspend_tag 241
 
-#define Con_max_tag 239
+#define Ind_tag     Forward_tag   /* indirection */
+
+#define Con_max_tag 240
 
 #define Con_tag_val(t,v)  { (t) = Tag_val(v); if ((t) == Con_max_tag) { (t) = Long_val(Field(v,Wosize_val(v)-1)); }}
 #define Val_con_tag(t)    Val_long(t)
