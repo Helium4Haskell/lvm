@@ -123,6 +123,12 @@ resolve (PACKCON con v)
       ; return [PACKCON con var]
       }
 
+resolve (PACK arity v)
+  = do{ var <- resolveVar v
+      ; pop arity
+      ; return [PACK arity var]
+      }
+
 resolve (EVAL _ is)
   = do{ push 3
       ; d   <- depth
@@ -233,7 +239,6 @@ effect instr
       NEWCON con       -> do{ pop (arityFromCon con); push 1 }
 
       NEW arity        -> do{ pop 1; pop arity; push 1 }
-      PACK arity var   -> do{ pop arity }
       UNPACK arity     -> do{ pop 1; push arity }
 
       ALLOC            -> do{ pop 2; push 1 }
