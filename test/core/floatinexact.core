@@ -1,6 +1,29 @@
 module Float where
 
+
+instruction neq "neint"  :: Int -> Int -> Int
+instruction and "andint" :: Int -> Int -> Int
+
 extern float        "float_of_string" :: "Fz"
 extern fpgetsticky  "fp_get_sticky"   :: "I"
+extern fpstickymask "fp_sticky_mask"  :: "Ii"
 
-main = case float "1.0" of _ -> fpgetsticky
+data ArithmeticException
+  = FloatInvalid                      -- float invalid operation
+  | FloatDivideByZero                 -- float division by zero
+  | FloatOverflow                     -- float has overflowed
+  | FloatUnderflow                    -- float has underflowed
+  | FloatInexact                      -- float result is inexact
+  | FloatDenormal                     -- denormalized float value
+  | DivideByZero                      -- integer division by zero
+  | Overflow                          -- integer overflow
+  | Underflow                         -- integer underflow
+  | InvalidOperation                  -- general arithmetic error
+  | UnEmulated                        -- cannot emulate float instruction
+  | NegativeSquareRoot                -- square root of negative number
+  | FloatStackOverflow                -- float hardware stack has overflowed
+  | FloatStackUnderflow               -- float hardware stack has underflowed
+
+main = case float "1.0" of 
+        _ -> case fpstickymask FloatInexact of
+               mask -> neq (and mask fpgetsticky) 0
