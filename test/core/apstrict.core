@@ -1,0 +1,5 @@
+{- bug due to Arjan van IJzendoorn and Rijk Jan van Haaften -}
+module ApStrict where
+
+id x = x
+main = id (let! x = 42 in x)
