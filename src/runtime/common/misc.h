@@ -31,8 +31,6 @@
 #include "config.h"
 
 /* Standard header files */
-#include <stddef.h>
-#include <stdlib.h>
 #include <stdio.h>
 
 /* Basic types and constants */
@@ -122,7 +120,7 @@ int stricmp( const char* s, const char* t );
 #endif
 
 /* string routines */
-void str_copy( char* dest, const char* src, long size );
+void str_cpy( char* dest, const char* src, long size );
 void str_cat ( char* dest, const char* src, long size );
 long str_len ( const char* src );
 

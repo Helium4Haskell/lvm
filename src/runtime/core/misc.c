@@ -29,7 +29,7 @@
 #include "heap/heap.h"
 #include "dynamic.h"
 #include "signals.h"
-
+#include "options.h"
 
 /*---------------------------------------------------------
 -- messages
@@ -69,9 +69,7 @@ void Noreturn sys_exit( int code )
 
 void Noreturn shut_down(int code)
 {
-  done_signals();
-  done_gc();
-  done_dynamic(); /* must be after [done_gc] */
+  done_options(false);
   sys_exit(code);
 }
 
@@ -147,8 +145,10 @@ int stricmp( const char* s, const char* t )
 /*---------------------------------------------------------
 -- string routines
 ---------------------------------------------------------*/
-void str_copy( char* dest, const char* src, long size )
+void str_cpy( char* dest, const char* src, long size )
 {
+  Assert(dest);
+  Assert(size >= 0);
   if (dest == NULL || size <= 0) return;
 
   if (src == NULL) {
@@ -170,11 +170,13 @@ void str_copy( char* dest, const char* src, long size )
 void str_cat( char* dest, const char* src, long size )
 {
   char* p;
+  Assert(dest);
+  Assert(size >= 0);
   if (dest == NULL || size == 0) return;
 
   p = dest;
   while (*p != 0 && p-dest < size) { p++; }
-  if (p-dest < size) { str_copy( p, src, size - (p-dest) ); }
+  if (p-dest < size) { str_cpy( p, src, size - (p-dest) ); }
 }
 
 long str_len( const char* src )

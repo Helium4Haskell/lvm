@@ -368,7 +368,7 @@ void * stat_alloc (asize_t sz)
 
 void stat_free (void * blk)
 {
-  free (blk);
+  if (blk != NULL) free(blk);
 }
 
 void * stat_resize (void * blk, asize_t sz)

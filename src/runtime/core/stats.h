@@ -12,10 +12,15 @@
 #ifndef _stats_h
 #define _stats_h
 
+void stat_start_total(void);
+void stat_end_total(void);
+
 void stat_start_init(void);
 void stat_end_init(void);
+
 void stat_start_done(void);
 void stat_end_done(void);
+
 void stat_start_gc(void);
 void stat_end_gc(void);
 

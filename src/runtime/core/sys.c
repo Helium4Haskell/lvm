@@ -72,6 +72,7 @@
 #include "memory.h"
 #include "signals.h"
 #include "sys.h"
+#include "options.h"
 
 /*----------------------------------------------------------------------
 -- file open/close/read
@@ -206,53 +207,66 @@ void get_process_ticks( nat* tick_total, nat* tick_user, nat* tick_system )
 
 }
 
+
+/*----------------------------------------------------------------------
+-- file and path names
+----------------------------------------------------------------------*/
+bool is_pathsep( const char c )
+{
+#if defined(OS_WINDOWS) || defined(OS_CYGWIN)
+  return (c==';');
+#else
+  return (c==';' || c == ':');
+#endif
+}
+
+bool is_filesep( const char c )
+{
+  return (c=='\\' || c == '/');
+}
+
+void normalize_path( char* path )
+{
+  char* p;
+  if (path == NULL) return;
+  
+  for( p = path; *p != 0; p++ ) {
+    if (is_filesep(*p)) { 
+      *p = FILESEP; 
+    }
+    else if (is_pathsep(*p)) { 
+      *p = PATHSEP; 
+    }    
+  }
+}
+
 /*----------------------------------------------------------------------
 -- searchpath
 ----------------------------------------------------------------------*/
 const char* searchpath_lvm( const char* name )
 {
-extern const char* lvmpath;
   return searchpath( lvmpath, name, ".lvm" );
-}
-
-const char* searchpath_exe( const char* name )
-{
-  return searchpath( NULL, name, EXE );
 }
 
 const char* searchpath_dll( const char* name )
 {
-  return searchpath( NULL, name, DLL );
+  if (dllpath) {
+    /* try the LVMDLLPATH first */
+    const char* path = searchpath( dllpath, name, DLL );
+    if (path) return path;
+  }  
+  /* and also the system search path */
+  return searchpath( NULL, name, DLL ); 
 }
 
-
-#if defined(OS_WINDOWS)
-
-const char * searchpath(const char* path, const char * name, const char* ext )
-{
-  static char fullname[MAXPATH];
-  char * filepart;
-
-  if (SearchPath(path,
-                 name,
-                 ext,
-                 MAXPATH,   /* size of buffer */
-                 fullname,
-                 &filepart))
-    return fullname;
-  else
-    return name;
-}
-
-#else /* various unix's */
 
 #if defined(OS_CYGWIN)
 /* Cygwin needs special treatment because of the implicit ".exe" at the
    end of executable file names */
-
-static bool file_exist(const char * name)
+static bool file_exist(char * name)
 {
   int fd;
+  normalize_path(name);
   /* Cannot use stat() here because it adds ".exe" implicitly */
   fd = open(name, O_RDONLY);
   if (fd == -1) return false;
@@ -260,55 +274,94 @@ static bool file_exist(const char * name)
   return true;
 }
 
-#else /* various unixes */
+#else /* various unix's & windows */
 
 #ifndef S_ISREG
 #define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
 #endif
 
-static bool file_exist(const char * name)
+static bool file_exist(char * name)
 {
   struct stat st;
+  normalize_path(name);
   return (stat(name, &st) == 0 && S_ISREG(st.st_mode));
 }
 
-
 #endif
+
+
+#if defined(OS_WINDOWS)
+
+const char * searchpath(const char* path, const char * name, const char* ext )
+{
+  static char fullname[MAXPATH];
+  static char normname[MAXPATH];
+  char* filepart;
+  const char* cp;
+
+  str_cpy(normname,name,MAXPATH);
+  normalize_path(normname);
+
+  /* check for absolute path name */
+  for (cp = normname; *cp != 0; cp++) {
+    if (is_filesep(*cp)) {
+      str_cpy(fullname,normname,MAXPATH);
+      if (file_exist(fullname)) return fullname;
+      str_cat(fullname, ext, MAXPATH);
+      if (file_exist(fullname)) return fullname;
+      break;
+    }
+  }
+
+  /* otherwise, search along the path (NULL == default path) */
+  if (SearchPath(path,
+                 normname,
+                 ext,
+                 MAXPATH,   /* size of buffer */
+                 fullname,
+                 &filepart))
+    return fullname;
+  else
+    return NULL;
+}
+
+#else /* various unix's */
+
 
 
 const char * searchpath(const char* path, const char * name, const char* ext )
 {
   static char fullname[MAXPATH];
+  static char normname[MAXPATH];
   const char * cp;
 
   if (name == NULL) return NULL;
   if (ext  == NULL) ext  = "";
   if (path == NULL) path = getenv("PATH"); /* NULL == default system path */
 
-  /* fullname length >= (strlen(name) + (path == NULL ? 0 : strlen(path)) + 6); */
-  /* 6 = "/" plus ".exe" plus final "\0" */
-  if (strlen(name) + (path == NULL ? 0 : strlen(path)) + 6 > MAXPATH)
-    return 0;
+  str_cpy(normname,name,MAXPATH);
+  normalize_path(normname);
 
   /* Check for absolute path name */
-  for (cp = name; *cp != 0; cp++) {
-    if (*cp == '/' || *cp == '\\') {
-      if (file_exist(name)) return name;
-      str_copy(fullname, name, MAXPATH);
+  for (cp = normname; *cp != 0; cp++) {
+    if (is_filesep(*cp)) {
+      str_cpy(fullname,normname,MAXPATH);
+      if (file_exist(fullname)) return fullname;
       str_cat(fullname, ext, MAXPATH);
       if (file_exist(fullname)) return fullname;
       break;
     }
   }
+
   /* Search in path */
   while(path && *path != 0) {
     long len;
-    for( len = 0; path[len] != 0 && path[len] != ':' && path[len] != ';'; len++) { /* nothing */ }
-    if (len < MAXPATH) {
-      str_copy( fullname, path, len+1 );
-      if (len > 0) str_cat( fullname, "/", MAXPATH );
-      str_cat( fullname, name, MAXPATH );
-
+    for( len = 0; path[len] != 0 && !is_pathsep(path[len]); len++) { /* nothing */ }
+    if (len > 0 && len < MAXPATH) {
+      str_cpy( fullname, path, len+1 );
+      normalize_path(fullname);
+      if (len > 0) str_cat( fullname, FILESEP, MAXPATH );
+      str_cat( fullname, normname, MAXPATH );
       if (file_exist(fullname)) return fullname;
       str_cat(fullname, ext, MAXPATH);
       if (file_exist(fullname)) return fullname;

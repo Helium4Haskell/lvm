@@ -14,74 +14,42 @@
 #include "heap/heap.h"
 #include "sys.h"
 #include "print.h"
+#include "options.h"
 #include "stats.h"
 
-static nat ticks_total, ticks_user, ticks_system;
-static nat ticks_init, ticks_init_system, ticks_init_user;
-static nat ticks_done, ticks_done_system, ticks_done_user;
-static nat ticks_gc,   ticks_gc_system, ticks_gc_user;
+#define Stat_counter(name)  \
+  static nat _ticks_##name, _ticks_##name##_system, _ticks_##name##_user; \
+  static nat ticks_##name = 0, ticks_##name##_system = 0, ticks_##name##_user = 0; \
+  \
+  void stat_start_##name(void) { \
+    get_process_ticks( &_ticks_##name, &_ticks_##name##_user, &_ticks_##name##_system ); \
+  } \
+  \
+  void stat_end_##name(void) { \
+    nat total,system,user; \
+    get_process_ticks( &total, &user, &system ); \
+    ticks_##name        += (total - _ticks_##name); \
+    ticks_##name##_system += (system - _ticks_##name##_system ); \
+    ticks_##name##_user   += (user - _ticks_##name##_user ); \
+  }   
 
-void stat_start_init(void)
-{
-  ticks_init = ticks_init_system = ticks_init_user = 0;
-  ticks_done = ticks_done_system = ticks_done_user = 0;
-  ticks_gc   = ticks_gc_system   = ticks_gc_user   = 0;
-  get_process_ticks( &ticks_init, &ticks_init_user, &ticks_init_system );
-}
-
-void stat_end_init(void)
-{
-  nat total, user, system;
-  get_process_ticks( &total, &user, &system );
-  ticks_init        = total  - ticks_init;
-  ticks_init_system = system - ticks_init_system;
-  ticks_init_user   = user   - ticks_init_user;
-}
-
-void stat_start_done(void)
-{
-  get_process_ticks( &ticks_done, &ticks_done_user, &ticks_done_system );
-}
-
-void stat_end_done(void)
-{
-  get_process_ticks( &ticks_total, &ticks_user, &ticks_system );
-  ticks_done        = ticks_total  - ticks_done;
-  ticks_done_system = ticks_system - ticks_done_system;
-  ticks_done_user   = ticks_user   - ticks_done_user;
-}
-
-
-static nat _ticks_gc, _ticks_gc_system, _ticks_gc_user;
-
-void stat_start_gc(void)
-{
-  get_process_ticks( &_ticks_gc, &_ticks_gc_user, &_ticks_gc_system );
-}
-
-void stat_end_gc(void)
-{
-  nat total,system,user;
-  get_process_ticks( &total, &user, &system );
-  ticks_gc        += (total - _ticks_gc);
-  ticks_gc_system += (system - _ticks_gc_system );
-  ticks_gc_user   += (user - _ticks_gc_user );
-}
-
-
+Stat_counter(gc)
+Stat_counter(init)
+Stat_counter(done)
+Stat_counter(total)
 
 void stat_timings_report(void)
 {
 #define TICKS(t) (msecs_of_ticks(t) / 1000), (msecs_of_ticks(t) % 1000)
   nat ticks_eval, ticks_eval_user, ticks_eval_system;
   ticks_eval        = ticks_total - ticks_gc - ticks_init - ticks_done;
-  ticks_eval_user   = ticks_user - ticks_gc_user - ticks_init_user - ticks_done_user;
-  ticks_eval_system = ticks_system - ticks_gc_system - ticks_init_system - ticks_done_system;
+  ticks_eval_user   = ticks_total_user - ticks_gc_user - ticks_init_user - ticks_done_user;
+  ticks_eval_system = ticks_total_system - ticks_gc_system - ticks_init_system - ticks_done_system;
 
   error_message( "\n" );
   error_message( "timings:\n" );
   error_message( " process total:       %3li.%03lis   (user: %3li.%03lis  system: %3li.%03lis)\n",
-                                        TICKS(ticks_total), TICKS(ticks_user), TICKS(ticks_system) );
+                                        TICKS(ticks_total), TICKS(ticks_total_user), TICKS(ticks_total_system) );
   error_message( "  evaluator:          %3li.%03lis   (user: %3li.%03lis  system: %3li.%03lis)\n",
                                         TICKS(ticks_eval), TICKS(ticks_eval_user), TICKS(ticks_eval_system) );
 
@@ -94,7 +62,6 @@ void stat_timings_report(void)
 
 void stat_heap_report(void)
 {
-extern wsize_t stack_wsize_peak;
   wsize_t major_alloced = stat_major_words + allocated_words;
   wsize_t minor_alloced = stat_minor_words + Wsize_bsize(young_end - young_ptr);
   char minor_size_str[100];

@@ -27,6 +27,8 @@
 
 #include <m.h>
 #include <s.h>
+#include <stddef.h>
+#include <stdlib.h>
 
 #define in  const
 #define out
@@ -123,7 +125,34 @@ typedef int bool;
 
 
 /* Maximal string buffer size on stack */
-#define MAXSTR 512
+#define MAXSTR  512
+#define MAXVAR  MAXSTR
+#define MAXNAME 128
+
+/* Maximal path length */
+#if defined(_MAX_PATH)
+# define MAXPATH _MAX_PATH
+#elif defined(MAX_PATH)
+# define MAXPATH MAX_PATH
+#elif defined(MAXPATHLEN)
+# define MAXPATH MAXPATHLEN
+#elif defined(PATH_MAX)
+# define MAXPATH PATH_MAX
+#else
+# define MAXPATH 512
+#endif
+
+/* File and path seperators */
+#if defined(OS_WINDOWS)
+# define FILESEP '\\'
+# define PATHSEP ';'
+#elif defined(OS_CYGWIN)
+# define FILESEP '/'
+# define PATHSEP ';'
+#else
+# define FILESEP '/'
+# define PATHSEP ':'
+#endif
 
 /* Do not change this definition. */
 #define Page_bsize (1 << Page_log)

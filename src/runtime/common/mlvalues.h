@@ -343,6 +343,4 @@ extern char * static_data_start, * static_data_end;
 
 extern value global_data;
 
-
-
 #endif /* _mlvalues_ */

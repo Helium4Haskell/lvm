@@ -133,6 +133,10 @@ SOURCE=.\core\module.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\core\options.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\core\primfloat.c
 # End Source File
 # Begin Source File

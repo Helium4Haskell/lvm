@@ -30,7 +30,7 @@ char* stat_alloc_string( const char* s )
 
   len = str_len(s);
   p   = (char*)stat_alloc( len+1 );
-  str_copy( p, s, len+1 );
+  str_cpy( p, s, len+1 );
   return p;
 }
 

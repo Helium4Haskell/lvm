@@ -54,7 +54,7 @@ static struct exn_info exn_runtime_infos[] = {
   { Exn_out_of_bounds,    1, "bounds check failed at %s" },
   { Exn_exit,             1, "exit %i" },
   { Exn_invalid_opcode,   1, "invalid opcode (%li)" },
-  { Exn_load_error,       2, "could not load \"%s\":\n  %s" },
+  { Exn_load_error,       2, "unable to load module \"%s\":\n  %s" },
   { Exn_runtime_error,    1, "runtime error: %s" },
   { -1, 0, "unknown runtime exception" }
 };

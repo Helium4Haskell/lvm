@@ -24,7 +24,7 @@ LINKOPT    = $(LINKOPTS)
 CCOPT_FAST = $(CCOPTS) -I. -Icommon
 endif
 
-CORE	= main.c stats.c \
+CORE	= main.c stats.c options.c \
 	  schedule.c evaluator.c instr.c thread.c stack.c \
 	  loader.c module.c print.c \
 	  ccall.c dynamic.c \

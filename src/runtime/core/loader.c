@@ -11,7 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string.h>     /* strerror */
 #include <fcntl.h>
 #include "mlvalues.h"
 #include "memory.h"
@@ -27,6 +27,7 @@
 #include "dynamic.h"
 #include "print.h"
 #include "prim/prims.h"
+#include "options.h"    /* lvmpath */
 
 
 #ifdef TRACE_TRACE
@@ -90,13 +91,19 @@ static void resolve_instrs( const char* name, wsize_t code_len, opcode_t* code
 ----------------------------------------------------------------------*/
 static int open_module(const char **fname)
 {
-  const char * truename;
+  const char * fullname;
   int fd;
 
-  truename = searchpath_lvm(*fname);
-  if (truename == 0) truename = *fname; else *fname = truename;
-  fd = file_open_binary(truename, O_RDONLY );
-  if (fd < 0)  raise_module( truename, "could not open file" );
+  fullname = searchpath_lvm(*fname);
+  if (fullname != NULL) *fname = fullname;
+
+  fd = file_open_binary(*fname, O_RDONLY );
+  if (fd < 0) {
+    if (fullname == NULL) 
+      raise_module( *fname, "file not found in the search path:\n  \"%s\"", lvmpath );
+    else 
+      raise_module( *fname, "file can not be opened, code %li: %s", errno, strerror(errno) );
+  }
 
   return fd;
 }
