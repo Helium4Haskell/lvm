@@ -15,6 +15,9 @@
 
 include ../config/makefile
 
+PARSECDIR = ../../../parsec
+PARSECIMPDIR = $(PARSECDIR)/Text/ParserCombinators
+
 #the main program you want to generate
 MAIN	= coreasm
 
@@ -43,11 +46,11 @@ CORE	= core/Core.hs core/CorePretty.hs core/CoreToAsm.hs \
 	  core/CoreNoShadow.hs core/CoreFreeVar.hs core/CoreLetSort.hs \
 	  core/CoreLift.hs core/CoreSaturate.hs
 
-PARSEC	= ../../../parsec/Parsec.hs \
-	  ../../../parsec/ParsecChar.hs ../../../parsec/ParsecCombinator.hs \
-	  ../../../parsec/ParsecPrim.hs ../../../parsec/ParsecError.hs ../../../parsec/ParsecPos.hs
+PARSEC	= $(PARSECIMPDIR)/Parsec.hs \
+	  $(PARSECIMPDIR)/Parsec/Char.hs $(PARSECIMPDIR)/Parsec/Combinator.hs \
+	  $(PARSECIMPDIR)/Parsec/Prim.hs $(PARSECIMPDIR)/Parsec/Error.hs $(PARSECIMPDIR)/Parsec/Pos.hs
 
-IFACES	= common:common/ghc:lvm:asm:core:../../../parsec
+IFACES	= common:common/ghc:lvm:asm:core:$(PARSECDIR)
 
 
 #Sources and object files
@@ -92,7 +95,6 @@ clean:
 	$(RM) lvm/*.hi	lvm/*.o
 	$(RM) asm/*.hi	asm/*.o
 	$(RM) core/*.hi core/*.o
-	$(RM) ../../../parsec/*.hi ../../../parsec/*.o
 
 
 # Inter-module dependencies
@@ -259,7 +261,7 @@ core/CoreParse.o : common/IdSet.hi
 core/CoreParse.o : common/IdMap.hi
 core/CoreParse.o : common/Id.hi
 core/CoreParse.o : common/Byte.hi
-core/CoreParse.o : ../../../parsec/Parsec.hi
+core/CoreParse.o : ../../../parsec/Text/ParserCombinators/Parsec.hi
 core/CoreParse.o : common/Standard.hi
 core/CoreParse.o : common/PPrint.hi
 core/CoreLexer.o : core/CoreLexer.hs
@@ -270,10 +272,10 @@ core/CoreParser.o : core/Core.hi
 core/CoreParser.o : common/Id.hi
 core/CoreParser.o : common/Byte.hi
 core/CoreParser.o : core/CoreLex.hi
-core/CoreParser.o : ../../../parsec/Parsec.hi
+core/CoreParser.o : ../../../parsec/Text/ParserCombinators/Parsec.hi
 core/CoreParser.o : common/IdSet.hi
 core/CoreLex.o : core/CoreLex.hs
-core/CoreLex.o : ../../../parsec/Parsec.hi
+core/CoreLex.o : ../../../parsec/Text/ParserCombinators/Parsec.hi
 core/CoreLex.o : common/Id.hi
 core/CoreLex.o : common/Set.hi
 core/CoreRemoveDead.o : core/CoreRemoveDead.hs
@@ -311,23 +313,23 @@ core/CoreSaturate.o : core/CoreSaturate.hs
 core/CoreSaturate.o : core/Core.hi
 core/CoreSaturate.o : common/IdMap.hi
 core/CoreSaturate.o : common/Id.hi
-../../../parsec/Parsec.o : ../../../parsec/Parsec.hs
-../../../parsec/Parsec.o : ../../../parsec/ParsecChar.hi
-../../../parsec/Parsec.o : ../../../parsec/ParsecCombinator.hi
-../../../parsec/Parsec.o : ../../../parsec/ParsecPrim.hi
-../../../parsec/Parsec.o : ../../../parsec/ParsecError.hi
-../../../parsec/Parsec.o : ../../../parsec/ParsecPos.hi
-../../../parsec/ParsecChar.o : ../../../parsec/ParsecChar.hs
-../../../parsec/ParsecChar.o : ../../../parsec/ParsecPrim.hi
-../../../parsec/ParsecChar.o : ../../../parsec/ParsecPos.hi
-../../../parsec/ParsecCombinator.o : ../../../parsec/ParsecCombinator.hs
-../../../parsec/ParsecCombinator.o : ../../../parsec/ParsecPrim.hi
-../../../parsec/ParsecPrim.o : ../../../parsec/ParsecPrim.hs
-../../../parsec/ParsecPrim.o : ../../../parsec/ParsecError.hi
-../../../parsec/ParsecPrim.o : ../../../parsec/ParsecPos.hi
-../../../parsec/ParsecError.o : ../../../parsec/ParsecError.hs
-../../../parsec/ParsecError.o : ../../../parsec/ParsecPos.hi
-../../../parsec/ParsecPos.o : ../../../parsec/ParsecPos.hs
+../../../parsec/Text/ParserCombinators/Parsec.o : ../../../parsec/Text/ParserCombinators/Parsec.hs
+../../../parsec/Text/ParserCombinators/Parsec.o : ../../../parsec/Text/ParserCombinators/Parsec/Char.hi
+../../../parsec/Text/ParserCombinators/Parsec.o : ../../../parsec/Text/ParserCombinators/Parsec/Combinator.hi
+../../../parsec/Text/ParserCombinators/Parsec.o : ../../../parsec/Text/ParserCombinators/Parsec/Prim.hi
+../../../parsec/Text/ParserCombinators/Parsec.o : ../../../parsec/Text/ParserCombinators/Parsec/Error.hi
+../../../parsec/Text/ParserCombinators/Parsec.o : ../../../parsec/Text/ParserCombinators/Parsec/Pos.hi
+../../../parsec/Text/ParserCombinators/Parsec/Char.o : ../../../parsec/Text/ParserCombinators/Parsec/Char.hs
+../../../parsec/Text/ParserCombinators/Parsec/Char.o : ../../../parsec/Text/ParserCombinators/Parsec/Prim.hi
+../../../parsec/Text/ParserCombinators/Parsec/Char.o : ../../../parsec/Text/ParserCombinators/Parsec/Pos.hi
+../../../parsec/Text/ParserCombinators/Parsec/Combinator.o : ../../../parsec/Text/ParserCombinators/Parsec/Combinator.hs
+../../../parsec/Text/ParserCombinators/Parsec/Combinator.o : ../../../parsec/Text/ParserCombinators/Parsec/Prim.hi
+../../../parsec/Text/ParserCombinators/Parsec/Prim.o : ../../../parsec/Text/ParserCombinators/Parsec/Prim.hs
+../../../parsec/Text/ParserCombinators/Parsec/Prim.o : ../../../parsec/Text/ParserCombinators/Parsec/Error.hi
+../../../parsec/Text/ParserCombinators/Parsec/Prim.o : ../../../parsec/Text/ParserCombinators/Parsec/Pos.hi
+../../../parsec/Text/ParserCombinators/Parsec/Error.o : ../../../parsec/Text/ParserCombinators/Parsec/Error.hs
+../../../parsec/Text/ParserCombinators/Parsec/Error.o : ../../../parsec/Text/ParserCombinators/Parsec/Pos.hi
+../../../parsec/Text/ParserCombinators/Parsec/Pos.o : ../../../parsec/Text/ParserCombinators/Parsec/Pos.hs
 core/Main.o : core/Main.hs
 core/Main.o : lvm/LvmRead.hi
 core/Main.o : lvm/LvmImport.hi

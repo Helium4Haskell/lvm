@@ -19,7 +19,7 @@ import Char  ( digitToInt, isAlphaNum, isLower, isUpper )
 import Set   ( Set, fromList, member )
 import Id    ( Id, idFromString )
 
-import Parsec hiding (space,tab,lower,upper,alphaNum)
+import Text.ParserCombinators.Parsec hiding (space,tab,lower,upper,alphaNum)
 
 
 ----------------------------------------------------------

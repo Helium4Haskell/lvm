@@ -12,7 +12,7 @@
 module CoreParser( parseModule ) where
 
 import IdSet( setFromList )
-import Parsec
+import Text.ParserCombinators.Parsec
 import CoreLex
 
 import Byte( bytesFromString )
