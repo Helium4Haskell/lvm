@@ -1,3 +1,14 @@
+%{-*-----------------------------------------------------------------------
+%  The Core Assembler.
+%
+%  Copyright 2001, Daan Leijen. All rights reserved. This file
+%  is distributed under the terms of the GHC license. For more
+%  information, see the file "license.txt", which is included in
+%  the distribution.
+%-----------------------------------------------------------------------*-}
+
+%-- $Id$
+
 \documentclass[a4paper,dvips]{article}
 \usepackage{a4,url}
 
@@ -165,9 +176,10 @@ These notational conventions are used for presenting syntax:
 \production{externdecl}{\term{extern} varid \opt{attrs} \term{=} externdef}{}
 \production{valuedecl}{\opt{\term{val}} lhs \opt{attrs} \term{=} expr}{toplevel function declaration}
 \\
-\production{externdef}{\opt{linkconv} \opt{callconv} \opt{\term{decorate}} \pgroup{qid \por{} modid} externtype}{}
+\production{externdef}{\opt{linkconv} \opt{callconv} externname \term{::} externtype}{}
 \production{externlink}{\term{static} \por{} \term{dynamic} \por{} \term{runtime}}{}
 \production{externcall}{\term{stdcall} \por{} \term{ccall} \por{} \term{instruction}}{}
+\production{externname}{\opt{\term{decorate}} \pgroup{qvarid \por{} modid \por{} varid}}{}
 \production{externtype}{string}{}
 \end{productions}
 
@@ -286,6 +298,8 @@ These notational conventions are used for presenting syntax:
 \begin{productions}
 \production{valuedecl}{\opt{\term{val}} \opt{typespec} lhs \opt{attrs} \term{=} expr}{}
 \production{typespec}{varid \term{::} type \term{;}}{}
+\\
+\production{externtype}{type}{}
 \\
 \production{datadecl}{\term{data} typeid \many{typevarid} \opt{attrs} \opt{condefs}}{}
 \production{condefs}{\term{=} \sepbyone{condef}{\term{\ttbar}} }{}

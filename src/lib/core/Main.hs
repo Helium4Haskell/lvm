@@ -35,7 +35,7 @@ import LvmRead    ( lvmReadFile )       -- read a Lvm file
 --
 ----------------------------------------------------------------
 message s
-  = return () 
+   = return () 
   -- = putStr s
 
 main

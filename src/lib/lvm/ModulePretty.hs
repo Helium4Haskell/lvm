@@ -9,7 +9,7 @@
 
 -- $Id$
 
-module ModulePretty ( modulePretty, ppId, ppVarId, ppConId ) where
+module ModulePretty ( modulePretty, ppId, ppVarId, ppConId, ppString ) where
 
 import Char     ( isAlphaNum, isAlpha, isLower, isUpper )
 import PPrint
@@ -42,14 +42,45 @@ ppDecl ppValue decl
                          <$> text "=" <+> text "#(" <> pretty (conTag decl) <> 
                                           text ","  <> pretty (declArity decl) <> text ")"
       DeclCustom{}    -> text "custom" <+> ppDeclKind (declKind decl) <+> ppId (declName decl) <+> ppAttrs decl
+      DeclExtern{}    -> text "extern" <+> ppVarId (declName decl) <+> ppAttrs decl
+                         <$> text "=" <> ppLinkConv (externLink decl) <> ppCallConv (externCall decl)
+                         <+> ppExternName (externLib decl) (externName decl) <+> pretty (declArity decl)
+                         <+> ppExternType (externCall decl) (externType decl)
       DeclAbstract{}  -> text "abstract" <+> ppVarId (declName decl) <+> ppNoImpAttrs decl
                          <$> text "=" <+> ppImported (declAccess decl) <+> pretty (declArity decl)
       DeclImport{}    -> text "import" <+> ppDeclKind (importKind (declAccess decl)) 
                          <+> ppId (declName decl) <+> ppNoImpAttrs decl
                          <$> text "=" <+> ppImported (declAccess decl)
-      DeclExtern{}    -> text "extern" <+> ppVarId (declName decl) <+> ppAttrs decl
       other           -> error "ModulePretty.ppDecl: unknown declaration"
-            
+
+ppLinkConv linkConv
+  = case linkConv of
+      LinkRuntime -> text " runtime"
+      LinkDynamic -> text " dynamic"
+      LinkStatic  -> empty
+
+ppCallConv callConv
+  = case callConv of
+      CallInstr -> text " instruction"
+      CallStd   -> text " stdcall"
+      CallC     -> empty
+
+ppExternName libName extName
+  = case extName of
+      Plain name    -> ppQual name
+      Decorate name -> text "decorate" <+> ppQual name
+      Ordinal i     -> ppQual (show i)
+  where
+    ppQual name   = (if (null libName) then empty
+                                       else ppConId (idFromString libName) <> char '.' )
+                    <> ppVarId (idFromString name)
+
+ppExternType callConv tp
+  = text "::" <+> case callConv of
+                    CallInstr -> text tp
+                    other     -> ppString tp
+
+
 
 ppNoImpAttrs decl
   = ppAttrsEx True decl
@@ -123,10 +154,14 @@ ppConId :: Id -> Doc
 ppConId id
   = ppEscapeId isUpper '@' id
 
+ppString :: String -> Doc
+ppString s
+  = dquotes (text (concatMap escape s))
+
 ppEscapeId isValid c id
   = if (not (isReserved id) && firstOk && ordinary)
      then text name
-     else char c <> text (concatMap escape name) <> char ' '
+     else char c <> text (concatMap escapeId name) <> char ' '
   where
     name     = stringFromId id
     firstOk  = case name of
@@ -135,9 +170,13 @@ ppEscapeId isValid c id
     ordinary = all idchar name
     idchar c = isAlphaNum c || c == '_' || c == '\''
     
+escapeId c
+  = case c of
+      ' ' -> "\\s"
+      _   -> escape c
+
 escape c
   = case c of
-      ' '   -> "\\s"
       '.'   -> "\\."
       '\a'  -> "\\a"
       '\b'  -> "\\b"
