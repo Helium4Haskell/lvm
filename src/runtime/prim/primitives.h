@@ -47,7 +47,7 @@
   \
   /* file handle's */ \
   PRIM(prim_flag_mask,"ll") \
-  PRIM(prim_open,"lzl")     \
+  PRIM(prim_open,"lzll")     \
   PRIM(prim_close,"vl")     \
   \
   PRIM(prim_open_descriptor,"alb")  \

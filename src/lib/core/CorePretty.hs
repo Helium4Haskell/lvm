@@ -32,7 +32,8 @@ ppExpr  p expr
   = case expr of
    --   (Let (Strict (Bind id1 expr)) (Match id2 alts)) | id1 == id2
    --               -> prec 0 $ hang 2 (text "case" <+> ppExpr 0 expr <+> text "of" <+> ppId id1 <$> ppAlts alts)
-      Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <$> ppAlts  as)
+      Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <+> text "{" <$> ppAlts  as
+                              <+> text "}")
       Let bs x    -> prec 0 $ align (ppLetBinds bs (text "in" <+> ppExpr  0 x))
       Lam id x    -> prec 0 $ text "\\" <> ppVarId id <+> ppLams "->" (</>)  x
       Ap e1 e2    -> prec 9 $ ppExpr  9 e1 <+> ppExpr  10 e2
