@@ -170,10 +170,10 @@ static void read_header( const char* name, int handle,
  - read all records into the records array. don't resolve ref's yet
 ----------------------------------------------------------------------*/
 #define Word_read(x)          {(x) = *p++; if (is_rev_endian) { Reverse_word(&x,&x); }; (x) = Decode(x); }
-#define String_read(v,n)      {(v) = alloc_string(n); bcopy(p,String_val(v),n); p += Word_bytes(n); }
+#define String_read(v,n)      {(v) = alloc_string_major(n); bcopy(p,String_val(v),n); p += Word_bytes(n); }
 #define Store_read(fld)       { word_t x; Word_read(x); Store_field(rec,fld,Val_long(x)); }
 #define Store_zero(fld)       { Store_field(rec,fld,Val_long(0)); }
-#define Alloc_record(size)    { rec = alloc(size,kind); Record(records,i) = rec; }
+#define Alloc_record(size)    { rec = alloc_major(size,kind); Record(records,i) = rec; }
 
 
 
@@ -632,13 +632,12 @@ static value read_module( value parent, const char* modname )
 
   records = alloc_fixed( header.records_count );
   Store_field( module, Module_records, records );
-/*
-TODO: gc here triggers a bug when loading multiple modules, ie. "Abstract.lvm" 
+
 debug_gc();
-*/
   read_records( fname, handle, is_rev_endian,
-                header.records_length, records );
+                header.records_length, Field(module,Module_records));
   file_close(handle);
+
 
   /* resolve */
   resolve_module_name( module, header.module_name );
@@ -676,6 +675,7 @@ static value find_module( value module, const char* modname, long major_version 
 
   /* ok, we need to load it */
   mod = read_module( module, modname );
+
   major = Long_val(Field(mod,Module_major));
   if (major != major_version) {
     raise_module( modname, "version %i required but module has version %i -- please recompile the main program", major_version, major );

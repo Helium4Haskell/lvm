@@ -25,6 +25,8 @@
 #include "fail.h"
 #include "fixed.h"
 
+#define Fixed_block_val(v)  (((struct fixed_block**)Data_custom_val(v))[0])
+
 /* the global list of fixed blocks -- used as roots */
 struct fixed_block* fixed_blocks = NULL;
 

@@ -23,10 +23,13 @@
 
 #include "mlvalues.h"
 
+
 value alloc (mlsize_t, tag_t);
+value alloc_major (mlsize_t, tag_t);
 value alloc_small (mlsize_t, tag_t);
 value alloc_tuple (mlsize_t);
 value alloc_string (mlsize_t);
+value alloc_string_major (mlsize_t);
 value copy_string (const char *);
 value copy_string_array (const char **);
 value copy_double (double);

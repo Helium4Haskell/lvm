@@ -53,6 +53,20 @@ value alloc (mlsize_t wosize, tag_t tag)
   return result;
 }
 
+value alloc_major(mlsize_t wosize, tag_t tag)
+{
+  value result; 
+  Assert (tag < 256);
+  if (wosize == 0){
+    result = Atom (tag);
+  } else{
+    result = alloc_shr (wosize, tag);
+    if (tag < No_scan_tag) memset (Bp_val (result), 0, Bsize_wsize (wosize));
+    result = check_urgent_gc (result);
+  }
+  return result;
+}
+
 value alloc_small (mlsize_t wosize, tag_t tag)
 {
   value result;
@@ -87,6 +101,21 @@ value alloc_string (mlsize_t len)
   Byte (result, offset_index) = (char)(offset_index - len);
   return result;
 }
+
+value alloc_string_major (mlsize_t len)
+{
+  value result;
+  mlsize_t offset_index;
+  mlsize_t wosize = (len + sizeof (value)) / sizeof (value);
+
+  result = alloc_shr (wosize, String_tag);
+  
+  Field (result, wosize - 1) = 0;
+  offset_index = Bsize_wsize (wosize) - 1;
+  Byte (result, offset_index) = (char)(offset_index - len);
+  return result;
+}
+
 
 value alloc_final (mlsize_t len, final_fun fun, mlsize_t mem, mlsize_t max)
 {
