@@ -60,7 +60,7 @@
 */
 
 typedef unsigned long word;
-typedef unsigned long ulong;
+typedef unsigned long nat;
 
 typedef long value;
 typedef long con_tag_t;

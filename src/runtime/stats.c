@@ -17,10 +17,10 @@
 #include "print.h"
 #include "stats.h"
 
-static ulong ticks_total, ticks_user, ticks_system;
-static ulong ticks_init, ticks_init_system, ticks_init_user;
-static ulong ticks_done, ticks_done_system, ticks_done_user;
-static ulong ticks_gc,   ticks_gc_system, ticks_gc_user;
+static nat ticks_total, ticks_user, ticks_system;
+static nat ticks_init, ticks_init_system, ticks_init_user;
+static nat ticks_done, ticks_done_system, ticks_done_user;
+static nat ticks_gc,   ticks_gc_system, ticks_gc_user;
 
 void stat_start_init(void)
 {
@@ -32,7 +32,7 @@ void stat_start_init(void)
 
 void stat_end_init(void)
 {
-  ulong total, user, system;
+  nat total, user, system;
   get_process_ticks( &total, &user, &system );
   ticks_init        = total  - ticks_init;
   ticks_init_system = system - ticks_init_system;
@@ -53,7 +53,7 @@ void stat_end_done(void)
 }
 
 
-static ulong _ticks_gc, _ticks_gc_system, _ticks_gc_user;
+static nat _ticks_gc, _ticks_gc_system, _ticks_gc_user;
 
 void stat_start_gc(void)
 {
@@ -62,7 +62,7 @@ void stat_start_gc(void)
 
 void stat_end_gc(void)
 {
-  ulong total,system,user;
+  nat total,system,user;
   get_process_ticks( &total, &user, &system );
   ticks_gc        += (total - _ticks_gc);
   ticks_gc_system += (system - _ticks_gc_system );
@@ -74,7 +74,7 @@ void stat_end_gc(void)
 void stat_timings_report(void)
 {
 #define TICKS(t) (msecs_of_ticks(t) / 1000), (msecs_of_ticks(t) % 1000)
-  ulong ticks_eval, ticks_eval_user, ticks_eval_system;
+  nat ticks_eval, ticks_eval_user, ticks_eval_system;
   ticks_eval        = ticks_total - ticks_gc - ticks_init - ticks_done;
   ticks_eval_user   = ticks_user - ticks_gc_user - ticks_init_user - ticks_done_user;
   ticks_eval_system = ticks_system - ticks_gc_system - ticks_init_system - ticks_done_system;

@@ -126,12 +126,12 @@ long file_skip( int handle, long count )
 #endif
 
 
-ulong msecs_of_ticks( ulong ticks )
+nat msecs_of_ticks( nat ticks )
 {
   return ((ticks * 1000) / TICKS_PER_SEC);
 }
 
-ulong get_tick_count(void)
+nat get_tick_count(void)
 {
 #if defined(HAS_TIME_H)
   /* clock() is standard ANSI C */
@@ -146,14 +146,14 @@ ulong get_tick_count(void)
 #endif
 }
 
-ulong get_msec_count(void)
+nat get_msec_count(void)
 {
   return msecs_of_ticks( get_tick_count() );
 }
 
 
 
-void get_process_ticks( ulong* tick_total, ulong* tick_user, ulong* tick_system )
+void get_process_ticks( nat* tick_total, nat* tick_user, nat* tick_system )
 {
 #if defined(OS_WINDOWS)
   /* FILETIME's are in 100's of nanoseconds. */

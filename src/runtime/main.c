@@ -45,8 +45,8 @@ static const char* version(void)
 /* Initial speed setting for the major GC.  The heap will grow until
    the dead objects and the free list represent this percentage of the
    heap size.  The rest of the heap is live objects. */
-static ulong heap_percent_free_init     = 42;
-static ulong heap_max_percent_free_init = 100; /* Initial setting for the compacter: off */
+static nat heap_percent_free_init     = 42;
+static nat heap_max_percent_free_init = 100; /* Initial setting for the compacter: off */
 
 static wsize_t heap_minor_wsize_init      = 32*Kilo; /* Initial size of the minor zone. (words)  */
 static wsize_t heap_chunk_wsize_init      = 64*Kilo; /* Initial size increment when growing the heap. Must be a multiple of [Page_size / sizeof (value)]. */
@@ -55,9 +55,9 @@ static wsize_t heap_wsize_init            = 64*Kilo; /* Default initial size of 
 static wsize_t heap_wsize_max_init        = Wsize_bsize(64*Mega); /* Default maximum size of the heap */
 
 #ifdef DEBUG
-static ulong heap_verbose_init          = 3;
+static nat heap_verbose_init          = 3;
 #else
-static ulong heap_verbose_init          = 0;
+static nat heap_verbose_init          = 0;
 #endif
 
 static bool heap_report               = false;
@@ -376,7 +376,7 @@ char* fixup_base;
 int main( int argc, const char** argv )
 {
   const char** args;
-  ulong        gc_verbose_init = 0;
+  nat        gc_verbose_init = 0;
 #ifdef DEBUG
   /* debug_level       = 2; */
 #endif
