@@ -46,6 +46,8 @@
   PRIM(fp_get_round   ,"i") \
   \
   /* file handle's */ \
+  PRIM(prim_input_flags,"ll") \
+  PRIM(prim_output_flags,"lll") \
   PRIM(prim_flag_mask,"ll") \
   PRIM(prim_open,"lzll")     \
   PRIM(prim_close,"vl")     \

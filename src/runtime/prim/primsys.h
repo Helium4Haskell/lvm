@@ -24,6 +24,17 @@ enum open_flag {
   Open_nonblocking
 };
 
+enum create_flag {
+  Create_never,
+  Create_ifnotexists,
+  Create_exclusive,  
+  Create_overwrite
+};
+
+long prim_input_flags( long astext );
+long prim_output_flags( long astext, enum create_flag flag );
+
+
 long prim_flag_mask( enum open_flag flag );
 long prim_open(const char* path, long flags, long perm);
 void prim_close(long fd);

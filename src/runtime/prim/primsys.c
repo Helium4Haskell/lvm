@@ -163,6 +163,25 @@ long prim_flag_mask( enum open_flag flag )
     return 0;
 }
 
+
+long prim_input_flags( long astext )
+{
+  return (prim_flag_mask(Open_readonly) + (astext ? prim_flag_mask(Open_text) : prim_flag_mask(Open_binary)));
+}
+
+long prim_output_flags( long astext, enum create_flag flag )
+{
+  long m = (prim_flag_mask(Open_writeonly) + prim_flag_mask(Open_append) + (astext ? prim_flag_mask(Open_text) : prim_flag_mask(Open_binary)));
+  switch (flag) {
+    case Create_overwrite:    return (m + prim_flag_mask(Open_truncate) + prim_flag_mask(Open_create));
+    case Create_exclusive:    return (m + prim_flag_mask(Open_exclusive) + prim_flag_mask(Open_create));
+    case Create_never:        return (m);
+    case Create_ifnotexists:  
+    default:                  return (m + prim_flag_mask(Open_create));
+  }
+}
+
+
 long prim_open(const char* path, long flags, long perm)
 {
   int ret;
