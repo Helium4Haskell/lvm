@@ -18,7 +18,8 @@ import Standard   ( getLvmPath, searchPath )
 import Id         ( newNameSupply, stringFromId )
 
 import CorePretty ( corePretty )        -- pretty print Core
-import CoreParse  ( coreParse )         -- parse text into Core
+import CoreParse  ( coreParseExport, modulePublic )
+                                        -- parse text into Core
 import CoreToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
 
 import AsmPretty  ( asmPretty )         -- pretty print low-level core (Asm)
@@ -53,11 +54,15 @@ compile src
       ; messageLn ("compiling  : " ++ showFile source)
 
       ; messageLn ("parsing")
-      ; mod        <- coreParse source
+      ; (mod, implExps, es)
+                   <- coreParseExport source
 --      ; messageDoc "parsed"  (corePretty mod)
 
       ; messageLn ("resolving imports")
-      ; coremod    <- lvmImport (findModule path) mod
+      ; chasedMod  <- lvmImport (findModule path) mod
+      
+      ; messageLn ("making exports public")
+      ; let coremod = modulePublic implExps es chasedMod
 
       ; nameSupply  <- newNameSupply
       ; messageLn ("generating code")

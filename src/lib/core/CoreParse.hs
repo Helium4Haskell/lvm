@@ -9,7 +9,11 @@
 
 -- $Id$
 
-module CoreParse( coreParse, coreParseExpr, modulePublic, coreParseType, Type(..) ) where
+module CoreParse
+    ( coreParse, coreParseExport, coreParseExpr
+    , modulePublic
+    , coreParseType, Type(..)
+    ) where
 
 import PPrint( (<+>), (<>), Doc, text, hsep )
 import qualified PPrint
@@ -28,10 +32,16 @@ import CorePretty
 ----------------------------------------------------------------
 -- Parse a Core source file
 ----------------------------------------------------------------
-coreParse :: FilePath -> IO (CoreModule)
-coreParse fname
-  = do{ input  <- readFile fname
-      ; res <- case runParser parseModule () fname (layout (lexer (1,1) input)) of
+coreParse :: FilePath -> IO CoreModule
+coreParse = coreParseModule parseModule
+
+coreParseExport :: FilePath -> IO (CoreModule, Bool, (IdSet,IdSet,IdSet,IdSet,IdSet))
+coreParseExport = coreParseModule parseModuleExport
+
+coreParseModule :: TokenParser a -> FilePath -> IO a
+coreParseModule parser fname =
+    do{ input  <- readFile fname
+      ; res <- case runParser parser () fname (layout (lexer (1,1) input)) of
           Left err
             -> ioError (userError ("parse error: " ++ show err))
           Right res
@@ -187,23 +197,44 @@ varsInType tp
 wrap p
   = do{ x <- p; return [x] }
 
-parseModule :: TokenParser (CoreModule)
-parseModule
-  = do{ lexeme LexMODULE
+parseModule :: TokenParser CoreModule
+parseModule =
+    do{ (mod, _, _) <- parseModuleExport
+      ; return mod
+      }
+
+parseModuleExport :: TokenParser (CoreModule, Bool, (IdSet,IdSet,IdSet,IdSet,IdSet))
+parseModuleExport =
+    do{ lexeme LexMODULE
       ; moduleId <- conid <?> "module name"
       ; exports <- pexports
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
-      ; declss <- semiList (wrap (ptopDecl <|> pabstract <|> pextern <|> pCustomDecl) 
+      ; declss <- semiList (wrap (ptopDecl <|> pabstract <|> pextern <|> pCustomDecl)
                             <|> pdata <|> pimport <|> ptypeTopDecl)
       ; lexeme LexRBRACE
       ; lexeme LexEOF
 
-      ; return
-            ( modulePublic
-                {- don't make everything public -} False
-                exports
-                (Module moduleId 0 0 (concat declss))
+      ; return $
+            ( case exports of
+                Nothing ->
+                    let es = (emptySet,emptySet,emptySet,emptySet,emptySet)
+                    in
+                    ( modulePublic
+                        True
+                        es
+                        (Module moduleId 0 0 (concat declss))
+                    , True
+                    , es
+                    )
+                Just es ->
+                    ( modulePublic
+                        False
+                        es
+                        (Module moduleId 0 0 (concat declss))
+                    , False
+                    , es
+                    )
             )
       }
 
@@ -279,10 +310,18 @@ data Export  = ExportValue Id
              | ExportDataCon Id
              | ExportModule Id
 
-pexports :: TokenParser (IdSet,IdSet,IdSet,IdSet,IdSet)
+pexports :: TokenParser (Maybe (IdSet,IdSet,IdSet,IdSet,IdSet))
 pexports
   = do{ exports <- commaParens pexport <|> return []
-      ; return (foldlStrict split (emptySet,emptySet,emptySet,emptySet,emptySet) (concat exports))
+      ; return $
+            if null (concat exports) then
+                Nothing
+            else
+                Just (foldlStrict
+                    split
+                    (emptySet,emptySet,emptySet,emptySet,emptySet)
+                    (concat exports)
+                )
       }
   where
     split (values,cons,datas,datacons,mods) exp
@@ -371,15 +410,15 @@ pimport :: TokenParser [CoreDecl]
 pimport
   = do{ lexeme LexIMPORT
       ; modid <- conid
-      ; do{ xss <- commaParens (pimport' modid)
+      ; do{ xss <- commaParens (pImportSpec modid)
           ; return (concat xss)
           }
         <|>
         return [DeclImport modid (Imported False modid dummyId DeclKindModule 0 0) []]
       }
 
-pimport' :: Id -> TokenParser [CoreDecl]
-pimport' modid
+pImportSpec :: Id -> TokenParser [CoreDecl]
+pImportSpec modid
   = do{ lexeme LexLPAREN
       ; (kind, id) <-
             do { id <- opid   ; return (DeclKindValue, id) }
@@ -405,7 +444,7 @@ pimport' modid
     do{ id <- typeid
       ; impid <- option id (do{ lexeme LexASG; variable })
       ; do{ lexeme LexLPAREN
-          ; cons <- sepBy (pimportCon modid) (lexeme LexCOMMA)
+          ; cons <- pImportCons modid
           ; lexeme LexRPAREN
           ; return (DeclImport id (Imported False modid impid customData 0 0) [] : cons)
           }
@@ -413,6 +452,14 @@ pimport' modid
         return
             [DeclImport id (Imported False modid impid DeclKindCon 0 0) []]
       }
+
+pImportCons :: Id -> TokenParser [CoreDecl]
+pImportCons modid
+  = -- do{ lexeme LexDOTDOT
+    --   ; return [ExportDataCon id]
+    --   }
+  -- <|>
+    sepBy (pimportCon modid) (lexeme LexCOMMA)
 
 pimportCon :: Id -> TokenParser CoreDecl
 pimportCon modid
@@ -435,7 +482,12 @@ ptopDeclType id
       ; lexeme LexSEMI
       ; id'  <- variable
       ; if (id /= id')
-         then fail "identifier for type signature doesn't match the definition"
+         then fail
+            (  "identifier for type signature "
+            ++ stringFromId id
+            ++ " doesn't match the definition"
+            ++ stringFromId id'
+            )
          else return ()
       ; (access,custom,expr) <- pbindTopRhs
       ; return (DeclValue id access Nothing expr 
