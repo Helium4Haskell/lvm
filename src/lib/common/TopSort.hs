@@ -36,7 +36,7 @@ module TopSort( topSort ) where
 
 import Array
 import List
-import LazyST
+import Special( ST,STArray, runST, newSTArray, readSTArray, writeSTArray)
 
 type Vertex  = Int
 
