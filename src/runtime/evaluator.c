@@ -1526,7 +1526,7 @@ returncon:
     Instr(GETFIELD): {
       value v  = sp[0];
       long  i  = Long_val(sp[1]);
-      long sz;      
+      long sz;
       Require( Is_block(v) && Is_long(sp[1]) );
       Con_size_val(sz,v);
       if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
@@ -1547,7 +1547,7 @@ returncon:
       Pop_n(3);
       Next;
     }
-         
+
     Instr(ALLOC): {
       long tag  = Long_val(sp[0]);
       long size = Long_val(sp[1]);
@@ -1568,7 +1568,7 @@ returncon:
       value con;
       Pop();
       if (size < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
-      Alloc_con(con,(nat)size,tag);      
+      Alloc_con(con,(nat)size,tag);
       for( i = 0; i < size; i++ ) { Field(con,i) = sp[i]; }
       Pop_n(size);
       Push(con);
@@ -1610,9 +1610,9 @@ returncon:
       long  i;
       Require( Is_block(v) );
       Con_size_val(sz,v);
-      if (n > sz) { Raise_runtime_exn( Exn_out_of_bounds ); }      
+      if (n > sz) { Raise_runtime_exn( Exn_out_of_bounds ); }
       Pop();
-      Push_n(n);               
+      Push_n(n);
       for( i = 0; i < n; i++) { sp[i] = Field(v,i); }
       Next;
     }
@@ -1793,7 +1793,7 @@ returncon:
       Next;
     }
 
-    /* QuotInt and RemInt use truncated division, ie. 
+    /* QuotInt and RemInt use truncated division, ie.
        QuotInt D d = trunc(D/d)
        RemInt D d  = D - d*(QuotInt D d)
     */
@@ -1825,7 +1825,7 @@ returncon:
       if (divisor == 0) { Raise_arithmetic_exn( Int_zerodivide );}
       div = Long_val(sp[0]) / divisor;
       mod = Long_val(sp[0]) % divisor;
-      
+
       /* floored division: if ((divisor < 0 && mod > 0) || (divisor > 0 && mod < 0)) div--; */
       if (mod < 0) {
        if (divisor > 0) div = div-1;
@@ -1844,7 +1844,7 @@ returncon:
 
       if (divisor == 0) { Raise_arithmetic_exn( Int_zerodivide ); }
       mod = Long_val(sp[0]) % divisor;
-      
+
       /* floored modulus: if ((divisor < 0 && mod > 0) || (divisor > 0 && mod < 0)) mod = mod + div; // was: divisor; */
       if (mod < 0) {
         if (divisor > 0) mod = mod + divisor;

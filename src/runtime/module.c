@@ -110,7 +110,7 @@ static void find_decl_of_code( value module, value valpc, value* _module, value*
   if (_module) *_module  = 0;
   if (_ofs)    *_ofs     = 0;
   *_rec = 0;
-  
+
   /* caf & inv tags */
   if (Is_heap_val(valpc)) {
     if ((Tag_val(valpc) == Caf_tag) || (Tag_val(valpc) == Inv_tag /* TODO: shaky */)) {
@@ -123,16 +123,16 @@ static void find_decl_of_code( value module, value valpc, value* _module, value*
 
 
   /* walk through all known modules & records */
-  mod = module;  
-  do{ 
+  mod = module;
+  do{
     find_decl_in_module( mod, pc, _rec, _ofs  );
-    if (*_rec != 0) { 
+    if (*_rec != 0) {
       /* found */
       if (_module) *_module = mod;
       CAMLreturn0;
     }
     else {
-      mod = Field(mod,Module_next);    
+      mod = Field(mod,Module_next);
     }
   } while (mod != module);
 

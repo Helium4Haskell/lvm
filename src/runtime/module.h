@@ -49,7 +49,7 @@ struct module_footer_t
                because a PUSHCAF and CALL points into this block.
   code       - a statically allocated block that contains all the code
                the operand of a PUSHCODE instruction points into this block
-  
+
   [code] is actually a custom block that contain a pointer
   to the statically allocated block. This allows those blocks to be released
   automatically when gc'ed.
@@ -106,7 +106,7 @@ enum rec_fields {
   Field_name = 0,
   Field_flags,
   Field_arity,
-  
+
   Field_value_enc   = Field_arity+1,
   Field_value_code,
   Field_value_codeptr,
@@ -114,7 +114,7 @@ enum rec_fields {
 
   Field_con_tag     = Field_arity+1,
   Rec_con_size,
-  
+
   Field_extern_type   = Field_arity+1,
   Field_extern_module,
   Field_extern_name,
@@ -129,7 +129,7 @@ enum rec_fields {
   Field_import_kind,
   Field_import_fixup,
   Rec_import_size,
-  
+
   Field_module_name = 0,
   Field_module_major,
   Field_module_minor,

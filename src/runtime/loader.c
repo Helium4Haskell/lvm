@@ -263,16 +263,16 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
         Store_read( Field_code_value );
 
         /* allocate non-gc'd memory for the instructions */
-        code   = alloc_bytes(instrlen+sizeof(header_t));  
+        code   = alloc_bytes(instrlen+sizeof(header_t));
         instrs = Bytes_val(code);
         Store_field(rec,Field_code_code,code);
-                
+
         /* pretend that the bytes are a heap block & copy  (CAF's are allocated during resolve) */
         instrs += sizeof(header_t);
         Hd_val(instrs) = Make_header(instrlen /* in bytes! */, Code_tag, Caml_white );
         memcpy(instrs, p, instrlen);
         if (is_rev_endian) reverse_endian( (word_t*)instrs, Word_bytes(instrlen) );
-        Store_field(rec,Field_code_fun,(value)(instrs)); 
+        Store_field(rec,Field_code_fun,(value)(instrs));
 
         /* and increment the read pointer */
         p += Word_bytes(instrlen);
@@ -374,7 +374,7 @@ static void resolve_internal_records( value module )
 
       case Rec_code: {
         Resolve_field(rec,Field_code_value,Rec_value);
-        
+
         /* set a link from the value back to the code */
         val = Field(rec,Field_code_value);
         if (Field(val,Field_value_code) != Val_long(0)) raise_module( fname, "ambigious instruction fragments for a single value" );
@@ -389,14 +389,14 @@ static void resolve_internal_records( value module )
         }
         break;
       }
-      
+
       case Rec_con:   {
         Resolve_field(rec,Field_name,Rec_name);
         break;
       }
 
       case Rec_import: {
-        Resolve_field(rec,Field_name,Rec_name);        
+        Resolve_field(rec,Field_name,Rec_name);
         Resolve_field(rec,Field_import_module,Rec_module);
         Resolve_field(rec,Field_import_name,Rec_name);
         break;
@@ -426,7 +426,7 @@ static void resolve_internal_records( value module )
 
         break;
       }
-      
+
       default: {
 #ifdef DEBUG
         raise_module( fname, "unknown record kind during resolve" );
@@ -528,7 +528,7 @@ static void resolve_code( value module )
       case Rec_code: {
         nat len;
 
-        /* load the instruction pointer & length */  
+        /* load the instruction pointer & length */
         val = Code_code(rec);
         Assert(Is_block(val) && Tag_val(val) == Code_tag);
         len = Wosize_val(val); /* note: in bytes! */
@@ -576,7 +576,7 @@ static value read_module( value parent, const char* modname )
   Store_field( module, Module_fname,      copy_string(fname) );
   Store_field( module, Module_major,      Val_long(header.module_major_version) );
   Store_field( module, Module_minor,      Val_long(header.module_minor_version) );
-  
+
   records = alloc_fixed( header.records_count );
   Store_field( module, Module_records, records );
 
@@ -639,7 +639,7 @@ static value* find_symbol( value module, const char* name, enum rec_kind kind )
   CAMLlocal2(records,rec);
   nat i;
 
-  if (kind == Rec_value || kind == Rec_con || kind == Rec_extern) 
+  if (kind == Rec_value || kind == Rec_con || kind == Rec_extern)
   {
     records = Field(module,Module_records);
     for( i = 1; i <= Count_records(records); i++)
@@ -682,7 +682,7 @@ value load_module( const char* name )
   /* resolve all references in the code */
   mod = module;
   do{
-    resolve_code(mod); 
+    resolve_code(mod);
     mod = Field(mod,Module_next);
   } while (mod != module);
 
@@ -707,7 +707,7 @@ value load_module( const char* name )
 #endif
 
 
-   
+
 /*----------------------------------------------------------------------
   fixup helpers
 ----------------------------------------------------------------------*/
@@ -751,7 +751,7 @@ static value* resolve_index( const char* name, const char* instr_name,
   word_t  idx   = opcode[0];
   value*  prec;
   value*  prec_org;
-  
+
   /* check index */
   if (idx <= 0 || idx > record_count) {
     raise_module( name, "invalid constant index in instruction %s", instr_name );
@@ -844,7 +844,7 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
       resolve_con( name, "CON", opcode, records );
       break;
     }
-    
+
     case ALLOCCON:
     case RETURNCON:
     case TESTCON:  {
@@ -854,12 +854,12 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
       }
       break;
     }
-    
+
     case CALL: {
       value* prec = resolve_rec( name, "CALL", opcode, records, Rec_extern );
-      
+
       if (opcode[1]+1 != strlen(Type_extern(*prec))) {
-        raise_module( name, "type doesn't match number of arguments in external call \"%s\"", 
+        raise_module( name, "type doesn't match number of arguments in external call \"%s\"",
                       Name_field(*prec,Field_name));
       }
 
@@ -882,13 +882,13 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
 
       break;
     }
-            
+
     case ENTERCODE: {
       value* prec = resolve_index( name, "ENTERCODE", opcode, records, Rec_value );
       fixup_code( name, opcode, *prec );
       break;
     }
-    
+
     case RETURNINT:
     case PUSHINT:
     case INCINT:
@@ -903,7 +903,7 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
         else
           raise_exn_str( Exn_overflow, name );
       }
-      #endif      
+      #endif
       break;
     }
 
@@ -917,5 +917,3 @@ static void resolve_instrs( const char* name, nat code_len, opcode_t* code
 
   CAMLreturn0;
 }
-
-
