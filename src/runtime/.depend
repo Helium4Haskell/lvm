@@ -50,7 +50,7 @@ core/schedule.o: core/schedule.c common/mlvalues.h common/config.h \
  common/misc.h heap/heap.h common/memory.h heap/gc.h heap/gc_ctrl.h \
  heap/minor_gc.h heap/major_gc.h heap/freelist.h core/print.h \
  core/module.h common/fixed.h common/fail.h core/thread.h \
- core/signals.h /usr/include/mingw/signal.h core/evaluator.h
+ core/signals.h /usr/include/signal.h core/evaluator.h
 core/signals.o: core/signals.c common/mlvalues.h common/config.h \
  common/misc.h common/alloc.h common/fail.h core/failexn.h heap/heap.h \
  common/memory.h heap/gc.h heap/gc_ctrl.h heap/minor_gc.h \

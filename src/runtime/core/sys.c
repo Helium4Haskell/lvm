@@ -73,7 +73,7 @@
 #include "signals.h"
 #include "sys.h"
 
-#define MAXPATH_LEN  _MAXPATH
+#define MAXPATH_LEN  MAXPATH
 
 /*----------------------------------------------------------------------
 -- file open/close/read
