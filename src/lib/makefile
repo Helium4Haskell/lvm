@@ -149,6 +149,7 @@ lvm/LvmImport.o : common/PPrint.hi
 lvm/LvmImport.o : lvm/InstrPretty.hi
 lvm/LvmImport.o : lvm/ModulePretty.hi
 lvm/LvmImport.o : lvm/LvmRead.hi
+lvm/LvmImport.o : lvm/Lvm.hi
 lvm/LvmImport.o : lvm/Module.hi
 lvm/LvmImport.o : common/IdMap.hi
 lvm/LvmImport.o : common/Id.hi
@@ -156,13 +157,14 @@ lvm/LvmImport.o : common/Standard.hi
 lvm/Module.o : lvm/Module.hs
 lvm/Module.o : lvm/Instr.hi
 lvm/Module.o : common/IdSet.hi
-lvm/Module.o : common/IdMap.hi
 lvm/Module.o : common/Id.hi
 lvm/Module.o : common/Byte.hi
+lvm/Module.o : common/Standard.hi
 lvm/ModulePretty.o : lvm/ModulePretty.hs
 lvm/ModulePretty.o : lvm/Module.hi
 lvm/ModulePretty.o : common/IdMap.hi
 lvm/ModulePretty.o : common/Id.hi
+lvm/ModulePretty.o : common/Byte.hi
 lvm/ModulePretty.o : common/PPrint.hi
 lvm/Instr.o : lvm/Instr.hs
 lvm/Instr.o : common/Byte.hi
@@ -217,6 +219,7 @@ asm/AsmToLvm.o : lvm/Lvm.hi
 asm/AsmToLvm.o : asm/Asm.hi
 asm/AsmToLvm.o : common/IdMap.hi
 asm/AsmToLvm.o : common/Id.hi
+asm/AsmToLvm.o : common/Standard.hi
 core/Core.o : core/Core.hs
 core/Core.o : common/IdSet.hi
 core/Core.o : common/IdMap.hi
@@ -242,6 +245,7 @@ core/CoreToAsm.o : core/Core.hi
 core/CoreToAsm.o : common/IdSet.hi
 core/CoreToAsm.o : common/IdMap.hi
 core/CoreToAsm.o : common/Id.hi
+core/CoreToAsm.o : common/Standard.hi
 core/CoreParse.o : core/CoreParse.hs
 core/CoreParse.o : core/CorePretty.hi
 core/CoreParse.o : core/CoreLexer.hi
@@ -252,6 +256,7 @@ core/CoreParse.o : common/Id.hi
 core/CoreParse.o : common/Byte.hi
 core/CoreParse.o : parsec/Parsec.hi
 core/CoreParse.o : common/Standard.hi
+core/CoreParse.o : common/PPrint.hi
 core/CoreLexer.o : core/CoreLexer.hs
 core/CoreLexer.o : common/Standard.hi
 core/CoreNormalize.o : core/CoreNormalize.hs
@@ -301,6 +306,7 @@ parsec/ParsecError.o : parsec/ParsecError.hs
 parsec/ParsecError.o : parsec/ParsecPos.hi
 parsec/ParsecPos.o : parsec/ParsecPos.hs
 core/Main.o : core/Main.hs
+core/Main.o : lvm/LvmRead.hi
 core/Main.o : lvm/LvmImport.hi
 core/Main.o : lvm/LvmWrite.hi
 core/Main.o : lvm/LvmPretty.hi

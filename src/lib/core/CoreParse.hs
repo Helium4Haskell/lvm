@@ -9,7 +9,7 @@
 
 -- $Id$
 
-module CoreParse( coreParse, coreParseExpr ) where
+module CoreParse( coreParse, coreParseExpr, modulePublic ) where
 
 import PPrint( (<+>), (<>), Doc, text, hsep )
 import qualified PPrint
@@ -97,6 +97,7 @@ ppType :: Type -> Doc
 ppType tp
   = ppTypeEx 0 (addForall tp)
 
+ppTypeEx :: Int -> Type -> Doc
 ppTypeEx level tp
   = parenthesized $
     case tp of
