@@ -31,7 +31,7 @@
     ticks_##name        += (total - _ticks_##name); \
     ticks_##name##_system += (system - _ticks_##name##_system ); \
     ticks_##name##_user   += (user - _ticks_##name##_user ); \
-  }   
+  }
 
 Stat_counter(gc)
 Stat_counter(init)

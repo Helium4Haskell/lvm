@@ -31,14 +31,14 @@ CORE	= main.c stats.c options.c \
 	  schedule.c evaluator.c instr.c thread.c stack.c \
 	  loader.c module.c print.c \
 	  ccall.c dynamic.c \
-	  fail.c misc.c signals.c systhread.c sys.c primfloat.c 
-	  
+	  fail.c misc.c signals.c systhread.c sys.c primfloat.c
+
 HEAP	= fixed.c bytes.c \
 	  alloc.c compact.c custom.c finalise.c freelist.c gc_ctrl.c \
 	  major_gc.c minor_gc.c memory.c roots.c weak.c globroots.c
 
 PRIM	= prims.c \
-	  primio.c primsys.c primstring.c 
+	  primio.c primsys.c primstring.c
 
 SRCS	= $(patsubst %,core/%,$(CORE)) $(patsubst %,heap/%,$(HEAP)) $(patsubst %,prim/%,$(PRIM))
 OBJS	= $(SRCS:.c=.o)
@@ -58,7 +58,7 @@ core/evaluator.o: core/evaluator.c
 .SUFFIXES: .c .o
 
 .c.o:
-	$(CC) -o $@ -c $< $(CCOPT) 
+	$(CC) -o $@ -c $< $(CCOPT)
 
 clean:
 	$(RM) core/*.o heap/*.o prim/*.o lvmrun$(EXE)
@@ -66,12 +66,12 @@ clean:
 
 # dependencies
 # [gcc -MM] generates the dependencies without the full
-# directory name, ie. 
-#  evaluator.o: ... 
+# directory name, ie.
+#  evaluator.o: ...
 # instead of
 #  core/evaluator.o: ..
 # we therefore use [sed] to append the directory name
-depend:	
+depend:
 	$(CC) -MM $(CCOPT) core/*.c > .depend.temp
 	sed -e 's/\(.*\.o\)/core\/\1/' .depend.temp >  .depend
 	$(CC) -MM $(CCOPT) heap/*.c > .depend.temp
@@ -81,4 +81,3 @@ depend:
 	$(RM) .depend.temp
 
 include .depend
-

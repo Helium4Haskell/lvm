@@ -32,14 +32,14 @@ void start_module( const char* name )
   stat_end_init();
 
   evaluate_name( module, "main" );
-  
+
   CAMLreturn0;
 }
 
 int main( int argc, const char** argv )
 {
   const char** args;
-  
+
   args = init_options(argv);
   if (args[0] == NULL) {
     show_options();

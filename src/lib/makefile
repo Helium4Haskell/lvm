@@ -33,7 +33,7 @@ LVM	= lvm/Lvm.hs lvm/LvmPretty.hs lvm/LvmWrite.hs lvm/LvmRead.hs lvm/LvmImport.h
 	  lvm/Instr.hs lvm/InstrPretty.hs lvm/InstrResolve.hs lvm/InstrRewrite.hs
 
 ASM	= asm/AsmOptimize.hs asm/AsmInline.hs asm/AsmOccur.hs \
-          asm/Asm.hs asm/AsmPretty.hs asm/AsmToLvm.hs
+	  asm/Asm.hs asm/AsmPretty.hs asm/AsmToLvm.hs
 
 CORE	= core/Core.hs core/CorePretty.hs core/CoreToAsm.hs \
 	  core/CoreParse.hs core/CoreLexer.hs \

@@ -99,9 +99,9 @@ static int open_module(const char **fname)
 
   fd = file_open_binary(*fname, O_RDONLY );
   if (fd < 0) {
-    if (fullname == NULL) 
+    if (fullname == NULL)
       raise_module( *fname, "file not found in the search path:\n  \"%s\"", lvmpath );
-    else 
+    else
       raise_module( *fname, "file can not be opened, code %li: %s", errno, strerror(errno) );
   }
 
@@ -149,7 +149,7 @@ static void read_header( const char* name, int handle,
     headerInt(records_count);
     headerInt(records_length);
     headerIdx(module_idx);
-    
+
   if (header->major_version != VERSION_MAJOR ||
       header->minor_version > VERSION_MINOR) {
     raise_module( name, "module requires runtime version %i.%02i but this is runtime version %i.%02i.\n"
@@ -348,7 +348,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
           break;
         }
       } /* switch (kind) */
-    } /*  if custom kind */ 
+    } /*  if custom kind */
 
 /*
 #ifdef DEBUG
@@ -463,7 +463,7 @@ static void resolve_internal_records( value module )
 
       case Rec_custom: {
         long idx = Long_val(Field(rec,Field_name));
-        if (idx!=0) Resolve_index(rec,Field_name,Rec_name,idx);  
+        if (idx!=0) Resolve_index(rec,Field_name,Rec_name,idx);
         Resolve_field(rec,Field_custom_kind,Rec_kind);
         break;
       }
@@ -713,7 +713,7 @@ static int match_kind( value kind1, value kind2 )
   else if (Is_block(kind1) && Tag_val(kind1)==Rec_kind &&
            Is_block(kind2) && Tag_val(kind2)==Rec_kind) {
     CAMLreturn( strcmp(String_val(Field(kind1,Field_name))
-                      ,String_val(Field(kind2,Field_name)))==0 );    
+                      ,String_val(Field(kind2,Field_name)))==0 );
   }
   else {
    CAMLreturn(false);

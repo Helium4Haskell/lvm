@@ -75,8 +75,8 @@ const char* argv0   = NULL;
 void show_options(void)
 {
   const char* env;
- 
-  print( "version: %s\n", __DATE__ ); 
+
+  print( "version: %s\n", __DATE__ );
   print( "usage:\n" );
   print( " lvmrun [lvm options] <file> [program options]\n" );
   print( "\n" );
@@ -117,11 +117,11 @@ void show_options(void)
   print( " LVMPATH      the search path for lvm files (same as -P option).\n" );
   env = getenv( "LVMPATH" );
   print( "              current : \"%s\"\n", env != NULL ? env : "" );
-  
+
   print( " LVMOPTIONS   default options for the lvm.\n" );
   env = getenv( "LVMOPTIONS" );
   print( "              current: \"%s\"\n", env != NULL ? env : "" );
-  
+
   print( " LVMDLLPATH   extra search path for shared (dynamic link) libraries (%s).\n", DLL );
   env = getenv( "LVMDLLPATH" );
   print( "              current: \"%s\"\n", env != NULL ? env : "" );
@@ -138,7 +138,7 @@ void show_options(void)
   } else {
   print( " shared libs  \"%s%c<system path>\"\n", dllpath, PATHSEP );
   }
-  print( "\n" );  
+  print( "\n" );
 }
 
 
@@ -169,7 +169,7 @@ static void options_out_of_memory(void)
 -- [variable] takes a string that points to an (environment) variable,
 -- the value of the [$current] variable. It returns a statically allocated
 -- string with the value of the variable. It also returns the length [varlen]
--- of the variable name in the original string. For example, the length 
+-- of the variable name in the original string. For example, the length
 -- [$lvmdir] is 7. Returns NULL (and length 0) when the variable has no value.
 -- [varlen] and [current] can be NULL.
 ----------------------------------------------------------------------*/
@@ -187,7 +187,7 @@ static const char* variable( const char* str, const char* current, long* varlen 
 
   if (varlen)    *varlen = 0;
   if (str==NULL) return NULL;
-  
+
 
   /* determine the length */
   p = str;
@@ -195,24 +195,24 @@ static const char* variable( const char* str, const char* current, long* varlen 
     /* parenthesized */
     p += 2;
     for( len = 0; p[len] != 0 && p[len] != ')'; len++ ) { /* nothing */ }
-    if (varlen) *varlen = len+2;    
-  } 
+    if (varlen) *varlen = len+2;
+  }
   else if (is_variable(p[0]) && p[1] == p[0]) {
     /* escaped */
     p  += 1;
     len = 1;
-    if (varlen) *varlen = 2;    
+    if (varlen) *varlen = 2;
   }
   else if (is_variable(p[0])) {
     /* normal */
     p += 1;
     for( len = 0; isalnum(p[len]); len++ ) { /* nothing */ }
-    if (varlen) *varlen = len+1;    
+    if (varlen) *varlen = len+1;
   }
   else {
     /* no variable start character? */
     for( len = 0; isalnum(p[len]); len++ ) { /* nothing */ }
-    if (varlen) *varlen = len;    
+    if (varlen) *varlen = len;
   }
 
   /* find the name */
@@ -227,7 +227,7 @@ static const char* variable( const char* str, const char* current, long* varlen 
   else if (stricmp("CURRENT",name) == 0) {
     /* current string value */
     return current;
-  } 
+  }
 #ifdef OS_WINDOWS
   else if (stricmp("SYSTEMDIR",name) == 0) {
     if (GetSystemDirectory(var,MAXVAR) == 0) return NULL;
@@ -256,7 +256,7 @@ static const char* variable( const char* str, const char* current, long* varlen 
   }
   else {
     return getenv(name);
-  }    
+  }
 }
 
 
@@ -276,7 +276,7 @@ static char* expand_string( const char* current, const char* str )
     newstr[0] = 0;
     return newstr;
   }
-  
+
   /* determine the total length needed */
   len = 0;
   p   = str;
@@ -296,8 +296,8 @@ static char* expand_string( const char* current, const char* str )
   size    = len+1;
   newstr = (char*)malloc(size);
   if (newstr == NULL) return NULL;
-  
-  /* and copy */  
+
+  /* and copy */
   len = 0;
   p   = str;
   while (*p != 0 && len < size) {
@@ -305,7 +305,7 @@ static char* expand_string( const char* current, const char* str )
       long        varlen;
       const char* var = variable(p,current,&varlen);
       newstr[len] = 0;
-      str_cat(newstr,var,size);      
+      str_cat(newstr,var,size);
       p   += varlen;
       len += str_len(var);
     }
@@ -329,7 +329,7 @@ static void parse_malloc_path( const char** path, const char* newpath )
   char* p;
   Assert(path);
   p = expand_string( *path, newpath );
-  if (p == NULL)     { options_out_of_memory(); } 
+  if (p == NULL)     { options_out_of_memory(); }
   normalize_path(p);
   if (*path != NULL) { free((char*)*path); }
   *path = p;
@@ -485,7 +485,7 @@ static void options_env(void)
   if (envpath != NULL) { parse_malloc_path( &lvmpath, envpath ); }
 
   envpath = getenv("LVMDLLPATH");
-  if (envpath != NULL) { parse_malloc_path( &dllpath, envpath ); }  
+  if (envpath != NULL) { parse_malloc_path( &dllpath, envpath ); }
 
   envoptions = getenv("LVMOPTIONS");
   if (envoptions != NULL) {
@@ -540,17 +540,17 @@ const char** init_options( const char** argv )
   fixup_base = (char*)malloc(sizeof(long));
   if (fixup_base) free(fixup_base);
 #endif
-  
+
   argv0 = argv[0];
   options_env();
   args = options_cmd_line( argv );
   /* parse_malloc_path( &lvmpath, ".;$current" ); */              /* always search current directory first */
   options_check();
-  if (options_report) { 
-    show_options(); 
-    sys_exit(0); 
+  if (options_report) {
+    show_options();
+    sys_exit(0);
   }
-  
+
   init_atoms();
   init_custom_operations();
 
@@ -567,7 +567,7 @@ const char** init_options( const char** argv )
   init_signals();
   init_dynamic();
   init_evaluator();
-  
+
   if (args[0] == NULL) timings_report = heap_report = false;
   stat_end_init();
   return args;

@@ -145,7 +145,7 @@ void print_instr( value module, value* sp, opcode_t* code )
   case TESTINT:   print( " -- " ); print_value( module, Val_long(code[1]) ); break;
   case EVALVAR:   print( " -- " ); print_value( module, sp[code[1]] ); break;
   case PACK:      print( " -- %i", code[1] ); print_value( module, sp[code[2]] ); break;
-  
+
   case MATCH:
   case SWITCHCON:
   case MATCHCON:

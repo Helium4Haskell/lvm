@@ -229,14 +229,14 @@ void normalize_path( char* path )
 {
   char* p;
   if (path == NULL) return;
-  
+
   for( p = path; *p != 0; p++ ) {
-    if (is_filesep(*p)) { 
-      *p = FILESEP; 
+    if (is_filesep(*p)) {
+      *p = FILESEP;
     }
-    else if (is_pathsep(*p)) { 
-      *p = PATHSEP; 
-    }    
+    else if (is_pathsep(*p)) {
+      *p = PATHSEP;
+    }
   }
 }
 
@@ -254,9 +254,9 @@ const char* searchpath_dll( const char* name )
     /* try the LVMDLLPATH first */
     const char* path = searchpath( dllpath, name, DLL );
     if (path) return path;
-  }  
+  }
   /* and also the system search path */
-  return searchpath( NULL, name, DLL ); 
+  return searchpath( NULL, name, DLL );
 }
 
 
