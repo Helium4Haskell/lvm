@@ -280,7 +280,6 @@ const char * searchpath(const char* path, const char * name, const char* ext )
 {
   static char fullname[MAXPATH];
   const char * cp;
-  char* p;
 
   if (name == NULL) return NULL;
   if (ext  == NULL) ext  = "";
