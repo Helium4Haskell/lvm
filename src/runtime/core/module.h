@@ -22,11 +22,9 @@ struct module_header_t
          total_length,
          major_version,
          minor_version,
-         module_major_version,
-         module_minor_version,
-         module_name,
          records_count,
-         records_length;
+         records_length,
+         module_idx;
 };
 
 struct module_footer_t
@@ -44,19 +42,12 @@ struct module_footer_t
   A module contains:
   records    - a fixed n-tuple that contains all constants. It is fixed
                because a PUSHCAF and CALL points into this block.
-  code       - a statically allocated block that contains all the code
-               the operand of a PUSHCODE instruction points into this block
-
-  [code] is actually a custom block that contain a pointer
-  to the statically allocated block. This allows those blocks to be released
-  automatically when gc'ed.
+  info       - points to a module record
 ----------------------------------------------------------------------*/
 enum module_fields {
   Module_next,
-  Module_name,
   Module_fname,
-  Module_major,
-  Module_minor,
+  Module_info,
   Module_records,
 
   Module_size
@@ -82,6 +73,7 @@ enum module_fields {
 ----------------------------------------------------------------------*/
 enum rec_kind {
   Rec_name,
+  Rec_kind,
   Rec_bytes,
   Rec_code,
   Rec_value,
@@ -149,7 +141,10 @@ enum rec_fields {
   Field_code_code = 0,   /* points to a bytes block containing the instructions (as Code_tag) */
   Rec_code_size,
 
-  Field_custom_kind = Field_flags+1,
+  Field_kind_string = 0,
+  Rec_kind_size,
+
+  Field_custom_kind = Field_name + 1,
   Rec_custom_size
 };
 
@@ -188,6 +183,7 @@ bool        is_code_val( value module, value pc );
 #define Type_extern(rec)            (String_val(Field(Field(rec,Field_extern_type),Field_extern_type_string)))
 #define Name_field(decl,fld)        (String_val(Field(Field(decl,fld),Field_name_string)))
 #define Name_module_field(decl,fld) Name_field(Field(decl,fld),Field_module_name)
+#define Name_module(mod)            Name_module_field(mod,Module_info)
 
 /* from a Rec_code record to the value that points to the Code_tag block */
 #define Code_code(rec)  (Val_hp(Bytes_val(Field(rec,Field_code_code))))

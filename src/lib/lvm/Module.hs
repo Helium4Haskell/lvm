@@ -13,13 +13,13 @@ module Module( Module(..)
              , Decl(..)
              , Custom(..)
              , DeclKind(..)  -- instance Eq, Enum
-             , Arity, Tag, Link(..)
+             , Arity, Tag 
              , Access(..), ExternName(..), CallConv(..), LinkConv(..)
              
              , globalNames, externNames
              , mapValues
-             , declKindFromDecl, hasDeclKind
-             , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern, isDeclImport
+             , declKindFromDecl, shallowKindFromDecl -- , hasDeclKind
+             , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern, isDeclImport, isDeclGlobal
              , public, private
              ) where
 
@@ -40,11 +40,9 @@ data Module v
           , moduleDecls    :: ![Decl v]
           }
 
-data Link 
-  = Link Id !DeclKind
 
 data Decl v     
-  = DeclValue     { declName :: Id, declAccess :: !Access, valueEnc :: Maybe Link, valueValue :: v, declCustoms :: ![Custom] }
+  = DeclValue     { declName :: Id, declAccess :: !Access, valueEnc :: Maybe Id, valueValue :: v, declCustoms :: ![Custom] }
   | DeclAbstract  { declName :: Id, declAccess :: !Access, declArity :: !Arity, declCustoms :: ![Custom] }
   | DeclCon       { declName :: Id, declAccess :: !Access, declArity :: !Arity, conTag :: !Tag, declCustoms :: [Custom] }
   | DeclExtern    { declName :: Id, declAccess :: !Access, declArity :: !Arity
@@ -58,10 +56,13 @@ data Custom
   = CustomInt   !Int
   | CustomBytes !Bytes
   | CustomName  Id
-  | CustomDecl  !Link
+  | CustomLink  Id !DeclKind
+  | CustomDecl  !DeclKind ![Custom]
+  | CustomNoLink
 
 data DeclKind 
   = DeclKindName
+  | DeclKindKind
   | DeclKindBytes
   | DeclKindCode
   | DeclKindValue
@@ -70,7 +71,7 @@ data DeclKind
   | DeclKindModule
   | DeclKindExtern
   | DeclKindExternType
-  | DeclKindCustom  !Int
+  | DeclKindCustom !Id
   deriving Eq
 
 data Access
@@ -98,28 +99,30 @@ instance Enum DeclKind where
   toEnum i  
     = case i of
         0 -> DeclKindName
-        1 -> DeclKindBytes
-        2 -> DeclKindCode
-        3 -> DeclKindValue
-        4 -> DeclKindCon
-        5 -> DeclKindImport
-        6 -> DeclKindModule
-        7 -> DeclKindExtern
-        8 -> DeclKindExternType
-        _ -> DeclKindCustom i
+        1 -> DeclKindKind
+        2 -> DeclKindBytes
+        3 -> DeclKindCode
+        4 -> DeclKindValue
+        5 -> DeclKindCon
+        6 -> DeclKindImport
+        7 -> DeclKindModule
+        8 -> DeclKindExtern
+        9 -> DeclKindExternType
+        _ -> error ("Module.DeclKind.toEnum: unknown kind (" ++ show i ++ ")")
 
   fromEnum kind 
     = case kind of
         DeclKindName      -> 0
-        DeclKindBytes     -> 1
-        DeclKindCode      -> 2
-        DeclKindValue     -> 3
-        DeclKindCon       -> 4
-        DeclKindImport    -> 5
-        DeclKindModule    -> 6
-        DeclKindExtern    -> 7
-        DeclKindExternType-> 8
-        DeclKindCustom i  -> i
+        DeclKindKind      -> 1
+        DeclKindBytes     -> 2
+        DeclKindCode      -> 3
+        DeclKindValue     -> 4
+        DeclKindCon       -> 5
+        DeclKindImport    -> 6
+        DeclKindModule    -> 7
+        DeclKindExtern    -> 8
+        DeclKindExternType-> 9
+--      DeclKindCustom i  -> i
         other             -> error "Module.DeclKind.fromEnum: unknown kind"
 
 declKindFromDecl decl
@@ -130,7 +133,19 @@ declKindFromDecl decl
       DeclExtern{}   -> DeclKindExtern
       DeclCustom{}   -> declKind decl
       DeclImport{}   -> importKind (declAccess decl)
-      other          -> error "Module.declKindFromDecl: unknown declaration"
+      other          -> error "Module.kindFromDecl: unknown declaration"
+
+shallowKindFromDecl decl
+  = case decl of
+      DeclValue{}    -> DeclKindValue
+      DeclAbstract{} -> DeclKindValue
+      DeclCon{}      -> DeclKindCon
+      DeclExtern{}   -> DeclKindExtern
+      DeclCustom{}   -> declKind decl
+      DeclImport{}   -> DeclKindImport
+      other          -> error "Module.shallowKindFromDecl: unknown declaration"
+
+
 
 {---------------------------------------------------------------
   Utility functions
@@ -150,7 +165,12 @@ isDeclCon other                 = False
 isDeclExtern (DeclExtern{})     = True
 isDeclExtern other              = False
 
-hasDeclKind kind decl           = (kind==declKindFromDecl decl)
+isDeclGlobal (DeclValue{})      = True
+isDeclGlobal (DeclAbstract{})   = True
+isDeclGlobal (DeclExtern{})     = True
+isDeclGlobal other              = False
+
+-- hasDeclKind kind decl           = (kind==declKindFromDecl decl)
 
 {---------------------------------------------------------------
   More Utility functions

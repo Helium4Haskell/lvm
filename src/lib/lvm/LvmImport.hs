@@ -95,7 +95,7 @@ resolveImport visited modid loaded x@(DeclImport id access@(Imported public imod
 
   where
     lookupDecl impid kind decls
-      = [d | d <- decls, declName d==impid && hasDeclKind kind d]
+      = [d | d <- decls, declName d==impid && declKindFromDecl d == kind]
 
     update mod'
       = updateMap modid mod' loaded

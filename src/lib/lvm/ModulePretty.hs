@@ -40,28 +40,35 @@ ppDecl ppValue decl
    ))
 
 ppDeclHeader decl
-  = ppDeclKind decl <> ppId (declName decl) <+> text ":" <+> ppAccess (declAccess decl) <+> ppCustoms (declCustoms decl)
+  = ppDeclSort decl <> ppId (declName decl) <+> text ":" <+> ppAccess (declAccess decl) <+> ppCustoms (declCustoms decl)
 
-ppDeclKind decl
+ppDeclSort decl
   = case decl of
       DeclValue{}   -> empty
       DeclCon{}     -> text "con "
       DeclExtern{}  -> text "extern "
-      DeclCustom{}  -> text "custom "
+      DeclCustom{}  -> text "custom" <+> ppDeclKind (declKind decl) <> text " "
       DeclImport{}  -> text "import "
       DeclAbstract{}-> text "abstract "
       other         -> text "<unknown declaration>"
+
+ppDeclKind kind
+  = case kind of
+      DeclKindCustom id -> ppId id
+      other             -> pretty (fromEnum kind)
 
 ppCustoms customs
   = list (map ppCustom customs)
 
 ppCustom custom
   = case custom of
-      CustomInt i     -> pretty i
-      CustomName id   -> ppId id
-      CustomBytes bs  -> dquotes (string (stringFromBytes bs))
-      CustomDecl (Link id kind) -> text "link" <+> ppId id
-      other           -> error "ModulePretty.ppCustom: unknown custom kind"
+      CustomInt i         -> pretty i
+      CustomName id       -> ppId id
+      CustomBytes bs      -> dquotes (string (stringFromBytes bs))
+      CustomLink id kind  -> text "link" <+> ppDeclKind kind <+> ppId id
+      CustomDecl kind cs  -> ppDeclKind kind <+> ppCustoms cs
+      CustomNoLink        -> text "nolink"
+      other               -> error "ModulePretty.ppCustom: unknown custom kind"
 
 ppId :: Id -> Doc
 ppId id

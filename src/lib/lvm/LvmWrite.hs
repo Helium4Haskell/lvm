@@ -13,7 +13,7 @@ module LvmWrite( lvmWriteFile, lvmToBytes ) where
 
 import Standard ( assert)
 import Id       ( Id, stringFromId, setNameSpace )
-import IdMap    ( IdMap, emptyMap, insertMap, lookupMap, listFromMap )
+import IdMap    ( IdMap, emptyMap, insertMapWith, lookupMap, listFromMap )
 import Byte
 import Instr
 import Lvm
@@ -23,7 +23,7 @@ import Lvm
   Magic numbers
 --------------------------------------------------------------}
 lvmMajorVersion,lvmMinorVersion :: Int
-lvmMajorVersion  = 10
+lvmMajorVersion  = 13
 lvmMinorVersion  = 0
 
 {--------------------------------------------------------------
@@ -36,19 +36,17 @@ lvmWriteFile path lvm
 
 lvmToBytes :: LvmModule -> Bytes
 lvmToBytes mod
-  = let (idxName,recs) = bytesFromModule mod
-        headerlen = 32
+  = let (idxInfo,recs) = bytesFromModule mod
+        headerlen = 24
         header    = block
                     [ recHeader
                     , encodeInt headerlen
                     , encodeInt totallen
                     , encodeInt lvmMajorVersion
                     , encodeInt lvmMinorVersion
-                    , encodeInt (moduleMajorVer mod)
-                    , encodeInt (moduleMinorVer mod)
-                    , encodeIdx idxName         
                     , encodeInt (length recs)
                     , encodeInt (bytesLength brecs)
+                    , encodeIdx idxInfo
                     ]
 
         footerlen = 4
@@ -66,9 +64,9 @@ bytesFromModule mod
 
 emitLvmModule :: LvmModule -> Emit Index
 emitLvmModule mod
-  = do{ idxName <- emitName (moduleName mod)
+  = do{ idxInfo <- emitModule (moduleName mod) (moduleMajorVer mod) (moduleMinorVer mod)
       ; mapM_ emitDecl (moduleDecls mod)
-      ; return idxName
+      ; return idxInfo
       }
 
 {--------------------------------------------------------------
@@ -98,7 +96,7 @@ emitDecl decl
       other           -> error "LvmWrite.emitDecl: invalid declaration at this phase"
 
 emitDValue (DeclValue id access mbEnc instrs custom)
-  = do{ idxEnc  <- maybe (return 0) (\(Link id declkind) -> findIndex declkind id) mbEnc
+  = do{ idxEnc  <- maybe (return 0) (\id -> findIndex DeclKindValue id) mbEnc
       ; idxCode <- emitInstrs instrs
       ; emitNamedBlock id DeclKindValue [encodeInt (flags access), encodeInt arity
                                         ,encodeIdx idxEnc, encodeIdx idxCode] custom
@@ -122,7 +120,8 @@ emitDExtern (DeclExtern id access arity tp linkconv callconv libname externname 
       ; emitBlockEx (Just id) DeclKindValue DeclKindExtern  
             (block [encodeIdx idxId, encodeInt (flags access), encodeInt arity
                     ,encodeIdx idxType
-                    ,encodeIdx idxLibName, encodeIdx idxName
+                    ,encodeIdx idxLibName
+                    ,idxName      -- already encoded
                     ,encodeInt nameFlag
                     ,encodeInt (fromEnum linkconv)
                     ,encodeInt (fromEnum callconv)
@@ -130,9 +129,9 @@ emitDExtern (DeclExtern id access arity tp linkconv callconv libname externname 
       }
   where
     emitNameExtern  = case externname of
-                        Plain s    -> do{ idx <- emitNameString s; return (0,idx) }
-                        Decorate s -> do{ idx <- emitNameString s; return (1,idx) }
-                        Ordinal i  -> return (2,i)
+                        Plain s    -> do{ idx <- emitNameString s; return (0,encodeIdx idx) }
+                        Decorate s -> do{ idx <- emitNameString s; return (1,encodeIdx idx) }
+                        Ordinal i  -> return (2,encodeInt i)
 
 
 emitDAbstract (DeclAbstract id access arity customs)
@@ -376,6 +375,9 @@ emitNameString s
 emitExternType tp
   = emitBlock Nothing DeclKindExternType (blockString tp) []
 
+emitKind id
+  = emitBlock Nothing DeclKindKind (blockString (stringFromId id)) []
+
 emitBytes bs
   = emitBlock Nothing DeclKindBytes (blockBytes bs) []
 
@@ -384,11 +386,22 @@ emitBlock mbId kind bs custom
 
 emitBlockEx mbId kindId kind bs custom
   = do{ bcustom <- emitCustoms custom
+      ; kindenc <- encodeKind kind
       ; let bytes = cat bs bcustom
-            total = cat (block [encodeInt (fromEnum kind),encodeInt (bytesLength bytes)]) bytes
+            total = cat (block [kindenc,encodeInt (bytesLength bytes)]) bytes
       ; assert ((bytesLength bytes `mod` 4) == 0) "LvmWrite.emitBlock: unaligned size" $
-        emitPrimBlock mbId kindId total
+        emitPrimBlock (maybe Nothing (\id -> Just (id,kindId)) mbId) total
       }
+
+encodeKind :: DeclKind -> Emit Int
+encodeKind (DeclKindCustom id)
+  = do{ idx <- emitKind id
+      ; return (encodeIdx idx)
+      }
+
+encodeKind kind
+  = return (encodeInt (fromEnum kind))
+
 
 {--------------------------------------------------------------
   custom fields
@@ -402,18 +415,23 @@ emitCustoms decls
 emitCustom :: Custom -> Emit Int
 emitCustom custom
   = case custom of
-      CustomInt i      -> return (encodeInt i)
-      CustomBytes bs   -> do{ idx <- emitBytes bs; return (encodeIdx idx) }
-      CustomName id    -> do{ idx <- emitName id; return (encodeIdx idx) }
-      CustomDecl (Link id kind) 
-        -> do{ idx <- findIndex kind id; return (encodeIdx idx) }
+      CustomInt i         -> return (encodeInt i)
+      CustomNoLink        -> return (encodeIdx 0)
+      CustomBytes bs      -> do{ idx <- emitBytes bs; return (encodeIdx idx) }
+      CustomName id       -> do{ idx <- emitName id; return (encodeIdx idx) }
+      CustomLink id kind  -> do{ idx <- findIndex kind id; return (encodeIdx idx) }
+      CustomDecl kind cs  -> do{ idx <- emitAnonymousCustom kind cs; return (encodeIdx idx) }
+
+emitAnonymousCustom kind custom
+  = emitBlock Nothing kind (block [encodeIdx 0]) custom
+
 
 {--------------------------------------------------------------
   Emit Monad
 --------------------------------------------------------------}
 newtype Emit a  = Emit (Env -> State -> (a,State))
 data State      = State !Int Env [Bytes]
-type Env        = IdMap Index
+type Env        = IdMap [(DeclKind,Index)]
 
 instance Functor Emit where
   fmap f (Emit e)   = Emit (\env st -> case e env st of
@@ -430,19 +448,21 @@ runEmit (Emit e)
   = let (x,State _ env bbs) = e env (State 0 emptyMap [])  -- yes, a recursive, lazy, env :-)
     in (x,reverse bbs)
 
-emitPrimBlock :: Maybe Id -> DeclKind -> Bytes -> Emit Index
-emitPrimBlock mid kind bs
+emitPrimBlock :: Maybe (Id,DeclKind) -> Bytes -> Emit Index
+emitPrimBlock x bs
   = Emit (\env (State count map bbs) ->
             let index = count+1
-            in (index, State index (maybe map (\id -> insertMap (setNameSpace kind id) index map) mid) (bs:bbs)))
+            in (index, State index (maybe map (\(id,kind) -> insertMapWith id [(kind,index)] ((kind,index):) map) x) (bs:bbs)))
 
 -- a nice lazy formulation, we can calculate all indices before writing the bytes.
 findIndex :: DeclKind -> Id -> Emit Index
 findIndex kind id 
   = Emit (\env st ->
-          (case lookupMap (setNameSpace kind id) env of
-             Nothing  -> (error ("LvmWrite.findIndex: undeclared identifier: " ++ show (stringFromId id)))
-             Just idx -> (idx)
+          (case lookupMap id env of
+             Nothing  -> error ("LvmWrite.findIndex: undeclared identifier: " ++ show (stringFromId id))
+             Just xs  -> case lookup kind xs of
+                           Nothing  -> error ("LvmWrite.findIndex: undeclared identifier (with the right declaration kind): " ++ show (stringFromId id))
+                           Just idx -> (idx)
           , st))
 
 

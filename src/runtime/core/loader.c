@@ -40,7 +40,7 @@
 # define Trace_i_str(msg,i,str)
 #endif
 
-#define VERSION_MAJOR 10
+#define VERSION_MAJOR 13
 #define VERSION_MINOR 1
 
 /*----------------------------------------------------------------------
@@ -146,16 +146,14 @@ static void read_header( const char* name, int handle,
     headerInt(total_length);
     headerInt(major_version);
     headerInt(minor_version);
-    headerInt(module_major_version);
-    headerInt(module_minor_version);
-    headerIdx(module_name);
     headerInt(records_count);
     headerInt(records_length);
-
+    headerIdx(module_idx);
+    
   if (header->major_version != VERSION_MAJOR ||
       header->minor_version > VERSION_MINOR) {
     raise_module( name, "module requires runtime version %i.%02i but this is runtime version %i.%02i.\n"
-                        "  please recompile with a compatible compiler"
+                        "  please recompile with a compatible compiler or update the lvm runtime"
       , header->major_version, header->minor_version
       , VERSION_MAJOR, VERSION_MINOR );
   }
@@ -169,7 +167,8 @@ static void read_header( const char* name, int handle,
  read records
  - read all records into the records array. don't resolve ref's yet
 ----------------------------------------------------------------------*/
-#define Word_read(x)          {(x) = *p++; if (is_rev_endian) { Reverse_word(&x,&x); }; (x) = Decode(x); }
+#define Raw_read(x)           {(x) = *p++; if (is_rev_endian) { Reverse_word(&x,&x); }; }
+#define Word_read(x)          { Raw_read(x); (x) = Decode(x); }
 #define String_read(v,n)      {(v) = alloc_string_major(n); bcopy(p,String_val(v),n); p += Word_bytes(n); }
 #define Store_read(fld)       { word_t x; Word_read(x); Store_field(rec,fld,Val_long(x)); }
 #define Store_zero(fld)       { Store_field(rec,fld,Val_long(0)); }
@@ -211,128 +210,131 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
     word_t len;
     word_t* next;
 
-    Word_read(kind);
+    Raw_read(kind);
     Word_read(len);
 
     if (!Is_aligned(len)) Rec_raise( "unaligned declaration" );
     next = p + Word_bytes(len);
 
-    switch(kind)
-    {
-      case Rec_name:
-      case Rec_bytes:
-      case Rec_extern_type:
-      { word_t slen;
-        Alloc_record(Rec_name_size);
-        Word_read(slen);
-        String_read(str,slen);
-        Trace_i_str ("Rec_name/bytes/extern_type", i, str);
-        Init_field( rec, Field_name_string, str );
-        break;
-      }
-
-      case Rec_module: {
-        Trace_i ("Rec_module", i);
-        Alloc_record(Rec_module_size);
-        Store_read( Field_module_name );
-        Store_read( Field_module_major );
-        Store_read( Field_module_minor );
-        break;
-      }
-
-      case Rec_value: {
-        Trace_i ("Rec_value", i);
-        Alloc_record(Rec_value_size);
-        Store_read( Field_name );
-        Store_read( Field_flags );
-        Store_read( Field_arity );
-        Store_read( Field_value_enc );
-        Store_read( Field_value_code );
-        Store_zero( Field_value_fun );
-        Trace_i ("name", Long_val(Field(rec,Field_value_name)));
-        Trace_i ("code", Long_val(Field(rec,Field_value_code)));
-        break;
-      }
-
-      case Rec_con: {
-        Trace_i ("Rec_con", i);
-        Alloc_record(Rec_con_size);
-        Store_read( Field_name );
-        Store_read( Field_flags );
-        Store_read( Field_arity );
-        Store_read( Field_con_tag );
-        break;
-      }
-
-      case Rec_import: {
-        Trace_i ("Rec_import", i);
-        Alloc_record(Rec_import_size);
-        Store_read( Field_name );
-        Store_read( Field_flags );
-        Store_read( Field_import_module );
-        Store_read( Field_import_name );
-        Store_read( Field_import_kind );
-        Store_zero( Field_import_fixup );
-        Trace_i ("name", Long_val(Field(rec,Field_import_name)));
-        break;
-      }
-
-      case Rec_extern: {
-        Trace_i ("Rec_extern", i);
-        Alloc_record(Rec_extern_size);
-        Store_read( Field_name );
-        Store_read( Field_flags );
-        Store_read( Field_arity );
-        Store_read( Field_extern_type );
-        Store_read( Field_extern_module );
-        Store_read( Field_extern_name );
-        Store_read( Field_extern_nameflag );
-        Store_read( Field_extern_link );
-        Store_read( Field_extern_call );
-        Store_zero( Field_extern_fun );
-        Store_zero( Field_extern_symbol );
-        break;
-      }
-
-      case Rec_code: {
-        char* instrs;
-        wsize_t instrlen = len;
-        Trace_i ("Rec_code", i);
-
-        if (!Is_aligned(instrlen)) Rec_raise( "unaligned instructions" );
-
-        Alloc_record(Rec_code_size);
-
-        /* allocate non-gc'd memory for the instructions */
-        code   = alloc_bytes(instrlen+sizeof(header_t));
-        instrs = Bytes_val(code);
-        Store_field(rec,Field_code_code,code);
-
-        /* pretend that the bytes are a heap block & copy  (CAF's are allocated during resolve) */
-        instrs += sizeof(header_t);
-        Hd_val(instrs) = Make_header(instrlen /* in bytes! */, Code_tag, Caml_white );
-        memcpy(instrs, p, instrlen);
-        if (is_rev_endian) reverse_endian( (word_t*)instrs, Word_bytes(instrlen) );
-
-        /* and increment the read pointer */
-        p += Word_bytes(instrlen);
-        break;
-      }
-
-      default: {
-        Trace_i ("Rec_custom", i);
-/*
-#ifdef DEBUG
-        Rec_raise(( "unknown constant kind" ));
-#endif
-*/
-        Alloc_record(Rec_custom_size);
-        Store_read( Field_name );
-        Store_read( Field_flags );        
-        Store_field(rec,Field_custom_kind,Val_long(kind));
-        break;
-      }
+    if (!Is_long(kind)) {
+      word_t kindidx = Decode(kind);
+      kind = Rec_custom;              /* used by "Alloc_record" */
+      Trace_i( "Rec_custom", i );
+      Alloc_record(Rec_custom_size);
+      Store_read(Field_name);
+      Store_field(rec,Field_custom_kind,Val_long(kindidx));
     }
+    else {
+      kind = Decode(kind);
+      switch(kind)
+      {
+        case Rec_name:
+        case Rec_kind:
+        case Rec_bytes:
+        case Rec_extern_type:
+        { word_t slen;
+          Alloc_record(Rec_name_size);
+          Word_read(slen);
+          String_read(str,slen);
+          Trace_i_str ("Rec_name/bytes/externtype/kind", i, str);
+          Init_field( rec, Field_name_string, str );
+          break;
+        }
+
+        case Rec_module: {
+          Trace_i ("Rec_module", i);
+          Alloc_record(Rec_module_size);
+          Store_read( Field_module_name );
+          Store_read( Field_module_major );
+          Store_read( Field_module_minor );
+          break;
+        }
+
+        case Rec_value: {
+          Trace_i ("Rec_value", i);
+          Alloc_record(Rec_value_size);
+          Store_read( Field_name );
+          Store_read( Field_flags );
+          Store_read( Field_arity );
+          Store_read( Field_value_enc );
+          Store_read( Field_value_code );
+          Store_zero( Field_value_fun );
+          Trace_i ("name", Long_val(Field(rec,Field_value_name)));
+          Trace_i ("code", Long_val(Field(rec,Field_value_code)));
+          break;
+        }
+
+        case Rec_con: {
+          Trace_i ("Rec_con", i);
+          Alloc_record(Rec_con_size);
+          Store_read( Field_name );
+          Store_read( Field_flags );
+          Store_read( Field_arity );
+          Store_read( Field_con_tag );
+          break;
+        }
+
+        case Rec_import: {
+          Trace_i ("Rec_import", i);
+          Alloc_record(Rec_import_size);
+          Store_read( Field_name );
+          Store_read( Field_flags );
+          Store_read( Field_import_module );
+          Store_read( Field_import_name );
+          Store_read( Field_import_kind );
+          Store_zero( Field_import_fixup );
+          Trace_i ("name", Long_val(Field(rec,Field_import_name)));
+          break;
+        }
+
+        case Rec_extern: {
+          Trace_i ("Rec_extern", i);
+          Alloc_record(Rec_extern_size);
+          Store_read( Field_name );
+          Store_read( Field_flags );
+          Store_read( Field_arity );
+          Store_read( Field_extern_type );
+          Store_read( Field_extern_module );
+          Store_read( Field_extern_name );
+          Store_read( Field_extern_nameflag );
+          Store_read( Field_extern_link );
+          Store_read( Field_extern_call );
+          Store_zero( Field_extern_fun );
+          Store_zero( Field_extern_symbol );
+          break;
+        }
+
+        case Rec_code: {
+          char* instrs;
+          wsize_t instrlen = len;
+          Trace_i ("Rec_code", i);
+
+          if (!Is_aligned(instrlen)) Rec_raise( "unaligned instructions" );
+
+          Alloc_record(Rec_code_size);
+
+          /* allocate non-gc'd memory for the instructions */
+          code   = alloc_bytes(instrlen+sizeof(header_t));
+          instrs = Bytes_val(code);
+          Store_field(rec,Field_code_code,code);
+
+          /* pretend that the bytes are a heap block & copy  (CAF's are allocated during resolve) */
+          instrs += sizeof(header_t);
+          Hd_val(instrs) = Make_header(instrlen /* in bytes! */, Code_tag, Caml_white );
+          memcpy(instrs, p, instrlen);
+          if (is_rev_endian) reverse_endian( (word_t*)instrs, Word_bytes(instrlen) );
+
+          /* and increment the read pointer */
+          p += Word_bytes(instrlen);
+          break;
+        }
+
+        default: {
+          Rec_raise(( "unknown record kind" ));
+          break;
+        }
+      } /* switch (kind) */
+    } /*  if custom kind */ 
 
 /*
 #ifdef DEBUG
@@ -366,23 +368,15 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
                                           Resolve_index(decl,fld,tag,idx); }
 
 
-static void resolve_module_name( value module, int index_name )
+static void resolve_module_info( value module, long index_info )
 {
   CAMLparam1(module);
-  CAMLlocal2(decl,records);
+  CAMLlocal1(records);
   const char* fname;
 
-  records = Records_module(module);
   fname   = String_val(Field(module,Module_fname));
-
-  if (index_name == 0) {
-    Store_field( module, Module_name, Field(module,Module_fname));
-  }
-  else {
-    Check_record(decl,index_name);
-    Check_tag(decl,Rec_name);
-    Store_field( module, Module_name, Field(decl,Field_name_string));
-  }
+  records = Records_module(module);
+  Resolve_index(module,Module_info,Rec_module,index_info);
 
   CAMLreturn0;
 }
@@ -403,6 +397,7 @@ static void resolve_internal_records( value module )
     rec = Record( records, i );
     switch (Tag_val(rec)) {
       case Rec_name:
+      case Rec_kind:
       case Rec_extern_type:
       case Rec_bytes: {
        /* nothing to do */
@@ -446,6 +441,13 @@ static void resolve_internal_records( value module )
         Resolve_field(rec,Field_name,Rec_name);
         Resolve_field(rec,Field_import_module,Rec_module);
         Resolve_field(rec,Field_import_name,Rec_name);
+        break;
+      }
+
+      case Rec_custom: {
+        long idx = Long_val(Field(rec,Field_name));
+        if (idx != 0) Resolve_index(rec,Field_name,Rec_name,idx);  
+        Resolve_field(rec,Field_custom_kind,Rec_kind);
         break;
       }
 
@@ -627,8 +629,6 @@ static value read_module( value parent, const char* modname )
   }
 
   Store_field( module, Module_fname, copy_string(fname) );
-  Store_field( module, Module_major, Val_long(header.module_major_version) );
-  Store_field( module, Module_minor, Val_long(header.module_minor_version) );
 
   records = alloc_fixed( header.records_count );
   Store_field( module, Module_records, records );
@@ -640,7 +640,7 @@ debug_gc();
 
 
   /* resolve */
-  resolve_module_name( module, header.module_name );
+  resolve_module_info( module, header.module_idx );
   resolve_internal_records( module );
 
   /* [resolve_external_records] recursively reads other modules */
@@ -662,8 +662,8 @@ static value find_module( value module, const char* modname, long major_version 
   /* check if it is already loaded */
   mod = module;
   do{
-    if (stricmp(String_val(Field(mod,Module_name)),modname) == 0) {
-      major = Long_val(Field(mod,Module_major));
+    if (stricmp(Name_field(Field(mod,Module_info),Field_module_name),modname) == 0) {
+      major = Long_val(Field(Field(mod,Module_info),Field_module_major));
       if (major != major_version) {
         raise_module( modname, "version %i required but module has version %i -- please recompile the main program", major_version, major );
       }
@@ -676,7 +676,7 @@ static value find_module( value module, const char* modname, long major_version 
   /* ok, we need to load it */
   mod = read_module( module, modname );
 
-  major = Long_val(Field(mod,Module_major));
+  major = Long_val(Field(Field(mod,Module_info),Field_module_major));
   if (major != major_version) {
     raise_module( modname, "version %i required but module has version %i -- please recompile the main program", major_version, major );
   }
@@ -709,7 +709,7 @@ static value* find_symbol( value module, const char* name, enum rec_kind kind )
     }
   }
 
-  raise_module( String_val(Field(module,Module_name)), "module doesn't export symbol \"%s\"", name );
+  raise_module( Name_field(Field(module,Module_info),Field_module_name), "module doesn't export symbol \"%s\"", name );
   CAMLreturn(0);
 }
 

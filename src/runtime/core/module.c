@@ -50,7 +50,7 @@ value find_module( value module, const char* modname )
 
   mod = module;
   do{
-    if (strcmp( String_val(Field(mod,Module_name)), modname ) == 0) {
+    if (strcmp( Name_field(Field(mod,Module_info),Field_module_name), modname ) == 0) {
       CAMLreturn(mod);
     }
     mod = Field(mod,Module_next);
@@ -173,7 +173,7 @@ static void format_name( char* buf, wsize_t max, value module, value rec, long o
     recEnc = Field(recEnc,Field_value_enc);
 
 
-  module_name = String_val(Field(module,Module_name));
+  module_name = Name_field(Field(module,Module_info),Field_module_name);
   enc_name    = Name_field(recEnc,Field_name);
   name        = Name_field(rec,Field_name);
 

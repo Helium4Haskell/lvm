@@ -16,11 +16,13 @@ addint x y = let! x = x in let! y = y in primadd x y
 main
   = 42
 
+fromTo :: Int -> Int -> List Int
 fromTo n m
   = case ltint n m of
       True  -> let! n1 = addint n 1 in Cons n (fromTo n1 m)
       False -> Nil
 
+foldr :: (a -> b -> b) -> b -> List a -> List b
 foldr f z xs
   = case xs of
       Nil       -> z

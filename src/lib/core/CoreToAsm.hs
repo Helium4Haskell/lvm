@@ -65,7 +65,7 @@ asmDecl prim decl
 
 asmLifted prim enc (Bind id expr)
   = let (pars,(lifted,asmexpr)) = asmTop prim expr
-    in  (DeclValue id (Defined False) (Just (Link enc DeclKindValue)) (Asm.Top pars asmexpr) []) 
+    in  (DeclValue id (Defined False) (Just enc) (Asm.Top pars asmexpr) []) 
         : concatMap (asmLifted prim id) lifted
 
 

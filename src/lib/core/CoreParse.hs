@@ -11,7 +11,7 @@
 
 module CoreParse( coreParse, coreParseExpr ) where
 
-import PPrint( (<+>), (<>), Doc, text )
+import PPrint( (<+>), (<>), Doc, text, hsep )
 import qualified PPrint
 
 import Standard( foldlStrict )
@@ -208,7 +208,7 @@ modulePublic exports exportCons exportData mod
          then decl{ declAccess = (declAccess decl){ accessPublic = True }}
          else decl
 
-    conTypeName (DeclCon{declCustoms=(CustomBytes tp:CustomName id:rest)})  = id
+    conTypeName (DeclCon{declCustoms=(tp:CustomLink id customData:rest)})  = id
     conTypeName other  = dummyId
 
 ----------------------------------------------------------------
@@ -324,7 +324,8 @@ ptopDeclType id
          then fail "identifier for type signature doesn't match the definition"
          else return ()
       ; expr <- pbindRhs
-      ; return (DeclValue id private Nothing expr [])
+      ; return (DeclValue id private Nothing expr 
+                [customType tp])
       }
 
 ptopDeclDirect id
@@ -355,18 +356,25 @@ pbindRhs
 ----------------------------------------------------------------
 -- data declarations
 ----------------------------------------------------------------
+customData      = DeclKindCustom (idFromString "data")
+customTypeDecl  = DeclKindCustom (idFromString "typedecl")
+
+customType tp   = CustomDecl (DeclKindCustom (idFromString "type")) [CustomBytes (bytesFromString (show (ppType tp)))]
+customKind k    = CustomDecl (DeclKindCustom (idFromString "kind")) [CustomBytes (bytesFromString (show (ppKind k)))]
+
 pdata :: TokenParser [CoreDecl]
 pdata
   = do{ lexeme LexDATA
       ; id   <- typeid
       ; args <- many typevarid
       ; let kind     = foldr KFun KStar (map (const KStar) args)
-            datadecl = DeclCustom id public (DeclKindCustom 100) [CustomBytes (bytesFromString (show (ppKind kind)))]
+            datadecl = DeclCustom id private customData [customKind kind]
       ; do{ lexeme LexASG
           ; let tp  = foldl TAp (TCon id) (map TVar args)
           ; cons <- sepBy1 (pconDecl tp) (lexeme LexBAR)
-          ; let con tag (conid,tp) = (DeclCon conid public (arityFromType tp) tag 
-                                      [CustomBytes (bytesFromString (show (ppType tp))), CustomName id])
+          ; let con tag (conid,tp) = (DeclCon conid private (arityFromType tp) tag 
+                                      [customType tp, 
+                                       CustomLink id customData])
           ; return (datadecl:zipWith con [0..] cons)
           }
       <|> {- empty data types -}
@@ -383,6 +391,7 @@ pconDecl tp
 ----------------------------------------------------------------
 -- type declarations
 ----------------------------------------------------------------
+
 ptypeTopDecl :: TokenParser [CoreDecl]
 ptypeTopDecl
   = do{ lexeme LexTYPE
@@ -390,8 +399,9 @@ ptypeTopDecl
       ; args <- many typevarid
       ; lexeme LexASG
       ; tp   <- ptype
-      ; let kind = foldr KFun KStar (map (const KStar) args)
-      ; return []
+      ; let kind  = foldr KFun KStar (map (const KStar) args)
+            tpstr = show $ (ppId id <+> hsep (map ppId args) <+> text "=" <+> ppType tp)
+      ; return [DeclCustom id private customTypeDecl [CustomBytes (bytesFromString tpstr)]]
       }
 
 ----------------------------------------------------------------
