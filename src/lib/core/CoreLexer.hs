@@ -138,6 +138,7 @@ data Lexeme     = LexUnknown Char
                 | LexSEMI       -- ;
                 | LexBSLASH     -- \ (niet meteen een enter hierachter vanwege -cpp)
                 | LexASG        -- =
+                | LexCOLON      -- :
                 | LexCOLCOL     -- ::
                 | LexDOT        -- .
                 | LexDOTDOT     -- ..
@@ -174,11 +175,21 @@ data Lexeme     = LexUnknown Char
 
                 -- not standard
                 | LexLETSTRICT
+                | LexMATCH
+                | LexWITH
+
+                | LexPRIVATE
                 | LexPUBLIC
-                | LexABSTRACT
                 | LexDEFAULT
+                
+                | LexABSTRACT
                 | LexINSTR
                 | LexEXTERN
+
+                | LexLINK
+                | LexNOTHING
+                | LexCUSTOM
+
                 | LexSTATIC | LexDYNAMIC | LexRUNTIME
                 | LexCCALL | LexSTDCALL | LexINSTRCALL
                 | LexDECORATE | LexORDINAL
@@ -212,10 +223,16 @@ lexer pos ('t':'y':'p':'e':cs)      | nonId cs    = (pos,LexTYPE) : nextinc lexe
 lexer pos ('m':'o':'d':'u':'l':'e':cs)      | nonId cs = (pos,LexMODULE) : nextinc lexer pos 6 cs
 lexer pos ('i':'m':'p':'o':'r':'t':cs)      | nonId cs = (pos,LexIMPORT) : nextinc lexer pos 6 cs
 -- not standard
+lexer pos ('l':'i':'n':'k':cs)              | nonId cs = (pos,LexLINK)   : nextinc lexer pos 4 cs
+lexer pos ('w':'i':'t':'h':cs)              | nonId cs = (pos,LexWITH)   : nextinc lexer pos 4 cs
+lexer pos ('m':'a':'t':'c':'h':cs)          | nonId cs = (pos,LexMATCH)   : nextinc lexer pos 5 cs
 lexer pos ('c':'c':'a':'l':'l':cs)          | nonId cs = (pos,LexCCALL)   : nextinc lexer pos 5 cs
 lexer pos ('p':'u':'b':'l':'i':'c':cs)      | nonId cs = (pos,LexPUBLIC)   : nextinc lexer pos 6 cs
 lexer pos ('e':'x':'t':'e':'r':'n':cs)      | nonId cs = (pos,LexEXTERN)  : nextinc lexer pos 6 cs
 lexer pos ('s':'t':'a':'t':'i':'c':cs)      | nonId cs = (pos,LexSTATIC)  : nextinc lexer pos 6 cs
+lexer pos ('c':'u':'s':'t':'o':'m':cs)      | nonId cs = (pos,LexCUSTOM)  : nextinc lexer pos 6 cs
+lexer pos ('n':'o':'t':'h':'i':'n':'g':cs)  | nonId cs = (pos,LexNOTHING) : nextinc lexer pos 7 cs
+lexer pos ('p':'r':'i':'v':'a':'t':'e':cs)  | nonId cs = (pos,LexPRIVATE) : nextinc lexer pos 7 cs
 lexer pos ('d':'e':'f':'a':'u':'l':'t':cs)  | nonId cs = (pos,LexDEFAULT) : nextinc lexer pos 7 cs
 lexer pos ('d':'y':'n':'a':'m':'i':'c':cs)  | nonId cs = (pos,LexDYNAMIC) : nextinc lexer pos 7 cs
 lexer pos ('r':'u':'n':'t':'i':'m':'e':cs)  | nonId cs = (pos,LexRUNTIME) : nextinc lexer pos 7 cs
@@ -244,6 +261,7 @@ lexer pos ('@':cs)              | nonSym cs = (pos,LexAT)     : nextinc lexer po
 lexer pos ('=':cs)              | nonSym cs = (pos,LexASG)    : nextinc lexer pos 1 cs
 lexer pos ('\\':cs)             | nonSym cs = (pos,LexBSLASH) : nextinc lexer pos 1 cs
 lexer pos ('!':cs)              | nonSym cs = (pos,LexEXCL)   : nextinc lexer pos 1 cs
+lexer pos (':':cs)              | nonSym cs = (pos,LexCOLON)  : nextinc lexer pos 1 cs
 -- lexer pos ('-':cs)              | nonSym cs = (pos,LexDASH)   : nextinc lexer pos 1 cs
 
 lexer pos ('(':cs)              = (pos,LexLPAREN) : nextinc lexer pos 1 cs

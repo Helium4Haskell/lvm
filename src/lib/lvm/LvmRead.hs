@@ -261,7 +261,7 @@ readCustom
       ; if (isInt x) 
          then return (CustomInt (decodeInt x))
         else if (decodeIdx x == 0)
-         then return CustomNoLink
+         then return CustomNothing
          else resolve (decodeIdx x) recToCustom
       }
   where

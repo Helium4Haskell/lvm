@@ -1,0 +1,27 @@
+{- import/export -}
+module Custom( List(..), Bool( False, True )
+             , foldlStrict ) where
+
+data Bool   = False | True
+data List a = Nil | Cons a (List a)
+
+main
+  = 42
+
+custom typedecl Set : public ["forall a.Set a = List a"]
+custom infix (+) : public [5,right]
+custom infix (*) : public [6,left]
+
+-- another "helium" specific way to do the above
+custom helium infix  : public ["infixr 9 (+),(*)"]
+custom helium "type" : public ["type Set a = List a"]
+
+foldl f z xs : public [custom "type" ["(b -> a -> b) -> b -> [a] -> [b]"], custom "arity" [3]]
+  = case xs of
+      Nil       -> z
+      Cons x xx -> foldl f (f z x) xx
+
+foldlStrict f z xs 
+  = case xs of
+      Nil       -> z
+      Cons x xx -> let! y = f z x in foldlStrict f y xx

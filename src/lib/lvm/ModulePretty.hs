@@ -36,6 +36,7 @@ ppDecl ppValue decl
       DeclValue{} -> line <> text "=" <+> ppValue (valueValue decl)
       DeclCon{}   -> line <> text "=" <+> text "[tag=" <> pretty (conTag decl) 
                                       <>  text ", arity=" <> pretty (declArity decl) <> text "]"
+      DeclExtern{}-> text " ::" <+> text (externType decl)
       other       -> empty
    ))
 
@@ -66,8 +67,8 @@ ppCustom custom
       CustomName id       -> ppId id
       CustomBytes bs      -> dquotes (string (stringFromBytes bs))
       CustomLink id kind  -> text "link" <+> ppDeclKind kind <+> ppId id
-      CustomDecl kind cs  -> ppDeclKind kind <+> ppCustoms cs
-      CustomNoLink        -> text "nolink"
+      CustomDecl kind cs  -> text "custom" <+> ppDeclKind kind <+> ppCustoms cs
+      CustomNothing       -> text "nothing"
       other               -> error "ModulePretty.ppCustom: unknown custom kind"
 
 ppId :: Id -> Doc

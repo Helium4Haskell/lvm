@@ -11,17 +11,20 @@
 
 include ../config/makefile
 
-#CCOPT	   = -O2 $(CCOPTS) -g -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
-#LINKOPT    = $(LINKOPTS)
-#CCOPT_FAST = -O3 $(CCOPTS) -g -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
 ifdef NDEBUG
 CCOPT	   = -O2 $(CCOPTS) -I. -Icommon
 LINKOPT    = $(LINKOPTS)
 CCOPT_FAST = -O3 $(CCOPTS) -I. -Icommon
 else
+ ifdef TRACE
+CCOPT	   = $(CCOPTS) -I. -Icommon -DDEBUG -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
+LINKOPT    = $(LINKOPTS)
+CCOPT_FAST = $(CCOPTS) -I. -Icommon -DDEBUG -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
+ else
 CCOPT	   = $(CCOPTS) -I. -Icommon
 LINKOPT    = $(LINKOPTS)
 CCOPT_FAST = $(CCOPTS) -I. -Icommon
+ endif
 endif
 
 CORE	= main.c stats.c options.c \

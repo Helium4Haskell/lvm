@@ -58,7 +58,7 @@ data Custom
   | CustomName  Id
   | CustomLink  Id !DeclKind
   | CustomDecl  !DeclKind ![Custom]
-  | CustomNoLink
+  | CustomNothing
 
 data DeclKind 
   = DeclKindName

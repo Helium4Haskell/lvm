@@ -187,26 +187,38 @@ parseModule :: TokenParser (CoreModule)
 parseModule
   = do{ lexeme LexMODULE
       ; moduleId <- conid <?> "module name"
-      ; (exports, exportCons, exportData) <- pexports
+      ; exports <- pexports
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
-      ; declss <- semiList (wrap (ptopDecl <|> pabstract <|> pextern) <|> pdata <|> pimport <|> ptypeTopDecl)
+      ; declss <- semiList (wrap (ptopDecl <|> pabstract <|> pextern <|> pCustomDecl) 
+                            <|> pdata <|> pimport <|> ptypeTopDecl)
       ; lexeme LexRBRACE
       ; lexeme LexEOF
 
-      ; return (modulePublic exports exportCons exportData (Module moduleId 0 0 (concat declss)))
+      ; return (modulePublic exports (Module moduleId 0 0 (concat declss)))
       }
 
-modulePublic :: IdSet -> IdSet -> IdSet -> Module v -> Module v
-modulePublic exports exportCons exportData mod
-  = mod{ moduleDecls = map declPublic (moduleDecls mod) }
+modulePublic :: (IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
+modulePublic (exports,exportCons,exportData,exportDataCon) mod
+  = mod{ moduleDecls = map setPublic (moduleDecls mod) }
   where
+    setPublic decl  | declPublic decl = decl{ declAccess = (declAccess decl){ accessPublic = True } }
+                    | otherwise       = decl
+
     declPublic decl
-      = if (  ((isDeclValue decl || isDeclAbstract decl || isDeclExtern decl) && elemSet (declName decl) exports)
-           || (isDeclCon decl && elemSet (declName decl) exportCons)
-           || (isDeclCon decl && elemSet (conTypeName decl) exportData))
-         then decl{ declAccess = (declAccess decl){ accessPublic = True }}
-         else decl
+      = case decl of
+          DeclValue{}     -> elemSet (declName decl) exports
+          DeclAbstract{}  -> elemSet (declName decl) exports
+          DeclExtern{}    -> elemSet (declName decl) exports
+          DeclCon{}       -> elemSet (declName decl) exportCons || elemSet (conTypeName decl) exportDataCon
+          DeclCustom{}    -> declKind decl == customData && elemSet (declName decl) exportData
+          DeclImport{}    -> case importKind (declAccess decl) of
+                               DeclKindValue  -> elemSet (declName decl ) exports
+                               DeclKindExtern -> elemSet (declName decl ) exports
+                               DeclKindCon    -> elemSet (declName decl ) exportCons 
+                               DeclKindCustom id -> id==idFromString "data" && elemSet (declName decl) exportData
+                               other          -> False
+          other           -> False
 
     conTypeName (DeclCon{declCustoms=(tp:CustomLink id customData:rest)})  = id
     conTypeName other  = dummyId
@@ -216,19 +228,21 @@ modulePublic exports exportCons exportData mod
 ----------------------------------------------------------------
 data Export  = ExportValue Id
              | ExportCon   Id
-             | ExportData  Id
+             | ExportData  Id 
+             | ExportDataCon Id
 
-pexports :: TokenParser (IdSet,IdSet,IdSet)
+pexports :: TokenParser (IdSet,IdSet,IdSet,IdSet)
 pexports
   = do{ exports <- commaParens pexport <|> return []
-      ; return (foldlStrict split (emptySet,emptySet,emptySet) (concat exports))
+      ; return (foldlStrict split (emptySet,emptySet,emptySet,emptySet) (concat exports))
       }
   where
-    split (values,cons,datas) exp
+    split (values,cons,datas,datacons) exp
       = case exp of
-          ExportValue id  -> (insertSet id values,cons,datas)
-          ExportCon   id  -> (values,insertSet id cons,datas)
-          ExportData  id  -> (values,cons,insertSet id datas)
+          ExportValue id  -> (insertSet id values,cons,datas,datacons)
+          ExportCon   id  -> (values,insertSet id cons,datas,datacons)
+          ExportData  id  -> (values,cons,insertSet id datas,datacons)
+          ExportDataCon id -> (values,cons,datas,insertSet id datacons)
 
 pexport :: TokenParser [Export]
 pexport
@@ -240,12 +254,12 @@ pexport
       ; lexeme LexLPAREN
       ; do{ lexeme LexDOTDOT
           ; lexeme LexRPAREN
-          ; return [ExportData id]
+          ; return [ExportData id,ExportDataCon id]
           }
         <|>
         do{ ids <- sepBy conid (lexeme LexCOMMA)
           ; lexeme LexRPAREN
-          ; return (map ExportCon ids)
+          ; return (ExportData id:map ExportCon ids)
           }
       }
 
@@ -291,20 +305,14 @@ pimport
 
 pimportValue modid
   = do{ id <- variable
-      ; do{ lexeme LexASG
-          ; impid <- variable
-          ; return (DeclImport id (Imported False modid impid DeclKindValue 0 0) [])
-          }
-      <|> return (DeclImport id (Imported False modid id DeclKindValue 0 0) [])
+      ; impid <- option id (do{ lexeme LexASG; variable })
+      ; return (DeclImport id (Imported False modid impid DeclKindValue 0 0) [])
       }
 
 pimportCon modid
   = do{ id <- constructor
-      ; do{ lexeme LexASG
-          ; impid <- constructor
-          ; return (DeclImport id (Imported False modid impid DeclKindCon 0 0) [])
-          }
-      <|> return (DeclImport id (Imported False modid id DeclKindCon 0 0) [])
+      ; impid <- option id (do{ lexeme LexASG; constructor })
+      ; return (DeclImport id (Imported False modid impid DeclKindCon 0 0) [])
       }
 
 ----------------------------------------------------------------
@@ -323,18 +331,29 @@ ptopDeclType id
       ; if (id /= id')
          then fail "identifier for type signature doesn't match the definition"
          else return ()
-      ; expr <- pbindRhs
-      ; return (DeclValue id private Nothing expr 
-                [customType tp])
+      ; (access,custom,expr) <- pbindTopRhs
+      ; return (DeclValue id access Nothing expr 
+                ([customType tp] ++ custom))
       }
 
 ptopDeclDirect id
-  = do{ expr <- pbindRhs
-      ; return (DeclValue id private Nothing expr [])
+  = do{ (access,custom,expr) <- pbindTopRhs
+      ; return (DeclValue id access Nothing expr custom)
       }
   where
     typeFromExpr expr
       = TString ""
+
+pbindTopRhs
+  = do{ args <- many bindid
+      ; (access,custom) <- pAttributes
+      ; lexeme LexASG
+      ; body <- pexpr
+      ; let expr = foldr Lam body args
+      ; return (access,custom,expr)
+      }
+  <?> "declaration"
+
 
 
 pbind :: TokenParser Bind
@@ -403,6 +422,63 @@ ptypeTopDecl
             tpstr = show $ (ppId id <+> hsep (map ppId args) <+> text "=" <+> ppType tp)
       ; return [DeclCustom id private customTypeDecl [CustomBytes (bytesFromString tpstr)]]
       }
+
+----------------------------------------------------------------
+-- Custom
+----------------------------------------------------------------
+pCustomDecl :: TokenParser CoreDecl
+pCustomDecl
+  = do{ lexeme LexCUSTOM
+      ; kind <- pdeclKind
+      ; id   <- customid
+      ; (access,customs) <- pAttributes
+      ; return (DeclCustom id access kind customs)
+      }
+
+pAttributes :: TokenParser (Access,[Custom])
+pAttributes
+  = do{ lexeme LexCOLON
+      ; access  <- paccess
+      ; customs <- pcustoms
+      ; return (access,customs)
+      }
+  <|> return (private,[])
+
+paccess 
+  =   do{ lexeme LexPRIVATE; return private }
+  <|> do{ lexeme LexPUBLIC; return public }
+  <|> return private
+
+pcustoms
+  = do{ lexeme LexLBRACKET
+      ; customs <- pcustom `sepBy` (lexeme LexCOMMA)
+      ; lexeme LexRBRACKET
+      ; return customs
+      }
+
+pcustom
+  =   do{ i <- lexInt; return (CustomInt (fromInteger i)) }
+  <|> do{ s <- lexString; return (CustomBytes (bytesFromString s)) }
+  <|> do{ id <- variable <|> constructor; return (CustomName id) }
+  <|> do{ lexeme LexNOTHING; return (CustomNothing) }
+  <|> do{ lexeme LexLINK  
+        ; kind <- pdeclKind
+        ; id   <- customid
+        ; return (CustomLink id kind)
+        }
+  <|> do{ lexeme LexCUSTOM
+        ; kind <- pdeclKind
+        ; cs   <- pcustoms
+        ; return (CustomDecl kind cs)
+        }
+  <?> "custom value"
+
+
+pdeclKind
+  =   do{ id <- varid;    return (DeclKindCustom id) }
+  <|> do{ i <- lexInt;    return (toEnum (fromInteger i)) }
+  <|> do{ s <- lexString; return (DeclKindCustom (idFromString s)) }
+  <?> "custom kind"
 
 ----------------------------------------------------------------
 -- Expressions
@@ -570,7 +646,7 @@ pextern
       ; id <- varid
       ; s  <- lexString
       ; (tp,arity) <- ptypeDecl
-      ; return (DeclExtern id public arity "" LinkStatic CallInstr "" (Plain s) [])
+      ; return (DeclExtern id public arity (show (ppType tp)) LinkStatic CallInstr "" (Plain s) [])
       }
 
 ------------------
@@ -730,6 +806,12 @@ semiTerm p
 ----------------------------------------------------------------
 -- Lexeme parsers
 ----------------------------------------------------------------
+customid
+  =   variable
+  <|> conid
+  <|> do{ s <- lexString; return (idFromString s) }
+  <?> "custom identifier"
+
 variable
   = varid <|> parens opid
 

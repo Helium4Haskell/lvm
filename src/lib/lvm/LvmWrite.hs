@@ -416,7 +416,7 @@ emitCustom :: Custom -> Emit Int
 emitCustom custom
   = case custom of
       CustomInt i         -> return (encodeInt i)
-      CustomNoLink        -> return (encodeIdx 0)
+      CustomNothing       -> return (encodeIdx 0)
       CustomBytes bs      -> do{ idx <- emitBytes bs; return (encodeIdx idx) }
       CustomName id       -> do{ idx <- emitName id; return (encodeIdx idx) }
       CustomLink id kind  -> do{ idx <- findIndex kind id; return (encodeIdx idx) }
