@@ -304,7 +304,7 @@ const char * searchpath(const char* path, const char * name, const char* ext )
   /* Search in path */
   while(path && *path != 0) {
     long len;
-    for( len = 0; path[len] != 0 && path[len] != ':' && path[len] != ';' ) len++;
+    for( len = 0; path[len] != 0 && path[len] != ':' && path[len] != ';'; len++) { /* nothing */ }
     if (len < MAXPATH) {
       str_copy( fullname, path, len+1 );
       if (len > 0) str_cat( fullname, "/", MAXPATH );
