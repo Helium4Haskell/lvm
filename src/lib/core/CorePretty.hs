@@ -96,5 +96,5 @@ ppLit lit
   = case lit of
       LitInt i    -> pretty i
       LitDouble d -> pretty d
-      LitBytes s  -> dquotes (string (stringFromBytes s))
+      LitBytes s  -> text (show (stringFromBytes s))
 
