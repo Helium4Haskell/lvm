@@ -38,6 +38,7 @@ ASM	= asm/AsmOptimize.hs asm/AsmInline.hs asm/AsmOccur.hs \
 
 CORE	= core/Core.hs core/CorePretty.hs core/CoreToAsm.hs \
 	  core/CoreParse.hs core/CoreLexer.hs \
+	  core/CoreLex.hs \
 	  core/CoreRemoveDead.hs core/CoreNormalize.hs \
 	  core/CoreNoShadow.hs core/CoreFreeVar.hs core/CoreLetSort.hs \
 	  core/CoreLift.hs core/CoreSaturate.hs

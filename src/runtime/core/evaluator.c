@@ -29,8 +29,8 @@
 
 
 #ifdef DEBUG
-#undef TRACE_TRACE
-#undef TRACE_INSTR
+#define TRACE_TRACE
+#define TRACE_INSTR
 #undef TRACE_STACK
 #undef GC_AT_EACH_INSTR
 #endif
