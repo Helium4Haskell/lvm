@@ -27,7 +27,7 @@
 module CoreNormalize ( coreNormalize ) where
 
 import Id     ( Id, NameSupply, splitNameSupply, splitNameSupplies, freshId )
-import IdSet  ( IdSet, elemSet, setFromMap )
+import IdSet  ( IdSet, elemSet )
 import Core
 
 ----------------------------------------------------------------
@@ -54,7 +54,7 @@ coreNormalize :: NameSupply -> CoreModule -> CoreModule
 coreNormalize supply mod
   = mapExprWithSupply (normDeclExpr primitives) supply mod
   where
-    primitives  = setFromMap (externs mod)
+    primitives  = externNames mod
 
 normDeclExpr directs supply expr
   = normBind (Env supply directs) expr

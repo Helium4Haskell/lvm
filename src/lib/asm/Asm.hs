@@ -19,7 +19,7 @@ import Module
   Asm modules
 ---------------------------------------------------------------}
 type AsmModule  = Module Top
-type AsmValue   = DValue Top
+type AsmDecl    = Decl Top
 
 {---------------------------------------------------------------
   low level "assembly" language

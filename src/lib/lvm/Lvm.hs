@@ -9,12 +9,10 @@
 
 -- $Id$
 
-module Lvm( module Module, LvmModule, LvmValue
+module Lvm( module Module, LvmModule, LvmDecl
 
           -- constants
-          , recName,recBytes,recCode,recValue,recCon 
-          , recImport,recModule,recExtern,recExternType,recHeader,recFooter 
-          , flagPrivate, flagPublic
+          , recHeader,recFooter           
           ) where
 
 import Byte    ( Byte )
@@ -26,26 +24,11 @@ import Module
   An LVM module
 ---------------------------------------------------------------}
 type LvmModule  = Module [Instr]
-type LvmValue   = DValue [Instr]
+type LvmDecl    = Decl [Instr]
 
 {---------------------------------------------------------------
   Constants
 ---------------------------------------------------------------}
-flagPrivate,flagPublic :: Int
-flagPrivate   = 0
-flagPublic    = 1
-
-recName,recBytes,recCode,recValue,recCon :: Int
-recImport,recModule,recExtern,recExternType,recHeader,recFooter :: Int
-recName       = 0
-recBytes      = 1
-recCode       = 2
-recValue      = declValue
-recCon        = declCon
-recImport     = declImport
-recModule     = 6
-recExtern     = declExtern
-recExternType = 8
-
+recHeader,recFooter :: Int
 recHeader     = 0x4c564d58
 recFooter     = 0x4c564d59

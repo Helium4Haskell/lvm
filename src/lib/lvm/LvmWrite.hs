@@ -9,9 +9,12 @@
 
 -- $Id$
 
+-- TODO: the single IdMap can lead to name clashes, use proper indices 
+-- where every id belongs to the namespace of declkind
+
 module LvmWrite( lvmWriteFile, lvmToBytes ) where
 
-import Standard ( assert )
+import Standard ( assert)
 import Id       ( Id, stringFromId )
 import IdMap    ( IdMap, emptyMap, insertMap, lookupMap, listFromMap )
 import Byte
@@ -45,8 +48,8 @@ lvmToBytes mod
                     , totallen
                     , lvmMajorVersion
                     , lvmMinorVersion
-                    , versionMajor mod
-                    , versionMinor mod
+                    , moduleMajorVer mod
+                    , moduleMinorVer mod
                     , idxName         
                     , length recs
                     , bytesLength brecs
@@ -69,11 +72,7 @@ bytesFromModule mod
 emitLvmModule :: LvmModule -> Emit Index
 emitLvmModule mod
   = do{ idxName <- emitName (moduleName mod)
-      ; mapM_ emitDCon     (listFromMap (constructors mod))
-      ; mapM_ emitDExtern  (listFromMap (externs mod))
-      ; mapM_ emitDAbstract (listFromMap (abstracts mod))
-      ; mapM_ emitDValue   (values mod)
-      ; mapM_ emitDCustom  (listFromMap (customs mod))
+      ; mapM_ emitDecl (moduleDecls mod)
       ; return idxName
       }
 
@@ -83,41 +82,51 @@ emitLvmModule mod
   allocation of named blocks first and than emit to fix this.
 --------------------------------------------------------------}
 flags :: Access -> Int
-flags Public    = 1
-flags Private   = 0
-flags other     = error "LvmWrite.flags: invalid access mode"
+flags access    = if (accessPublic access) then 1 else 0
 
+isImported decl
+  = case declAccess decl of
+      Imported{}  -> True
+      other       -> False
 
-emitDValue (id,DValue access mbEnc instrs custom)
-  | isImport access = emitImport id recValue access
-  | otherwise       = do{ idxEnc <- maybe (return 0) (findIndex) mbEnc
-                        ; idxCode <- emitInstrs instrs
-                        ; emitNamedBlock id recValue [flags access,arity,idxEnc,idxCode] custom
-                        }
+emitDecl DeclExtern{ externCall = CallInstr }  
+  = return 0
+emitDecl decl
+  | isImported decl   = emitImport (declName decl) (declKindFromDecl decl) (declAccess decl)
+emitDecl decl
+  = case decl of
+      DeclValue{}     -> emitDValue decl
+      DeclAbstract{}  -> emitDAbstract decl
+      DeclCon{}       -> emitDCon decl
+      DeclExtern{}    -> emitDExtern decl
+      DeclCustom{}    -> emitDCustom decl
+      other           -> error "LvmWrite.emitDecl: invalid declaration at this phase"
+
+emitDValue (DeclValue id access mbEnc instrs custom)
+  = do{ idxEnc <- maybe (return 0) (\(Link id declkind) -> findIndex id) mbEnc
+      ; idxCode <- emitInstrs instrs
+      ; emitNamedBlock id DeclKindValue [flags access,arity,idxEnc,idxCode] custom
+      }
   where
     arity = case instrs of
               (ARGCHK n:other) -> n
               otherwise        -> error ("LvmWrite.emitDecl: instructions do not start with an argument check: " ++ show id)
 
-emitDCon (id,DCon access arity tag custom)
-  | isImport access = emitImport id recCon access
-  | otherwise       = emitNamedBlock id recCon [flags access,arity,tag] custom
+emitDCon (DeclCon id access arity tag custom)
+  = emitNamedBlock id DeclKindCon [flags access,arity,tag] custom
 
-emitDCustom (id,DCustom access kind custom)
-  | isImport access = emitImport id kind access
-  | otherwise       = emitBlock (Just id) kind nil custom
+emitDCustom (DeclCustom id access kind custom)
+  = emitBlock (Just id) kind nil custom
 
-emitDExtern (id,DExtern access arity tp linkconv callconv libname externname custom)
-  | callconv == CallInstr = return 0
-  | isImport access = emitImport id recExtern access
-  | otherwise       = do{ idxType            <- emitExternType tp
-                        ; idxLibName         <- emitNameString libname
-                        ; (nameFlag,idxName) <- emitNameExtern
-                        ; emitNamedBlock id recExtern  [flags access,arity,idxType
-                                                       ,idxLibName,idxName,nameFlag
-                                                       ,fromEnum linkconv, fromEnum callconv
-                                                       ] []
-                        }
+emitDExtern (DeclExtern id access arity tp linkconv callconv libname externname custom)
+  = do{ idxType            <- emitExternType tp
+      ; idxLibName         <- emitNameString libname
+      ; (nameFlag,idxName) <- emitNameExtern
+      ; emitNamedBlock id DeclKindExtern  [flags access,arity,idxType
+                                          ,idxLibName,idxName,nameFlag
+                                          ,fromEnum linkconv, fromEnum callconv
+                                          ] []
+      }
   where
     emitNameExtern  = case externname of
                         Plain s    -> do{ idx <- emitNameString s; return (0,idx) }
@@ -125,20 +134,20 @@ emitDExtern (id,DExtern access arity tp linkconv callconv libname externname cus
                         Ordinal i  -> return (2,i)
 
 
-emitDAbstract (id,DAbstract access arity)
-  | isImport access = emitImport id recValue access
-  | otherwise       = error ("LvmWrite.emitDAbstract: abstract values should be imported: " ++ show id)
+emitDAbstract (DeclAbstract id access arity)
+  = error ("LvmWrite.emitDAbstract: abstract values should be imported: " ++ show id)
 
 
-emitImport id recKind (Import public moduleName importName majorVer minorVer)
-  = do{ idxModule <- emitModule moduleName majorVer minorVer
+emitImport id declkind access@(Imported public moduleName importName kind majorVer minorVer)
+  = assert (declkind==kind) "LvmWrite.emitImport: kinds don't match" $
+    do{ idxModule <- emitModule moduleName majorVer minorVer
       ; idxName   <- emitName importName
-      ; emitNamedBlock id recImport [if public then 1 else 0,idxModule,idxName,recKind] []
+      ; emitNamedBlock id DeclKindImport [flags access,idxModule,idxName,fromEnum declkind] []
       }
 
 emitModule name major minor
   = do{ idxName <- emitName name
-      ; emitBlock Nothing recModule (block [idxName,major,minor]) []
+      ; emitBlock Nothing DeclKindModule (block [idxName,major,minor]) []
       }
 
 {--------------------------------------------------------------
@@ -148,9 +157,9 @@ emitInstrs :: [Instr] -> Emit Index
 emitInstrs instrs
   = do{ rinstrs <- mapM resolve instrs
       ; let codes = concatMap emit rinstrs
-      ; emitBlock Nothing recCode (block codes) []
+      ; emitBlock Nothing DeclKindCode (block codes) []
       }
-
+{-
 emitCode :: (Id,LvmValue) -> Emit Index
 emitCode (id,DValue access mbEnc instrs custom)
   = do{ idx     <- findIndex id
@@ -161,7 +170,7 @@ emitCode (id,DValue access mbEnc instrs custom)
 
 emitCode other
   = return 0
-
+-}
 
 {--------------------------------------------------------------
   emit an instruction
@@ -254,7 +263,7 @@ emitMatch alts
         start      = 2 + 2*(length alts -1)
     in [length alts-1]
        ++ matches start (zip pats (map length altis))
-       ++ concat altis
+       ++ concat altis       
     where
       matches top []           = []
       matches top ((pat,n):xs)
@@ -346,7 +355,7 @@ resolveBytes f bs
 {--------------------------------------------------------------
   basic entities
 --------------------------------------------------------------}
-emitNamedBlock :: Id -> Int -> [Int] -> [Custom] -> Emit Index
+emitNamedBlock :: Id -> DeclKind -> [Int] -> [Custom] -> Emit Index
 emitNamedBlock id kind is custom
   = do{ idxName <- emitName id
       ; emitBlock (Just id) kind (block (idxName:is)) custom
@@ -358,18 +367,18 @@ emitName id
 
 emitNameString :: String -> Emit Index
 emitNameString s
-  = emitBlock Nothing recName (blockString s) []
+  = emitBlock Nothing DeclKindName (blockString s) []
 
 emitExternType tp
-  = emitBlock Nothing recExternType (blockString tp) []
+  = emitBlock Nothing DeclKindExternType (blockString tp) []
 
 emitBytes bs
-  = emitBlock Nothing recBytes (blockBytes bs) []
+  = emitBlock Nothing DeclKindBytes (blockBytes bs) []
 
 emitBlock mbId kind bs custom
   = do{ bcustom <- emitCustoms custom
       ; let bytes = cat bs bcustom
-            total = cat (block [kind,bytesLength bytes]) bytes
+            total = cat (block [fromEnum kind,bytesLength bytes]) bytes
       ; assert ((bytesLength bytes `mod` 4) == 0) "LvmWrite.emitBlock: unaligned size" $
         emitPrimBlock mbId total
       }
@@ -386,10 +395,11 @@ emitCustoms decls
 emitCustom :: Custom -> Emit Int
 emitCustom custom
   = case custom of
-      CtmInt i      -> return i
-      CtmIndex id   -> findIndex id
-      CtmBytes bs   -> emitBytes bs
-      CtmName id    -> emitName id
+      CustomInt i      -> return i
+      CustomBytes bs   -> emitBytes bs
+      CustomName id    -> emitName id
+      CustomDecl (Link id kind) 
+        -> findIndex id
 
 {--------------------------------------------------------------
   Emit Monad

@@ -24,52 +24,38 @@ modulePretty ppValue mod
   = ppModule ppValue mod
 
 ppModule ::  (v -> Doc) -> Module v -> Doc
-ppModule ppValue (Module moduleName major minor values abstracts constructors externs customs imports)
+ppModule ppValue (Module moduleName major minor decls)
   =  text "module" <+> ppId moduleName <+> text "where"
- <$> vcat (concat
-     [map ppDImport imports
-     ,map ppDCustom (listFromMap customs)
-     ,map ppDExtern (listFromMap externs)
-     ,map ppDAbstract (listFromMap abstracts)
-     ,map ppDCon    (listFromMap constructors)
-     ,map (ppDValue ppValue) values     
-     ])
+ <$> vcat (map (\decl -> ppDecl ppValue decl <> line) decls)
  <$> empty
 
-ppDecls pp decls
-  = vcat (map (\(id,decl) -> pp id decl <> line) (listFromMap decls))
-
-
-
-ppDValue ppValue (id,DValue{ valueAccess = access, valueValue = value })
-  = nest 2 (ppId  id <+> text "=" <+> ppAccess access <$> ppValue value)
-
-ppDAbstract (id,DAbstract{ abstractArity=arity})
-  = nest 2 (ppId  id <+> text "= <abstract arity=" <+> pretty arity <> text ">")
-
-
-ppDCon (id,DCon{ conTag=tag, conArity=arity })
-  =  text "con" <+> ppId  id
-  <+> text "= <tag=" <+> pretty tag <+> text ", arity=" <+> pretty arity <> text ">"
-
-ppDExtern (id,DExtern{})
-  = text "extern" <+> ppId  id
-
-ppDCustom (id,DCustom{})
-  = text "custom" <+> ppId id
-
-ppDImport (id,DImport (Import public modid impid major minor) kind)
-  = text "import" <+> ppId id <+> text "=" <+> ppId modid <> text "." <> ppId impid
+ppDecl ppValue decl
+  = case decl of
+      DeclValue{declName=id,declAccess=access,valueValue=value}   
+        -> nest 2 (ppId id <+> text "=" <+> ppAccess access <$> ppValue value)
+      DeclCon{declName=id,conTag=tag,declArity=arity }
+        -> text "con" <+> ppId  id <+> text "= <tag=" <+> pretty tag <+> text ", arity=" <+> pretty arity <> text ">"
+      DeclExtern{declName=id}
+        -> text "extern" <+> ppId  id
+      DeclCustom{declName=id}
+        -> text "custom" <+> ppId id
+      DeclImport{declName=id,declAccess=access}
+        -> text "import" <+> ppId id <+> text "=" <+> ppAccess access
+      DeclAbstract{declName=id,declAccess=access}
+        -> text "abstract" <+> ppId id <+> text "=" <+> ppAccess access
+      other
+        -> text "<unknown declaration>"
 
 ppId :: Id -> Doc
 ppId id
   = text (stringFromId id)
 
-
 ppAccess acc
   = case acc of
-      Private -> empty
-      Public  -> text "public"
-      Import public modid impid major minor
-              -> (if (public) then text "public " else empty) <> 
-                 ppId modid <> char '.' <> ppId impid
+      Defined public 
+        -> ppPublic public
+      Imported public modid impid impkind major minor
+        -> ppPublic public <+> ppId modid <> char '.' <> ppId impid
+
+ppPublic public
+  = if public then text "public" else text "private"

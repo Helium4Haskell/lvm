@@ -11,9 +11,10 @@
 
 module CoreToAsm( coreToAsm ) where
 
-import Id     ( Id, idFromString, NameSupply, splitNameSupplies )
-import IdMap  ( IdMap, listFromMap, mapFromList )
-import IdSet  ( IdSet, elemSet, setFromMap )
+import Standard( unsafeCoerce )
+import Id      ( Id, idFromString, NameSupply, splitNameSupplies )
+import IdMap   ( IdMap, listFromMap, mapFromList )
+import IdSet   ( IdSet, elemSet )
 import Core
 import qualified Asm
 
@@ -49,21 +50,23 @@ coreToAsm supply mod
 
 exprToTop :: CoreModule -> Asm.AsmModule
 exprToTop mod
-  = mod{ values = concatMap (asmDValue primitives) (values mod) }
-  where
-    primitives  = setFromMap (externs mod)
-
+  = mod{ moduleDecls = concatMap (asmDecl (externNames mod)) (moduleDecls mod) }
 
 {---------------------------------------------------------------
   top-level bindings
 ---------------------------------------------------------------}
-asmDValue prim (id,DValue acc enc expr custom)
+
+asmDecl prim (DeclValue id acc enc expr custom)
   = let (pars,(lifted,asmexpr)) = asmTop prim expr
-    in (id,DValue acc enc (Asm.Top pars asmexpr) custom) : concatMap (asmLifted prim id) lifted
+    in (DeclValue id acc enc (Asm.Top pars asmexpr) custom) : concatMap (asmLifted prim id) lifted
+asmDecl prim decl
+  = [unsafeCoerce decl]
+
 
 asmLifted prim enc (Bind id expr)
   = let (pars,(lifted,asmexpr)) = asmTop prim expr
-    in  (id,DValue Private (Just enc) (Asm.Top pars asmexpr) []) : concatMap (asmLifted prim id) lifted
+    in  (DeclValue id (Defined False) (Just (Link enc DeclKindValue)) (Asm.Top pars asmexpr) []) 
+        : concatMap (asmLifted prim id) lifted
 
 
 asmTop prim expr

@@ -10,7 +10,7 @@
 -- $Id$
 
 module Core ( module Module
-            , CoreModule, CoreValue
+            , CoreModule, CoreDecl
             , Expr(..), Note(..), Binds(..), Bind(..)
             , Alts, Alt(..), Pat(..), Literal(..)
 
@@ -34,7 +34,7 @@ import IdSet  ( IdSet, emptySet, setFromMap, setFromList )
 -- Modules
 ----------------------------------------------------------------
 type CoreModule = Module Expr
-type CoreValue  = DValue Expr
+type CoreDecl   = Decl Expr
 
 ----------------------------------------------------------------
 -- Core expressions:
@@ -147,9 +147,10 @@ zipAltsWith f xs alts
 ----------------------------------------------------------------
 mapExprWithSupply :: (NameSupply -> Expr -> Expr) -> NameSupply -> CoreModule -> CoreModule
 mapExprWithSupply f supply mod
-  = mod{ values = mapWithSupply fvalue supply (values mod) }
+  = mod{ moduleDecls = mapWithSupply fvalue supply (moduleDecls mod) }
   where
-    fvalue supply (id,value) = (id,value{ valueValue = f supply (valueValue value)})
+    fvalue supply decl@(DeclValue{}) = decl{ valueValue = f supply (valueValue decl)}
+    fvalue supply decl               = decl
 
 mapExpr :: (Expr -> Expr) -> CoreModule -> CoreModule
 mapExpr f mod

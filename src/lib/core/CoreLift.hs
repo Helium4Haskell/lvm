@@ -22,8 +22,7 @@ import Standard( foldlStrict )
 import Id      ( Id )
 import IdMap   ( IdMap, elemMap, extendMap, lookupMap, emptyMap )
 import IdSet   ( IdSet, elemSet, listFromSet, emptySet, foldSet
-               , unionSet, sizeSet, setFromList, setFromMap
-               )
+               , unionSet, sizeSet, setFromList )
 import Core
 
 ----------------------------------------------------------------
@@ -57,7 +56,7 @@ coreLift :: CoreModule -> CoreModule
 coreLift mod
   = mapExpr (liftExpr (Env primitives emptyMap)) mod
   where
-    primitives  = setFromMap (externs mod)
+    primitives  = externNames mod
 
 liftExpr :: Env -> Expr -> Expr
 liftExpr env expr

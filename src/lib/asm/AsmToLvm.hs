@@ -13,9 +13,7 @@ module AsmToLvm( asmToLvm )  where
 
 import List   ( partition)
 import Id     ( Id )
-import IdMap  ( IdMap, emptyMap, lookupMap, extendMap, mapMapWithId
-              , unionMaps, filterMap, mapMap, listFromMap, mapFromList
-              )
+import IdMap  ( IdMap, emptyMap, lookupMap, extendMap, mapMapWithId, mapFromList )
 import Asm
 import Lvm
 
@@ -266,19 +264,17 @@ initialEnv :: AsmModule -> Env
 initialEnv mod
   = Env globals instrs cons
   where
-    globals         = unionMaps [declared,imported,external]
-    declared        = mapMap arityFromValue  (mapFromList (values mod))
-    imported        = mapMap abstractArity (abstracts mod)
-    external        = mapMap externArity (externs mod)
+    globals = mapFromList [(declName d,getArity d) | d <- moduleDecls mod
+                                                    , isDeclValue d || isDeclAbstract d || isDeclExtern d ]
 
-    instrs          = mapMap instrFromEx (filterMap isInstr (externs mod))
-    cons            = mapMap (\con -> (conTag con, conArity con)) (constructors mod)
+    instrs  = mapFromList [(declName d,instrFromEx d) | d <- moduleDecls mod
+                                                      , isDeclExtern d, externCall d == CallInstr]
 
-    arityFromValue (DValue acc enc (Top params x) custom)
-                    = length params
+    cons    = mapFromList [(declName d,(conTag d,declArity d)) | d <- moduleDecls mod
+                                                               , isDeclCon d]
 
-    isInstr (DExtern acc arity tp link call lib name custom)
-                    = call == CallInstr
+    getArity (DeclValue{valueValue=Top args body})  = length args           
+    getArity decl                                   = declArity decl
 
     instrFromEx x   = case externName x of
                         Plain s    -> instrFromName s

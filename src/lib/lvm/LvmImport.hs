@@ -16,8 +16,11 @@ import Monad    ( foldM )
 import Standard ( foldlStrict )
 import Id       ( Id, stringFromId )
 import IdMap    ( IdMap, emptyMap, insertMap, elemMap, updateMap, listFromMap, lookupMap, findMap  )
+
 import Module   
+import Lvm
 import LvmRead  ( lvmReadFile )
+
 import ModulePretty
 import InstrPretty
 import PPrint
@@ -27,24 +30,27 @@ import PPrint
   abstract declarations or constructors/externs
   TODO: this doesn't respect the namespaces
 --------------------------------------------------------------}
-lvmImport :: (Id -> IO FilePath) -> Module v -> IO (Module v)
+lvmImport :: (Id -> IO FilePath) -> (Module v) -> IO (Module v)
 lvmImport findModule mod
   = do{ mods <- lvmImportModules findModule mod
       ; let mods' = lvmResolveImports mods
-      ; return (findMap (moduleName mod) mods')
+            mod'  = findMap (moduleName mod) mods'
+      ; return mod'{ moduleDecls = filter (not . isDeclImport) (moduleDecls mod') }
       }
 
 {--------------------------------------------------------------
   lvmImportModules: 
     recursively read all imported modules
 --------------------------------------------------------------}
-lvmImportModules :: (Id -> IO FilePath) -> Module v -> IO (IdMap (Module v))
+lvmImportModules :: (Id -> IO FilePath) -> (Module v) -> IO (IdMap (Module v))
 lvmImportModules findModule mod
   = readModuleImports findModule emptyMap (moduleName mod) mod
     
+readModuleImports :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> (Module v) -> IO (IdMap (Module v))
 readModuleImports findModule loaded id mod
   = foldM (readModule findModule) (insertMap id mod loaded) (imported mod)
   
+readModule :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> IO (IdMap (Module v))
 readModule findModule loaded id  
   | elemMap id loaded  = return loaded
   | otherwise          = do{ fname <- findModule id                        
@@ -53,7 +59,7 @@ readModule findModule loaded id
                            }
 
 imported mod
-  = map (importModule . importAccess . snd) (imports mod)
+  = [importModule (declAccess d) | d <- moduleDecls mod, isDeclImport d]
     
 {---------------------------------------------------------------
 lvmResolveImports:
@@ -67,34 +73,35 @@ lvmResolveImports mods
 
 resolveImports :: IdMap (Module v) -> (Id,Module v) -> IdMap (Module v)
 resolveImports loaded (modid,mod)
-  = foldlStrict (resolveImport [] modid) loaded (imports mod)
+  = foldlStrict (resolveImport [] modid) loaded (filter isDeclImport (moduleDecls mod))
 
-resolveImport :: [Id] -> Id -> IdMap (Module v) -> (Id,DImport) -> IdMap (Module v)
-resolveImport visited modid loaded x@(id,DImport access@(Import public imodid impid major minor) kind)
+resolveImport :: [Id] -> Id -> IdMap (Module v) -> Decl v -> IdMap (Module v)
+resolveImport visited modid loaded x@(DeclImport id access@(Imported public imodid impid kind major minor))
   | elem modid visited = error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
   | otherwise = 
     let mod = findMap modid loaded in 
     case lookupMap imodid loaded of
       Nothing   -> error ("LvmImport.resolveImport: import module is not loaded: " ++ stringFromId imodid)
-      Just imod -> case kind of
-                     3 -> case lookupMap impid (abstracts imod) of
-                            Nothing  -> notfound imod
-                            Just abs -> update mod{ abstracts = insertMap id (abs{ abstractAccess = access }) (abstracts mod) }
-                     4 -> case lookupMap impid (constructors imod) of
-                            Nothing  -> notfound imod
-                            Just con -> update mod{ constructors = insertMap id (con{ conAccess = access }) (constructors mod) }
-                     7 -> case lookupMap impid (externs imod) of
-                            Nothing  -> notfound imod
-                            Just ext -> update mod{ externs = insertMap id (ext{ externAccess = access }) (externs mod) }
-                     other
-                       -> error "LvmImport.resolveImport: invalid declaration kind"
+      Just imod -> case lookupDecl impid kind (moduleDecls imod) of
+                     []   -> notfound imodid impid
+                     ds   -> case filter (not . isDeclImport) ds of
+                               []  -> case filter isDeclImport ds of
+                                        []  -> notfound imodid impid
+                                        [d] -> let loaded' = resolveImport (modid:visited) imodid loaded d
+                                               in resolveImport (imodid:visited) modid loaded' x
+                                        ds  -> ambigious imodid impid
+                               [d] -> update mod{ moduleDecls = d{declName=id,declAccess = access} : (moduleDecls mod)}
+                               ds  -> ambigious imodid impid
+
   where
-    notfound imod 
-      = case lookup impid (imports imod) of
-          Nothing  -> error ("LvmImport.resolveImport: unresolved identifier: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
-          Just imp -> let loaded' = resolveImport (modid:visited) imodid loaded (impid,imp)
-                      in resolveImport (imodid:visited) modid loaded' x
+    lookupDecl impid kind decls
+      = [d | d <- decls, declName d==impid && hasDeclKind kind d]
 
     update mod'
       = updateMap modid mod' loaded
         
+    notfound imodid impid
+      = error ("LvmImport.resolveImport: unresolved identifier: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
+
+    ambigious imodid impid
+      = error ("LvmImport.resolveImport: ambigious import record: " ++ stringFromId imodid ++ "." ++ stringFromId impid)      

@@ -17,7 +17,7 @@ module CoreSaturate( coreSaturate ) where
 
 import List   ( mapAccumR )
 import Id     ( Id, NameSupply, freshId, splitNameSupply, splitNameSupplies )
-import IdMap  ( IdMap, emptyMap, lookupMap, filterMap, mapMap, unionMap )
+import IdMap  ( IdMap, emptyMap, lookupMap, filterMap, mapFromList )
 import Core
 
 ----------------------------------------------------------------
@@ -48,8 +48,7 @@ coreSaturate :: NameSupply -> CoreModule -> CoreModule
 coreSaturate supply mod
   = mapExprWithSupply (satDeclExpr arities) supply mod
   where
-    arities = unionMap (mapMap conArity (constructors mod))
-                       (mapMap externArity (externs mod))
+    arities = mapFromList [(declName d,declArity d) | d <- moduleDecls mod, isDeclCon d || isDeclExtern d]
 
 
 satDeclExpr :: IdMap Int -> NameSupply -> Expr -> Expr

@@ -35,7 +35,7 @@ import LvmImport  ( lvmImport )         -- resolve import declarations
 ----------------------------------------------------------------
 message s
   = return () 
- -- = putStr s
+  -- = putStr s
 
 main
   = do{ [arg] <- getArgs
@@ -52,8 +52,8 @@ compile src
       ; source      <- searchPath path ".core" src
       ; messageLn ("compiling  : " ++ showFile source)
 
-      ; mod         <- coreParse source
-      ; coremod     <- lvmImport (findModule path) mod
+      ; mod        <- coreParse source
+      ; coremod    <- lvmImport (findModule path) mod
 
       ; nameSupply  <- newNameSupply
       ; messageLn ("generating code")

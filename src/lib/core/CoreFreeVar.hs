@@ -27,7 +27,7 @@ import Core
 ----------------------------------------------------------------
 coreFreeVar :: CoreModule -> CoreModule
 coreFreeVar mod
-  = mapExpr (fvDeclExpr (globals mod)) mod
+  = mapExpr (fvDeclExpr (globalNames mod)) mod
 
 fvDeclExpr globals expr
   = let (expr',fv) = fvExpr globals expr

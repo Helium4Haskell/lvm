@@ -72,7 +72,7 @@ coreNoShadow supply mod
 
 coreRename :: NameSupply -> CoreModule -> CoreModule
 coreRename supply mod
-  = mapExprWithSupply (nsDeclExpr (globals mod)) supply mod
+  = mapExprWithSupply (nsDeclExpr (globalNames mod)) supply mod
 
 nsDeclExpr inscope supply expr
   = nsExpr (Env supply inscope emptyMap) expr

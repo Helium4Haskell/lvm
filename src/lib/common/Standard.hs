@@ -17,13 +17,14 @@ module Standard( trace, warning, assert
                , Force, force
                , searchPath, getLvmPath
                , fst3, snd3, thd3
+               , unsafeCoerce
                ) where
 
 import IOExts  (unsafePerformIO)
 import List    (isPrefixOf)
 import IO
 import System  (getEnv)
-import Special (doesFileExist)
+import Special (doesFileExist,unsafeCoerce)
 
 ----------------------------------------------------------------
 -- three tuples

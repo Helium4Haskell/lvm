@@ -12,7 +12,8 @@
 module Id ( Id -- instance Eq, Show
 
           -- essential used in "asm" and "lvm"
-          , stringFromId, idFromString, dummyId
+          , stringFromId, idFromString, idFromStringEx
+          , dummyId
 
           -- exotic: only used in the core compiler
           , freshIdFromId, getNameSpace, setNameSpace
@@ -52,12 +53,16 @@ emptyNames :: Names
 emptyNames
   = Names 0 (IntMap.empty)
 
-
 idFromString :: String -> Id
-idFromString name
+idFromString s
+  = idFromStringEx 0 s
+
+
+idFromStringEx :: Enum a => a -> String -> Id
+idFromStringEx ns name
   = unsafePerformIO $
     do{ names <- readIORef namesRef
-      ; let (id,names') = insertName 0 name names
+      ; let (id,names') = insertName (fromEnum ns) name names
       ; writeIORef namesRef names'
       ; return id
       }
@@ -118,30 +123,30 @@ mapWithSupply f supply xs
 -- Bit masks used within an Id
 --
 -- 0x | 0 0 0 0 | 0 0 0 0 |
---    |         |       E |  sort (=namespace) of the id
---    |       F | F F F   |  hash index in the hash table
+--    |         |     F E |  sort (=namespace) of the id
+--    |       F | F F     |  hash index in the hash table
 --    | 7 F F   |         |  index in the list of id's in the leaves of the hash table
 --    |         |       1 |  unique id (no name available)
---    | 7 F F F | F F F 0 |  unique number of unique id
+--    | 7 F F F | F F     |  unique number of unique id
 ----------------------------------------------------------------
 dummyId :: Id
 dummyId           = Id (0x7FFFFFF1)
 
 shiftSort, maxSort :: Int
 shiftSort         = 0x00000002
-maxSort           = 0x7
+maxSort           = 0x7F
 
 maxHash, shiftHash :: Int
-maxHash           = 0xFFFF
-shiftHash         = 0x00000010
+maxHash           = 0xFFF
+shiftHash         = 0x00000100
 
 shiftIdx, maxIdx :: Int
 shiftIdx          = 0x00100000
 maxIdx            = 0x7FF
 
 shiftUniq,maxUniq,flagUniq :: Int
-shiftUniq         = 0x00000010
-maxUniq           = 0x07FFFFFF
+shiftUniq         = 0x00000100
+maxUniq           = 0x007FFFFF
 flagUniq          = 0x00000001
 
 extractBits, clearBits, initBits :: Int -> Int -> Int -> Int
