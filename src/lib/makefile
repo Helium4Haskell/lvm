@@ -37,7 +37,7 @@ ASM	= asm/AsmOptimize.hs asm/AsmInline.hs asm/AsmOccur.hs \
 	  asm/Asm.hs asm/AsmPretty.hs asm/AsmToLvm.hs
 
 CORE	= core/Core.hs core/CorePretty.hs core/CoreToAsm.hs \
-	  core/CoreParse.hs core/CoreLexer.hs \
+	  core/CoreParse.hs core/CoreLexer.hs core/CoreParser.hs \
 	  core/CoreLex.hs \
 	  core/CoreRemoveDead.hs core/CoreNormalize.hs \
 	  core/CoreNoShadow.hs core/CoreFreeVar.hs core/CoreLetSort.hs \
@@ -109,7 +109,6 @@ common/IdMap.o : common/IntMap.hi
 common/IdSet.o : common/IdSet.hs
 common/IdSet.o : common/IdMap.hi
 common/IdSet.o : common/Id.hi
-common/IntMap.o : common/IntMap.hs
 common/Byte.o : common/Byte.hs
 common/Byte.o : common/Standard.hi
 common/Byte.o : common/ghc/Special.hi
@@ -118,6 +117,8 @@ common/Standard.o : common/ghc/Special.hi
 common/PPrint.o : common/PPrint.hs
 common/TopSort.o : common/TopSort.hs
 common/TopSort.o : common/ghc/Special.hi
+common/Set.o : common/Set.hs
+common/IntMap.o : common/IntMap.hs
 common/ghc/Special.o : common/ghc/Special.hs
 lvm/Lvm.o : lvm/Lvm.hs
 lvm/Lvm.o : lvm/Module.hi
@@ -147,6 +148,8 @@ lvm/LvmRead.o : common/Id.hi
 lvm/LvmRead.o : common/Standard.hi
 lvm/LvmRead.o : common/PPrint.hi
 lvm/LvmImport.o : lvm/LvmImport.hs
+lvm/LvmImport.o : common/Id.hi
+lvm/LvmImport.o : common/Byte.hi
 lvm/LvmImport.o : common/PPrint.hi
 lvm/LvmImport.o : lvm/InstrPretty.hi
 lvm/LvmImport.o : lvm/ModulePretty.hi
@@ -154,7 +157,6 @@ lvm/LvmImport.o : lvm/LvmRead.hi
 lvm/LvmImport.o : lvm/Lvm.hi
 lvm/LvmImport.o : lvm/Module.hi
 lvm/LvmImport.o : common/IdMap.hi
-lvm/LvmImport.o : common/Id.hi
 lvm/LvmImport.o : common/Standard.hi
 lvm/Module.o : lvm/Module.hs
 lvm/Module.o : lvm/Instr.hi
@@ -164,6 +166,7 @@ lvm/Module.o : common/Byte.hi
 lvm/Module.o : common/Standard.hi
 lvm/ModulePretty.o : lvm/ModulePretty.hs
 lvm/ModulePretty.o : lvm/Module.hi
+lvm/ModulePretty.o : common/IdSet.hi
 lvm/ModulePretty.o : common/IdMap.hi
 lvm/ModulePretty.o : common/Id.hi
 lvm/ModulePretty.o : common/Byte.hi
@@ -260,7 +263,18 @@ core/CoreParse.o : parsec/Parsec.hi
 core/CoreParse.o : common/Standard.hi
 core/CoreParse.o : common/PPrint.hi
 core/CoreLexer.o : core/CoreLexer.hs
+core/CoreLexer.o : common/Id.hi
 core/CoreLexer.o : common/Standard.hi
+core/CoreLex.o : core/CoreLex.hs
+core/CoreLex.o : parsec/Parsec.hi
+core/CoreLex.o : common/Id.hi
+core/CoreLex.o : common/Set.hi
+core/CoreRemoveDead.o : core/CoreRemoveDead.hs
+core/CoreRemoveDead.o : core/Core.hi
+core/CoreRemoveDead.o : common/IdSet.hi
+core/CoreRemoveDead.o : common/Id.hi
+core/CoreRemoveDead.o : common/Standard.hi
+core/CoreRemoveDead.o : common/Set.hi
 core/CoreNormalize.o : core/CoreNormalize.hs
 core/CoreNormalize.o : core/Core.hi
 core/CoreNormalize.o : common/IdSet.hi
@@ -316,6 +330,8 @@ core/Main.o : asm/AsmToLvm.hi
 core/Main.o : asm/AsmOptimize.hi
 core/Main.o : asm/AsmPretty.hi
 core/Main.o : core/CoreToAsm.hi
+core/Main.o : core/CoreRemoveDead.hi
+core/Main.o : core/CoreParser.hi
 core/Main.o : core/CoreParse.hi
 core/Main.o : core/CorePretty.hi
 core/Main.o : common/Id.hi
