@@ -32,7 +32,7 @@ import LvmWrite   ( lvmWriteFile )
 ----------------------------------------------------------------
 message s
   = return () 
-  -- = putStr s
+ -- = putStr s
 
 main
   = do{ [arg] <- getArgs

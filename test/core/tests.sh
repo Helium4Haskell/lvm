@@ -19,11 +19,10 @@ cat test.out
 cat test.out >> test.log 
 cd ../../test/core
 echo >> test.log
-cd ../../test/core
 
 #test all files
 for t in *.core; 
 {
-  ./test.sh ${t%.core}
+  test.sh ${t%.core}
 }
 

@@ -47,7 +47,7 @@ primes  = let sieve xs  = case xs of
           in sieve odds
 
 
-main    = last (take 1000 primes)
+main    = last (take 1000   primes)
 
 
 {-
