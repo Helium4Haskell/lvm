@@ -7,11 +7,9 @@
 ----------------------------------------------------------------
 module Queens where
 
-import LvmLang
-
-instruction primAdd "addint" :: Int -> Int -> Int
-instruction primSub "subint" :: Int -> Int -> Int
-instruction primNeq "neint"  :: Int -> Int -> Bool
+instruction primAdd "addint" :: Int! -> Int! -> Int!
+instruction primSub "subint" :: Int! -> Int! -> Int!
+instruction primNeq "neint"  :: Int! -> Int! -> Bool!
 
 data List a = Nil
             | Cons a (List a)

@@ -5,8 +5,7 @@
 -- $Author$
 -- $Date$
 ----------------------------------------------------------------
-module Queens where
-
+module QueensStrict where
 
 instruction primAdd "addint" :: Int -> Int -> Int
 instruction primSub "subint" :: Int -> Int -> Int

@@ -1,9 +1,7 @@
 module NFib where
 
-import LvmLang
-
-instruction primAdd "addint" :: Int! -> Int! -> Int!
-instruction primSub "subint" :: Int! -> Int! -> Int!
+instruction primadd "addint" :: Int! -> Int! -> Int!
+instruction primsub "subint" :: Int! -> Int! -> Int!
 
 main  = nfib 27
 
@@ -11,12 +9,12 @@ main  = nfib 27
 nfib n  = case n of
             0  -> 1
             1  -> 1
-            n  -> case (case (case primSub n 2 of
+            n  -> case (case (case primsub n 2 of
                                      n2 -> nfib n2
                              ) of
-                         x2 -> case (case primSub n 1 of
+                         x2 -> case (case primsub n 1 of
                                             n1 -> nfib n1
                                     ) of
-                                 x1 -> primAdd x1 x2
+                                 x1 -> primadd x1 x2
                        ) of
-                    x -> primAdd 1 x
+                    x -> primadd 1 x

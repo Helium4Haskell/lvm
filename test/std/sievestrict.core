@@ -1,4 +1,4 @@
-module Sieve where
+module SieveStrict where
 
 instruction primNe    "neint" :: Int! -> Int! -> Bool!
 instruction primMod   "modint" :: Int! -> Int! -> Int!

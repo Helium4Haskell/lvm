@@ -1,7 +1,5 @@
 module Sieve where
 
-import LvmLang
-
 instruction primNe    "neint" :: Int! -> Int! -> Bool!
 instruction primMod   "modint" :: Int! -> Int! -> Int!
 instruction primAdd   "addint" :: Int! -> Int! -> Int!

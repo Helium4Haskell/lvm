@@ -1,13 +1,10 @@
 module NFib where
 
-import LvmLang
+instruction primadd "addint" :: Int! -> Int! -> Int!
+instruction primsub "subint" :: Int! -> Int! -> Int!
 
-data List a = Nil | Cons a (List a)
-
-map f xs
-  = case xs of
-      Nil -> Nil
-      Cons x xx -> Cons (f x) (map f xx)
+(+) x y   = case y of y -> case x of x -> primadd x y
+(-) x y   = case y of y -> case x of x -> primsub x y
 
 
 main  = nfib 27
