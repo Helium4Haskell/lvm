@@ -1357,6 +1357,19 @@ returncon:
       Next;
     }
 
+    Instr(UPDFIELD): {
+      wsize_t i  = Long_val(sp[0]);
+      value   x  = sp[1];
+      value   v  = sp[2];
+      wsize_t sz;
+      Require( Is_block(v) && Is_long(sp[0]) );
+      sz = Fsize_val(v);
+      if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      Store_field(v,i,x);
+      Pop_n(2);
+      Next;
+    }
+
     Instr(PACK): {
       wsize_t n = *pc++;
       long ofs  = *pc++;

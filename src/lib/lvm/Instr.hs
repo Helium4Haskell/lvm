@@ -134,6 +134,7 @@ data Instr    =
               | SETFIELD
               | GETTAG
               | GETSIZE
+              | UPDFIELD
 
               -- INT operations
               | ADDINT
@@ -266,6 +267,7 @@ instrFromName name
         , ("SETFIELD",SETFIELD)
         , ("GETTAG",  GETTAG)
         , ("GETSIZE", GETSIZE)
+        , ("UPDFIELD",UPDFIELD)
         ]
 
 
@@ -354,7 +356,9 @@ instrTable =
     , ENTERCODE global, EVALVAR var, RETURNCON con, RETURNINT 0, RETURNCON0 con 
     , MATCHCON [], SWITCHCON [], MATCHINT [], NOP {- MATCHFLOAT -}, MATCH []
     , NOP {- ENTERFLOAT -}, ADDFLOAT, SUBFLOAT, MULFLOAT, DIVFLOAT, NEGFLOAT
-    , EQFLOAT, NEFLOAT, LTFLOAT, GTFLOAT, LEFLOAT, GEFLOAT     
+    , EQFLOAT, NEFLOAT, LTFLOAT, GTFLOAT, LEFLOAT, GEFLOAT
+    -- Additional experimental instructions (AD, 20040108)
+    , UPDFIELD    
     ]
   where
     id     = dummyId
@@ -436,6 +440,7 @@ enumFromInstr instr
       SETFIELD                -> 55
       GETTAG                  -> 56
       GETSIZE                 -> 57
+      UPDFIELD                -> 58
 
     -- INT operations
       ADDINT                  -> 60
@@ -574,6 +579,7 @@ nameFromInstr instr
       SETFIELD                -> "SETFIELD"
       GETTAG                  -> "GETTAG"
       GETSIZE                 -> "GETSIZE"
+      UPDFIELD                -> "UPDFIELD"
 
     -- INT operations
       ADDINT                  -> "ADDINT"

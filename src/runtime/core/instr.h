@@ -126,6 +126,9 @@
   Ins( LEFLOAT, 0 ), \
   Ins( GEFLOAT, 0 ), \
   \
+  /* Additional experimental instructions (AD, 20040108) */ \
+  Ins( UPDFIELD, 0 ),   \
+  \
   /* internal instructions */ \
   Ins( PUSHCAF, 1 ),    \
   Ins( STOP, 0 )

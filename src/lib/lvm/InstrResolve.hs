@@ -241,6 +241,7 @@ effect instr
       SETFIELD         -> pop 3
       GETTAG           -> do{ pop 1; push 1 }
       GETSIZE          -> do{ pop 1; push 1 }
+      UPDFIELD         -> do{ pop 3; push 1 }
 
       RETURNCON con    -> do{ pop (arityFromCon con) }          -- it is the last instruction!
 
