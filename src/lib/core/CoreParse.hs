@@ -9,7 +9,7 @@
 
 -- $Id$
 
-module CoreParse( coreParse, coreParseExpr, modulePublic ) where
+module CoreParse( coreParse, coreParseExpr, modulePublic, coreParseType, Type(..) ) where
 
 import PPrint( (<+>), (<>), Doc, text, hsep )
 import qualified PPrint
@@ -47,7 +47,8 @@ coreParseAny parser fname input =
         Right res -> res;
     }
 
-coreParseExpr exprName input = coreParseAny pexpr exprName input
+coreParseExpr fname input = coreParseAny pexpr fname input
+coreParseType fname input = addForall (coreParseAny ptypeFun fname input)
 
 ----------------------------------------------------------------
 -- Basic parsers
@@ -66,6 +67,7 @@ data Type       = TFun    {tp1::Type, tp2::Type}
                 | TCon    {tpId::Id}
                 | TAny
                 | TString {tpString::String}
+                deriving (Show)
 
 data Kind       = KFun {kind1::Kind, kind2::Kind}
                 | KStar
@@ -95,7 +97,7 @@ arityFromKind kind
 
 ppType :: Type -> Doc
 ppType tp
-  = ppTypeEx 0 (addForall tp)
+  = ppTypeEx 0 tp -- !!! (addForall tp)
 
 ppTypeEx :: Int -> Type -> Doc
 ppTypeEx level tp
