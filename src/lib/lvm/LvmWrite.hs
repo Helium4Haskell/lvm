@@ -22,7 +22,7 @@ import Lvm
   Magic numbers
 --------------------------------------------------------------}
 lvmMajorVersion,lvmMinorVersion,magic :: Int
-lvmMajorVersion  = 7
+lvmMajorVersion  = 8
 lvmMinorVersion  = 0
 magic            = 0x4C564D58
 
@@ -36,32 +36,36 @@ lvmWriteFile path lvm
 
 lvmToBytes :: LvmModule -> Bytes
 lvmToBytes mod
-  = let (idxName,bdecls,binstrs)  = bytesFromModule mod
+  = let (idxName,recs) = bytesFromModule mod
+        headerlen = 32
         header    = block
-                    [ 36              -- header length
+                    [ recHeader
+                    , headerlen
+                    , totallen
                     , lvmMajorVersion
                     , lvmMinorVersion
                     , versionMajor mod
                     , versionMinor mod
-                    , idxName         -- index module name
-                    , length bdecls
-                    , sum (map bytesLength bdecls)
-                    , length binstrs
-                    , sum (map bytesLength binstrs)
+                    , idxName         
+                    , length recs
+                    , bytesLength brecs
                     ]
 
-        total     = cats ([header] ++ bdecls ++ binstrs)
-        totallen  = bytesLength total + 12 -- 2*sizeof(total length) + magic number
-        xs        = cats [block [magic, totallen],total,block [totallen]]
-    in seq totallen xs
+        footerlen = 4
+        footer    = block
+                    [ recFooter, footerlen, totallen ]
 
-bytesFromModule :: LvmModule -> (Index,[Bytes],[Bytes])
+        brecs     = cats recs 
+        totallen  = bytesLength brecs + headerlen + 8 + footerlen + 8
+        total     = cats [header,brecs,footer]
+    in seq totallen total
+
+bytesFromModule :: LvmModule -> (Index,[Bytes])
 bytesFromModule mod
-  = case runEmit (emitLvmModule mod) of
-      ((idxName,binstrs),bdecls)  -> (idxName,bdecls,binstrs)
+  = runEmit (emitLvmModule mod) 
 
 
-emitLvmModule :: LvmModule -> Emit (Index,[Bytes])
+emitLvmModule :: LvmModule -> Emit Index
 emitLvmModule mod
   = do{ idxName <- emitName (moduleName mod)
       ; mapM_ emitDCon     (listFromMap (constructors mod))
@@ -69,8 +73,8 @@ emitLvmModule mod
       ; mapM_ emitDImport  (listFromMap (imports mod))
       ; mapM_ emitDValue   (values mod)
       ; mapM_ emitDCustom  (listFromMap (customs mod))
-      ; binstrs <- mapM emitInstrs (values mod)
-      ; return (idxName, filter (not.isNil) binstrs)
+      ; mapM_ emitCode     (values mod)
+      ; return idxName
       }
 
 {--------------------------------------------------------------
@@ -84,9 +88,9 @@ flags Private   = 0
 flags other     = error "LvmWrite.flags: invalid access mode"
 
 emitDValue (id,DValue access mbEnc instrs custom)
-  | isImport access = emitImport id declValue access
+  | isImport access = emitImport id recValue access
   | otherwise       = do{ idxEnc <- maybe (return 0) (findIndex) mbEnc
-                        ; emitNamedBlock id declValue [0,flags access,0,arity,idxEnc] custom
+                        ; emitNamedBlock id recValue [flags access,arity,idxEnc] custom
                         }
   where
     arity = case instrs of
@@ -94,20 +98,20 @@ emitDValue (id,DValue access mbEnc instrs custom)
               otherwise        -> error ("LvmWrite.emitDecl: instructions do not start with an argument check: " ++ show id)
 
 emitDCon (id,DCon access arity tag custom)
-  | isImport access = emitImport id declCon access
-  | otherwise       = emitNamedBlock id declCon [0,flags access,0,arity,tag] custom
+  | isImport access = emitImport id recCon access
+  | otherwise       = emitNamedBlock id recCon [flags access,arity,tag] custom
 
 emitDCustom (id,DCustom access kind custom)
-  | isImport access = emitImport id declCon access
+  | isImport access = emitImport id kind access
   | otherwise       = emitBlock (Just id) kind nil custom
 
 emitDExtern (id,DExtern access arity tp linkconv callconv libname externname custom)
   | callconv == CallInstr = return 0
-  | isImport access = emitImport id declExtern access
-  | otherwise       = do{ idxType            <- emitTypeString tp
+  | isImport access = emitImport id recExtern access
+  | otherwise       = do{ idxType            <- emitExternType tp
                         ; idxLibName         <- emitNameString libname
                         ; (nameFlag,idxName) <- emitNameExtern
-                        ; emitNamedBlock id declExtern [idxType,flags access,0,arity
+                        ; emitNamedBlock id recExtern  [flags access,arity,idxType
                                                        ,idxLibName,idxName,nameFlag
                                                        ,fromEnum linkconv, fromEnum callconv
                                                        ] []
@@ -120,19 +124,19 @@ emitDExtern (id,DExtern access arity tp linkconv callconv libname externname cus
 
 
 emitDImport (id,DImport access arity)
-  | isImport access = emitImport id declValue access
+  | isImport access = emitImport id recImport access
   | otherwise       = error ("LvmWrite.emitImport: should be imported: " ++ show id)
 
 
-emitImport id declKind (Import public moduleName importName majorVer minorVer)
+emitImport id recKind (Import public moduleName importName majorVer minorVer)
   = do{ idxModule <- emitModule moduleName majorVer minorVer
       ; idxName   <- emitName importName
-      ; emitNamedBlock id declImport [0,if public then 1 else 0,idxModule,idxName,declKind] []
+      ; emitNamedBlock id recImport [if public then 1 else 0,idxModule,idxName,recKind] []
       }
 
 emitModule name major minor
   = do{ idxName <- emitName name
-      ; emitBlock Nothing declModule (block [idxName,major,minor]) []
+      ; emitBlock Nothing recModule (block [idxName,major,minor]) []
       }
 
 {--------------------------------------------------------------
@@ -146,8 +150,20 @@ emitInstrs (id,DValue access mbEnc instrs custom)
       ; return (block ([idx,4 + length codes*4,0] ++ codes))
       }
 
+
 emitInstrs other
   = return nil
+
+emitCode :: (Id,LvmValue) -> Emit Index
+emitCode (id,DValue access mbEnc instrs custom)
+  = do{ idx     <- findIndex id
+      ; rinstrs <- mapM resolve instrs
+      ; let codes = concatMap emit rinstrs
+      ; emitBlock Nothing recCode (block (idx:codes)) []
+      }
+
+emitCode other
+  = return 0
 
 
 {--------------------------------------------------------------
@@ -324,7 +340,7 @@ resolveCon f (Con id _ arity tag)
       }
 
 resolveBytes f bs
-  = do{ idx <- emitBlock Nothing declBytes bs []
+  = do{ idx <- emitBytes bs
       ; return (f idx)
       }
 
@@ -345,10 +361,13 @@ emitName id
 
 emitNameString :: String -> Emit Index
 emitNameString s
-  = emitBlock Nothing declName (blockString s) []
+  = emitBlock Nothing recName (blockString s) []
 
-emitTypeString tp
-  = emitBlock Nothing declType (blockString tp) []
+emitExternType tp
+  = emitBlock Nothing recExternType (blockString tp) []
+
+emitBytes bs
+  = emitBlock Nothing recBytes (blockBytes bs) []
 
 emitBlock mbId kind bs custom
   = do{ bcustom <- emitCustoms custom
@@ -372,7 +391,7 @@ emitCustom custom
   = case custom of
       CtmInt i      -> return i
       CtmIndex id   -> findIndex id
-      CtmBytes bs   -> emitBlock Nothing declBytes bs []
+      CtmBytes bs   -> emitBytes bs
       CtmName id    -> emitName id
 
 {--------------------------------------------------------------
@@ -409,6 +428,8 @@ findIndex id
             Nothing  -> error ("LvmWrite.findIndex: undeclared identifier: " ++ show (stringFromId id))
             Just idx -> (idx,st))
 
+
+
 {--------------------------------------------------------------
   block
 --------------------------------------------------------------}
@@ -418,8 +439,10 @@ block is
 
 blockString :: String -> Bytes
 blockString s
-  = let bs  = bytesFromString s
-        len = bytesLength bs
+  = blockBytes (bytesFromString s)
+
+blockBytes bs
+  = let len = bytesLength bs
     in cat (bytesFromInt32 len) (cat bs (padding len))
 
 padding n

@@ -21,30 +21,36 @@ typedef opcode_t  word_t;
 struct module_header_t
 {
   word_t magic,
-         total_length,
          header_length,
+         total_length,
          major_version,
          minor_version,
          module_major_version,
          module_minor_version,
          module_name,
-         constant_count,
-         constant_length,
-         decl_count,
-         decl_length;
+         records_count,
+         records_length;
 };
+
+struct module_footer_t
+{
+  word_t magic,
+         footer_length,
+         total_length;
+};
+
+#define Magic_header 0x4C564D58
+#define Magic_footer 0x4C564D59
 
 /*----------------------------------------------------------------------
   MODULES
   A module contains:
-  constants  - a fixed n-tuple that contains all constants
+  records    - a fixed n-tuple that contains all constants. It is fixed
+               because a PUSHCAF and CALL points into this block.
   code       - a statically allocated block that contains all the code
                the operand of a PUSHCODE instruction points into this block
-  cafs       - a statically allocated block that contains pointers to all
-               heap alloced CAF nodes. the operand of a PUSHCAF instruction
-               points into this block
-
-  both [cafs] and [code] are actually custom blocks that contain a pointer
+  
+  [code] is actually a custom block that contain a pointer
   to the statically allocated block. This allows those blocks to be released
   automatically when gc'ed.
 ----------------------------------------------------------------------*/
@@ -54,89 +60,94 @@ enum module_fields {
   Module_fname,
   Module_major,
   Module_minor,
-  Module_constants,
-  Module_code_count,
-  Module_code_len,
-  Module_code,
+  Module_records,
+
   Module_size
 };
 
 
-#define Constants_module(m)      Field(m,Module_constants)
-#define Wosize_constants(c)      Wosize_fixed(c)
-#define Constant(c,idx)          Field_fixed(c,idx-1)
-#define Constant_module(m,idx)   Constant(Constants_module(m),idx)
+#define Records_module(m)        Field(m,Module_records)
+#define Wosize_records(c)        Wosize_fixed(c)
+#define Count_records(c)         Wosize_records(c)
+#define Record(c,idx)            Field_fixed(c,idx-1)
+#define Record_module(m,idx)     Record(Records_module(m),idx)
+
+/* deprecated: for evolutionary code change */
+#define Constants_module(m)      Records_module(m)
+#define Wosize_constants(c)      Wosize_records(c)
+#define Constant(c,idx)          Record(c,idx)
+#define Constant_module(m,idx)   Record_module(m,idx)
 
 
 /*----------------------------------------------------------------------
-  CONSTANTS
-  The kind of the constants is also its tag value
+  RECORDS
+  The kind of the record is also its tag value
 ----------------------------------------------------------------------*/
-enum const_kind {
-  Const_name,
-  Const_type,
-  Const_string,
-  Const_module,
-  Const_value,
-  Const_con,
-  Const_extern,
-  Const_import,
-  Const_kind,
-  Const_data,
-  Const_typedecl,
+enum rec_kind {
+  Rec_name,
+  Rec_bytes,
+  Rec_code,
+  Rec_value,
+  Rec_con,
+  Rec_import,
+  Rec_module,
+  Rec_extern,
+  Rec_extern_type,
 
-  Const_last = Const_import
+  Rec_last = Rec_extern_type
 };
 
-#define Is_caf_val(v)  (Tag_val(v) == Const_value && Long_val(Field(v,Field_arity)) == 0)
-/*----------------------------------------------------------------------
-  The offsets of fields inside the constant declarations
-----------------------------------------------------------------------*/
-enum const_fields {
-  Field_fixup = 0,
-  Field_name,
-  Field_type,
-  Field_flags,
-  Field_custom,
-  Field_arity,
-  Field_enclosing,
-  Field_code,
+#define Is_caf_val(v)  (Tag_val(v) == Rec_value && Long_val(Field(v,Field_arity)) == 0)
 
-  Const_value_size  = Field_code+1,
+/*----------------------------------------------------------------------
+  The offsets of fields inside the record declarations
+----------------------------------------------------------------------*/
+enum rec_fields {
+  Field_name = 0,
+  Field_flags,
+  Field_arity,
+  
+  Field_value_enc   = Field_arity+1,
+  Field_value_code,
+  Field_value_codeptr,
+  Rec_value_size,
 
   Field_con_tag     = Field_arity+1,
-  Const_con_size,
-
-  Field_name_string = 0,
-  Const_name_size,
-
-  Field_type_string = 0,
-  Const_type_size,
-
-  Field_string_string = 0,
-  Const_string_size,
-
-  Field_module_name = 0,
-  Field_module_major,
-  Field_module_minor,
-  Const_module_size,
-
-  Field_import_module = Field_custom+1,
-  Field_import_name,
-  Field_import_const_kind,
-  Const_import_size,
-
-  Field_extern_module = Field_arity+1,
+  Rec_con_size,
+  
+  Field_extern_type   = Field_arity+1,
+  Field_extern_module,
   Field_extern_name,
   Field_extern_nameflag,
   Field_extern_link,
   Field_extern_call,
-  Const_extern_size,
+  Field_extern_fun,
+  Rec_extern_size,
 
-  Field_data_kind = Field_type,
-  Const_data_size = Field_arity+1,
+  Field_import_module = Field_flags+1,
+  Field_import_name,
+  Field_import_kind,
+  Field_import_fixup,
+  Rec_import_size,
+  
+  Field_module_name = 0,
+  Field_module_major,
+  Field_module_minor,
+  Rec_module_size,
 
-  Const_typedecl_size = Field_arity+1
+  Field_name_string = 0,
+  Rec_name_size,
+
+  Field_extern_type_string = 0,
+  Rec_extern_type_size,
+
+  Field_bytes_string = 0,
+  Rec_bytes_size,
+
+  Field_code_value = 0,
+  Field_code_code,      /* a bytes block containing the instructions */
+  Field_code_fun,       /* a heap block: Caf_tag or Code_tag */
+  Rec_code_size
 };
 
 enum link_mode {
@@ -168,11 +179,13 @@ value       find_code( value module, const char* name );
 value       find_qualified_code( value module, const char* modname, const char* name );
 long        find_arity_of_code( value module, value pc );
 const char* find_name_of_code( value module, value code );
-const char* find_type_of_code( value module, value valpc );
 bool        is_code_val( value module, value pc );
 
 
-#define Name_field(decl,fld) (String_val(Field(Field(decl,fld),Field_name_string)))
-#define Type_field(decl,fld) (String_val(Field(Field(decl,fld),Field_type_string)))
+#define Type_extern(rec)            (String_val(Field(Field(rec,Field_extern_type),Field_extern_type_string)))
+#define Name_field(decl,fld)        (String_val(Field(Field(decl,fld),Field_name_string)))
 #define Name_module_field(decl,fld) Name_field(Field(decl,fld),Field_module_name)
+
+/* from a Rec_code record to the value that points to the Code_tag block */
+#define Code_code(rec)  (Val_hp(Bytes_val(Field(rec,Field_code_code))))
 #endif

@@ -70,68 +70,6 @@
 #include "sys.h"
 
 /*----------------------------------------------------------------------
--- system errors
-----------------------------------------------------------------------*/
-/*
-extern int errno;
-
-#ifdef HAS_STRERROR
-  extern char * strerror(int);
-
-  char * strerror_message(void)
-  {
-    return strerror(errno);
-  }
-#else
-  extern int sys_nerr;
-  extern char * sys_errlist [];
-
-  char * strerror_message(void)
-  {
-    if (errno < 0 || errno >= sys_nerr)
-      return "unknown error";
-    else
-      return sys_errlist[errno];
-  }
-#endif
-
-#ifndef EAGAIN
-# define EAGAIN (-1)
-#endif
-
-#ifndef EWOULDBLOCK
-# define EWOULDBLOCK (-1)
-#endif
-
-mlsize_t string_length(value s)
-{
-  mlsize_t temp;
-  temp = Bosize_val(s) - 1;
-  Assert (Byte (s, temp - Byte (s, temp)) == 0);
-  return temp - Byte (s, temp);
-}
-
-void sys_error(value arg)
-{
-  CAMLparam1 (arg);
-  char* err;
-  char buf[MAXSTR];
-
-  if (errno == EAGAIN || errno == EWOULDBLOCK) {
-    raise_sys_blocked_io();
-  } else {
-    err = strerror_message();
-    if (arg != NO_ARG) {
-      snprintf( buf, MAXSTR, "%s: %s", String_val(arg), err );
-      err = buf;
-    }
-    raise_sys_error(errno,err);
-  }
-}
-
-*/
-
-/*----------------------------------------------------------------------
 -- file open/close/read
 ----------------------------------------------------------------------*/
 #ifndef O_BINARY
@@ -166,6 +104,11 @@ int file_close( int handle )
 int file_read( int handle, void* buffer, unsigned int count )
 {
   return read( handle, buffer, count );
+}
+
+long file_skip( int handle, long count )
+{
+  return lseek(handle,count,SEEK_CUR);
 }
 
 

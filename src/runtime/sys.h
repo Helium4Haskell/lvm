@@ -35,6 +35,7 @@ int file_open_binary( const char* name, int mode );
 int file_open( const char* name, int mode );
 int file_close( int handle );
 int file_read( int handle, void* buffer, unsigned int count );
+long file_skip( int handle, long count );
 const char * searchpath (const char* path, const char * name, const char* ext );
 
 nat msecs_of_ticks(nat ticks );

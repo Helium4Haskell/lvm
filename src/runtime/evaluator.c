@@ -61,7 +61,7 @@ extern unsigned long max_eager_heap;
 #define Pop_n(n)              {sp+=n;}
 
 #define Push_code_fixup(c)    Push(Val_fixup(c))
-#define Push_caf_fixup(p)     Push( Field(*Valptr_fixup(p),Field_fixup) )
+#define Push_caf_fixup(p)     Push( Field(*Valptr_fixup(p),Field_code_fun) )
 
 
 #define Push_frame(f)         { Push_n(2); \
@@ -1300,8 +1300,8 @@ returncon:
 
     Instr(PUSHSTRING): {
       value decl = *(Valptr_fixup(*pc++));
-      Require(Is_block(decl) && Tag_val(decl) == Const_string);
-      Push(Field(decl,Field_string_string));
+      Require(Is_block(decl) && Tag_val(decl) == Rec_bytes);
+      Push(Field(decl,Field_bytes_string));
       Next;
     }
 
@@ -1526,8 +1526,10 @@ returncon:
     Instr(GETFIELD): {
       value v  = sp[0];
       long  i  = Long_val(sp[1]);
+      long sz;      
       Require( Is_block(v) && Is_long(sp[1]) );
-      if (Wosize_val(v) <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      Con_size_val(sz,v);
+      if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
       sp[1] = Field(v,i);
       Pop();
       Next;
@@ -1551,7 +1553,8 @@ returncon:
       long size = Long_val(sp[1]);
       long i;
       value con;
-      Alloc_con(con,size,tag);
+      if (size < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      Alloc_con(con,(nat)size,tag);
       for( i = 0; i < size; i++ ) { Field(con,i) = 0; }
       sp[1] = con;
       Pop();
@@ -1564,7 +1567,8 @@ returncon:
       long i;
       value con;
       Pop();
-      Alloc_con(con,size,tag);
+      if (size < 0) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      Alloc_con(con,(nat)size,tag);      
       for( i = 0; i < size; i++ ) { Field(con,i) = sp[i]; }
       Pop_n(size);
       Push(con);
@@ -1939,7 +1943,7 @@ returncon:
       value v;
       value decl = *(Valptr_fixup(*pc++));
       nat n      = *pc++;
-      Require( Is_block(decl) && Tag_val(decl) == Const_extern );
+      Require( Is_block(decl) && Tag_val(decl) == Rec_extern );
 
       /* check number of arguments */
       if (sp + n > fp) {
@@ -1948,9 +1952,9 @@ returncon:
 
       Setup_for_exn();
       v  = call_extern( sp, n                                     /* args & #args */
-                      , Ptr_val(Field(decl,Field_fixup))          /* address */
+                      , Ptr_val(Field(decl,Field_extern_fun))     /* address */
                       , Int_val(Field(decl,Field_extern_call))    /* calling convention */
-                      , Field(Field(decl,Field_type),Field_type_string)   /* type string */
+                      , Field(Field(decl,Field_extern_type),Field_extern_type_string) /* type string */
                       , Field(Field(decl,Field_name),Field_name_string) );  /* debug: the name */
       Restore_after_exn();
 

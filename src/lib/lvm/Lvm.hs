@@ -12,8 +12,8 @@
 module Lvm( module Module, LvmModule, LvmValue
 
           -- constants
-          , declName, declType, declBytes, declModule, declValue
-          , declCon, declExtern, declImport
+          , recName,recBytes,recCode,recValue,recCon 
+          , recImport,recModule,recExtern,recExternType,recHeader,recFooter 
           , flagPrivate, flagPublic
           ) where
 
@@ -35,12 +35,17 @@ flagPrivate,flagPublic :: Int
 flagPrivate   = 0
 flagPublic    = 1
 
-declName,declType,declBytes,declModule,declValue,declCon,declExtern,declImport :: Int
-declName      = 0
-declType      = 1
-declBytes     = 2
-declModule    = 3
-declValue     = 4
-declCon       = 5
-declExtern    = 6
-declImport    = 7
+recName,recBytes,recCode,recValue,recCon :: Int
+recImport,recModule,recExtern,recExternType,recHeader,recFooter :: Int
+recName       = 0
+recBytes      = 1
+recCode       = 2
+recValue      = 3
+recCon        = 4
+recImport     = 5
+recModule     = 6
+recExtern     = 7
+recExternType = 8
+
+recHeader     = 0x4c564d58
+recFooter     = 0x4c564d59

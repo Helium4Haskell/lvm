@@ -76,13 +76,15 @@ struct thread_state* thread_create( unsigned long stack_init_wsize, unsigned lon
   thread->stack_sp[0] = code;
 
   /* if we deal with an IO value, execute it */
-  if (strcmp(find_type_of_code(module,code),"IO ()") == 0) { /* IO value? */
+  /*
+  if (strcmp(find_type_of_code(module,code),"IO ()") == 0) { 
     value mainIO = find_qualified_code( module, "LvmLang", "unsafePerformStrictIO" );
     if (mainIO != 0) {
       thread->stack_sp--;
       thread->stack_sp[0] = mainIO;
     }
   }
+  */
 
   return thread;
 }
