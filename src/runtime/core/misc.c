@@ -24,8 +24,10 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 #include "mlvalues.h"
 #include "heap/heap.h"
+#include "dynamic.h"
 #include "signals.h"
 
 
@@ -69,6 +71,7 @@ void Noreturn shut_down(int code)
 {
   done_signals();
   done_gc();
+  done_dynamic(); /* must be after [done_gc] */
   sys_exit(code);
 }
 
@@ -140,6 +143,45 @@ int stricmp( const char* s, const char* t )
   return 0;
 }
 #endif
+
+/*---------------------------------------------------------
+-- string routines
+---------------------------------------------------------*/
+void str_copy( char* dest, const char* src, long size )
+{
+  if (dest == NULL || size <= 0) return;
+
+  if (src == NULL) {
+    *dest = 0;
+  }
+  else {
+    char* p        = dest;
+    const char* cp = src;
+    while (*cp != 0 && p-dest < size) {
+      *p = *cp;
+      p++;
+      cp++;
+    }
+    if (p-dest < size) *p = 0;
+                  else dest[size-1] = 0;
+  }
+}
+
+void str_cat( char* dest, const char* src, long size )
+{
+  char* p;
+  if (dest == NULL || size == 0) return;
+
+  p = dest;
+  while (*p != 0 && p-dest < size) { p++; }
+  if (p-dest < size) { str_copy( p, src, size - (p-dest) ); }
+}
+
+long str_len( const char* src )
+{
+  if (src == NULL) return 0;
+  return strlen(src);
+}
 
 /*---------------------------------------------------------
 -- (v)snprintf

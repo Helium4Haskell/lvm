@@ -37,9 +37,9 @@ struct prim_info {
   void* fun;
 };
 
-#define PRIM(name,tp)  { #name, tp, name },  
+#define PRIM(name,tp)  { #name, tp, name },
 static struct prim_info primitives[] = {
-  { "getTickCount", "l"   , get_msec_count },  
+  { "getTickCount", "l"   , get_msec_count },
   PRIMS
   { NULL, NULL }
 };

@@ -102,7 +102,7 @@
   safe points
 ----------------------------------------------------------------------*/
 #define Safe_check_()         Safe_checkx(sp=sp/* nothing */)
-#define Safe_check(v)         Safe_checkx((*--sp = (v)) /* Push(v) */) 
+#define Safe_check(v)         Safe_checkx((*--sp = (v)) /* Push(v) */)
 #define Safe_signal_check_()  Safe_signal_checkx(sp=sp;/* nothing */)
 #define Safe_signal_check(v)  Safe_signal_checkx((*--sp = (v)) /* Push(v) */)
 
@@ -134,7 +134,7 @@
                             thread->fp_traps  = fp_get_traps(); \
                             thread->result = (r); \
                             Restore_exception_handler(exn_frame,thread); \
-                            return; }                             
+                            return; }
 
 #define Raise_runtime_exn(exn)    { Setup_for_exn(); raise_runtime_exn_1( exn, copy_string(find_name_of_code( thread->module, thread->code )) ); }
 #define Raise_arithmetic_exn(exn) { Setup_for_exn(); raise_arithmetic_exn( exn ); }
@@ -777,12 +777,12 @@ returnloop:
       Alloc_con(con,consize,contag); \
       for( i = 0; i < consize; i++) { Init_field(con,i,sp[i]); } \
     }
-    
+
     Instr(RETURNCON): {
       con_tag_t contag  = *pc++;
       wsize_t   consize = *pc++;
       value     con     = 0;
-      
+
       Require( sp + consize <= fp );
       Trace_stack("RETURNCON");
 
@@ -815,7 +815,7 @@ returncon:
             }
 
             /* interpret the SWITCHCON instruction */
-            pc++; 
+            pc++;
             count = pc[0];
             if (contag >= count) {
               /* default case: we have to allocate */
@@ -885,7 +885,7 @@ returncon:
           if (con == 0) {
             wsize_t i;
             Update_alloc_con(upd,con,consize,contag);
-            for( i = 0; i < consize; i++) { Store_field(con,i,sp[i]); } 
+            for( i = 0; i < consize; i++) { Store_field(con,i,sp[i]); }
           } else {
             Indirect(upd,con);
           }
@@ -960,7 +960,7 @@ returncon:
       wsize_t    i;
       con_tag_t  contag;
       wsize_t    n   = pc[0];
-      long       ofs = pc[1];      
+      long       ofs = pc[1];
       Require( sp < fp );
       Require( Is_long(sp[0]) || Is_block(sp[0]));
 
@@ -1357,7 +1357,7 @@ returncon:
       value     con;
       con_tag_t contag  = *pc++;
       wsize_t   consize = *pc++;
-      wsize_t   i;        
+      wsize_t   i;
       Alloc_con(con,consize,contag);
       for( i = 0; i < consize; i++) { Init_field_inv(con,i); }
       Push(con);
@@ -1369,7 +1369,7 @@ returncon:
       wsize_t n    = *pc++;
       wsize_t i;
       value con;
-      
+
       Require( sp + n <= fp && sp + ofs < fp);
       con = sp[ofs];
       Require( Is_block(con) && Tag_val(con) <= Con_max_tag && Fsize_val(con) >= n);
@@ -1407,7 +1407,7 @@ returncon:
     Instr(NEWCON1): {
       con_tag_t contag = *pc++;
       value     con;
-      if (contag < Con_max_tag) {        
+      if (contag < Con_max_tag) {
         Alloc_small(con,1,contag);
       } else {
         Alloc_small(con,2,Con_max_tag);
@@ -1421,7 +1421,7 @@ returncon:
     Instr(NEWCON2): {
       con_tag_t contag = *pc++;
       value     con;
-      if (contag < Con_max_tag) {        
+      if (contag < Con_max_tag) {
         Alloc_small(con,2,contag);
       } else {
         Alloc_small(con,3,Con_max_tag);
@@ -1437,7 +1437,7 @@ returncon:
     Instr(NEWCON3): {
       con_tag_t contag = *pc++;
       value     con;
-      if (contag < Con_max_tag) {        
+      if (contag < Con_max_tag) {
         Alloc_small(con,3,contag);
       } else {
         Alloc_small(con,4,Con_max_tag);
@@ -1687,17 +1687,17 @@ returncon:
       sp[1] = copy_double(Double_val(sp[0]) op Double_val(sp[1])); \
       Pop(); \
       Next; }
-      
+
     Float_op(ADDFLOAT,+)
     Float_op(SUBFLOAT,+)
     Float_op(MULFLOAT,*)
     Float_op(DIVFLOAT,/)
 
-    Instr(NEGFLOAT): { 
+    Instr(NEGFLOAT): {
       Require(Is_block(sp[0]) && Tag_val(sp[0]) == Double_tag); \
       Setup_for_exn();
       sp[0] = copy_double( - Double_val(sp[0]) );
-      Next; 
+      Next;
     }
 
 #define Float_compare(opname,tst) \
@@ -1715,7 +1715,7 @@ returncon:
     Float_compare(GTFLOAT,>)
     Float_compare(LEFLOAT,<=)
     Float_compare(GEFLOAT,>=)
-    
+
 /*----------------------------------------------------------------------
   Call External functions
 ----------------------------------------------------------------------*/

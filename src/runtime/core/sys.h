@@ -25,10 +25,6 @@
 #ifndef _sys_
 #define _sys_
 
-#include "mlvalues.h"
-
-#define MAX_PATH_LENGTH 1024
-
 void sys_init (char **);
 
 int file_open_binary( const char* name, int mode );
@@ -36,7 +32,11 @@ int file_open( const char* name, int mode );
 int file_close( int handle );
 int file_read( int handle, void* buffer, unsigned int count );
 long file_skip( int handle, long count );
-const char * searchpath (const char* path, const char * name, const char* ext );
+
+const char* searchpath_exe( const char* name );
+const char* searchpath_dll( const char* name );
+const char* searchpath_lvm( const char* name );
+const char* searchpath(const char* path, const char * name, const char* ext );
 
 nat msecs_of_ticks(nat ticks );
 nat get_msec_count(void);

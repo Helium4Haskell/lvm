@@ -87,7 +87,7 @@ long  fp_sticky_mask( enum exn_arithmetic ex )
 {
   if (ex < 0 || ex >= Fp_exn_count) {
     raise_invalid_argument( "fp_sticky_mask" ); return 0;
-  }else 
+  }else
     return fp_sticky_masks[ex];
 }
 
@@ -95,7 +95,7 @@ long  fp_trap_mask( enum exn_arithmetic ex )
 {
   if (ex < 0 || ex >= Fp_exn_count) {
     raise_invalid_argument( "fp_trap_mask" ); return 0;
-  }else 
+  }else
     return fp_trap_masks[ex];
 }
 
@@ -117,12 +117,12 @@ enum fp_round fp_round_unmask( long rnd )
 }
 
 
-                              
+
 /*----------------------------------------------------------------------
   The ieee conformance on i386 platforms is bizar:
   - Microsoft Visual C and Borland C provide no mechanism
     to set the sticky flags. On top of that, the MS functions are
-    very inefficient since they convert all the bits to some other 
+    very inefficient since they convert all the bits to some other
     (DEC alpha?) format.
   - Mingw32 does have a MS conformant [float.h] but it conflicts with
     the default GNU [float.h].
@@ -133,11 +133,11 @@ enum fp_round fp_round_unmask( long rnd )
 
   Incredible, especially when we consider that the x87 was the driving
   force behind the IEEE 754 standard. We implement floating point support
-  in assembly by default on the IA32 platforms. Surprisingly, it is 
+  in assembly by default on the IA32 platforms. Surprisingly, it is
   quite easy to do which makes one wonder why it the implementations are
   so diverse.
 ----------------------------------------------------------------------*/
-#if defined(ARCH_IA32) 
+#if defined(ARCH_IA32)
 
 #if defined(_MSC_VER)
 # define FLOAT_ASM_IA32
@@ -219,7 +219,7 @@ long fp_set_sticky( long sticky )
 }
 
 
-static fp_reg fp_control( fp_reg control, fp_reg mask, fp_reg resmask ) 
+static fp_reg fp_control( fp_reg control, fp_reg mask, fp_reg resmask )
 {
   volatile fp_reg cw;
   volatile fp_reg cwnew;
@@ -229,7 +229,7 @@ static fp_reg fp_control( fp_reg control, fp_reg mask, fp_reg resmask )
     if (cwnew != cw) { asm_fldcw(cwnew); }
   }
   return (cw & resmask);
-}  
+}
 
 long fp_get_traps( void )
 {
@@ -312,7 +312,7 @@ long fp_get_sticky(void)
 }
 
 long fp_set_sticky( long sticky )
-{ 
+{
   return fpsetsticky( sticky );
 }
 
@@ -323,7 +323,7 @@ long fp_get_traps(void)
 }
 
 long fp_set_traps( long traps )
-{ 
+{
   return fpsetmask(traps);
 }
 
@@ -431,7 +431,7 @@ long fp_get_sticky(void)
 }
 
 long fp_set_sticky( long sticky )
-{ 
+{
   raise_arithmetic_exn( Fpe_unemulated );
   return 0;
 }
@@ -444,7 +444,7 @@ long fp_get_traps(void)
 }
 
 long fp_set_traps( long traps )
-{ 
+{
   raise_arithmetic_exn( Fpe_unemulated );
   return 0;
 }
@@ -475,9 +475,9 @@ int main( int argc, char** argv )
   x = y + x;
   f1 = fp_get_sticky();
   f2 = fp_set_sticky( 0 );
-  f3 = fp_get_sticky(); 
+  f3 = fp_get_sticky();
   printf( "%g, %x %x %x\n", x, f1, f2, f3 );
-  
+
   return 0;
 }
 */

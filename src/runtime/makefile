@@ -14,10 +14,15 @@ include ../config/makefile
 #CCOPT	   = -O2 $(CCOPTS) -g -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
 #LINKOPT    = $(LINKOPTS)
 #CCOPT_FAST = -O3 $(CCOPTS) -g -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
-
+ifdef NDEBUG
 CCOPT	   = -O2 $(CCOPTS) -I. -Icommon
 LINKOPT    = $(LINKOPTS)
 CCOPT_FAST = -O3 $(CCOPTS) -I. -Icommon
+else
+CCOPT	   = $(CCOPTS) -I. -Icommon
+LINKOPT    = $(LINKOPTS)
+CCOPT_FAST = $(CCOPTS) -I. -Icommon
+endif
 
 CORE	= main.c stats.c \
 	  schedule.c evaluator.c instr.c thread.c stack.c \

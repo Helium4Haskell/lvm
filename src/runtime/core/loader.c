@@ -90,11 +90,10 @@ static void resolve_instrs( const char* name, wsize_t code_len, opcode_t* code
 ----------------------------------------------------------------------*/
 static int open_module(const char **fname)
 {
-extern const char* lvmpath;
   const char * truename;
   int fd;
 
-  truename = searchpath(lvmpath,*fname,".lvm");
+  truename = searchpath_lvm(*fname);
   if (truename == 0) truename = *fname; else *fname = truename;
   fd = file_open_binary(truename, O_RDONLY );
   if (fd < 0)  raise_module( truename, "could not open file" );
@@ -268,6 +267,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
         Store_read( Field_extern_link );
         Store_read( Field_extern_call );
         Store_zero( Field_extern_fun );
+        Store_zero( Field_extern_symbol );
         break;
       }
 
@@ -461,7 +461,7 @@ static void resolve_internal_records( value module )
 static void resolve_external_records( value module )
 {
   CAMLparam1(module);
-  CAMLlocal2(rec,records);
+  CAMLlocal3(rec,records,symbol);
   const char* fname;
   wsize_t i;
 
@@ -488,7 +488,6 @@ static void resolve_external_records( value module )
         enum name_flag flag  = Long_val(Field(rec,Field_extern_nameflag));
         enum call_conv call  = Long_val(Field(rec,Field_extern_call));
         const char*    cname;
-        void*          symbol;
 
         if (flag == Name_ordinal)
           cname = (const char*)(Long_val(Field(rec,Field_extern_name)));
@@ -501,16 +500,20 @@ static void resolve_external_records( value module )
                                         call,
                                         Name_field(rec,Field_extern_type),
                                         flag );
-        } else if (link == Link_static) {
-          symbol = load_static_symbol( Name_field(rec,Field_extern_module),
-                                       cname,
-                                       call,
-                                       Name_field(rec,Field_extern_type),
-                                       flag );
-        } else {
-          symbol = NULL; /* nothing to fixup, supplied at runtime */
+          Store_field(rec,Field_extern_symbol,symbol);
+          Store_field(rec,Field_extern_fun,Val_ptr(Symbol_fun(symbol)));
         }
-        Store_field(rec,Field_extern_fun,Val_ptr(symbol));
+        else if (link == Link_static) {
+          void* fun = load_static_symbol( Name_field(rec,Field_extern_module),
+                                          cname,
+                                          call,
+                                          Name_field(rec,Field_extern_type),
+                                          flag );
+          Store_field(rec,Field_extern_fun,Val_ptr(fun));
+        }
+        else {
+          Store_field(rec,Field_extern_fun,Val_ptr(NULL)); /* nothing to fixup, supplied at runtime */
+        }
         break;
       }
       default: {
@@ -603,17 +606,13 @@ debug_gc();
   file_close(handle);
 
   /* resolve */
-debug_gc();
   resolve_module_name( module, header.module_name );
-debug_gc();
   resolve_internal_records( module );
 
   /* [resolve_external_records] recursively reads other modules */
-debug_gc();
   resolve_external_records( module );
-debug_gc();
-  /* print( "module %s\n", String_val(Field(module,Module_name)));   */
 
+  /* print( "module %s\n", String_val(Field(module,Module_name)));   */
   CAMLreturn(module);
 }
 
@@ -665,7 +664,7 @@ static value* find_symbol( value module, const char* name, enum rec_kind kind )
     for( i = 1; i <= Count_records(records); i++)
     {
       rec = Record(records,i);
-      if (   ((Tag_val(rec) == kind) || 
+      if (   ((Tag_val(rec) == kind) ||
               (Tag_val(rec) == Rec_import && Long_val(Field( rec, Field_import_kind )) == kind))
           && (Long_val(Field(rec,Field_flags)) & Flag_public) == Flag_public
           && strcmp(name,Name_field(rec,Field_name)) == 0)
@@ -703,9 +702,7 @@ value load_module( const char* name )
   /* resolve all references in the code */
   mod = module;
   do{
-debug_gc();
     resolve_code(mod);
-debug_gc();
     mod = Field(mod,Module_next);
   } while (mod != module);
 
@@ -758,7 +755,7 @@ static void fixup_con( const char* name, opcode_t* opcode, con_tag_t tag )
 {
   if (tag < 0)           { raise_module( name, "negative tag (%li)", tag ); }
   if (  tag > Max_word_t
-     || tag > Max_long)  { raise_module( name, "tag is too large (%li)", tag ); } 
+     || tag > Max_long)  { raise_module( name, "tag is too large (%li)", tag ); }
   opcode[0] = (opcode_t)tag;
 }
 

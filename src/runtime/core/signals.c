@@ -429,7 +429,7 @@ static void handle_signal_fpe( int sig, int syserr )
 
 static void init_fpe_handler( void )
 {
-  oldfpe = signal( SIGFPE, (sighandler_t)(handle_signal_fpe) );  
+  oldfpe = signal( SIGFPE, (sighandler_t)(handle_signal_fpe) );
 }
 
 static void done_fpe_handler( void )
@@ -469,7 +469,7 @@ static void init_fpe_handler( void )
   sigact.sa_sigaction = handle_signal_fpe;
   sigact.sa_flags     = SA_SIGINFO;
   sigemptyset(&sigact.sa_mask);
-  if (sigaction(SIGFPE, &sigact, &oldsigact) == -1) 
+  if (sigaction(SIGFPE, &sigact, &oldsigact) == -1)
     raise_user("signal: couldn't install floating point signal handler");
   oldfpe = oldsigact.sa_handler;
   sigaddset(&signals_installed, SIGFPE );
@@ -484,7 +484,7 @@ static void done_fpe_handler( void )
 
 /* other systems, including mingw32 */
 #else
-enum exn_arithmetic info_table[] = 
+enum exn_arithmetic info_table[] =
   { Fpe_zerodivide, Fpe_overflow, Fpe_invalid, Fpe_underflow, Fpe_inexact, -1 };
 
 void handle_signal_fpe( int sig )

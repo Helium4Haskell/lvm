@@ -77,7 +77,7 @@ static struct exn_info exn_arith_infos[] = {
   { Int_zerodivide,       0, "integer division by zero" },
   { Int_overflow,         0, "integer overflow" },
   { Int_underflow,        0, "integer underflow" },
-  
+
   { Fpe_error,            0, "floating point error" },
   { Fpe_unemulated,       0, "numeric operation can not be emulated" },
   { Fpe_sqrtneg,          0, "square root of a negative number" },

@@ -10,7 +10,14 @@
 /* $Id$ */
 
 /*---------------------------------------------------------------------
-  Fixed memory blocks: tracked by gc but never moved.
+  Fixed memory blocks:
+  tracked by gc but never moved.
+
+  TODO: fixed blocks are allocated in the C heap [stat_alloc] pointed
+  to by a Custom block. We track their contents without modifying
+  the gc by using all contents of fixed blocks as roots. Unfortunately,
+  this means that fixed blocks need at least two gc's before they (and
+  their children!) are deallocated. This should be fixed someday.
 ----------------------------------------------------------------------*/
 #include "mlvalues.h"
 #include "custom.h"

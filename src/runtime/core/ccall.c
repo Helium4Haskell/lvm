@@ -90,7 +90,7 @@ value call_extern( value* sp, long arg_count, void* fun
   case '8':
 #endif
   case 'F':
-  case 'd':   
+  case 'd':
             break;
   default:  raise_internal( "extern call \"%s\": unsupported return type (%c)", name, type[0] );
   }
@@ -117,7 +117,7 @@ value call_extern( value* sp, long arg_count, void* fun
       args[i] = long_val(type[i+1],sp[i],name);
     }
   }
- 
+
   if (type[0] == 'd' || type[0] == 'F')
   {
     double result;
@@ -132,7 +132,7 @@ value call_extern( value* sp, long arg_count, void* fun
       raise_internal( "extern call: unsupported calling convention (with these types) (%i)", cconv );
     }
 
-    /* marshall the result */  
+    /* marshall the result */
     CAMLreturn(val_double( type[0], result, name ));
   }
   else
@@ -165,7 +165,7 @@ value call_extern( value* sp, long arg_count, void* fun
       raise_internal( "extern call: unsupported calling convention (with these types) (%i)", cconv );
     }
 
-    /* marshall the result */  
+    /* marshall the result */
     CAMLreturn(val_long( type[0], result, name ));
   }
 }

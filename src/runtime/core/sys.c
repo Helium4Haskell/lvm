@@ -73,6 +73,7 @@
 #include "signals.h"
 #include "sys.h"
 
+#define MAX_PATH_LEN  _MAX_PATH
 
 /*----------------------------------------------------------------------
 -- file open/close/read
@@ -210,18 +211,34 @@ void get_process_ticks( nat* tick_total, nat* tick_user, nat* tick_system )
 /*----------------------------------------------------------------------
 -- searchpath
 ----------------------------------------------------------------------*/
+const char* searchpath_lvm( const char* name )
+{
+extern const char* lvmpath;
+  return searchpath( lvmpath, name, ".lvm" );
+}
+
+const char* searchpath_exe( const char* name )
+{
+  return searchpath( NULL, name, EXE );
+}
+
+const char* searchpath_dll( const char* name )
+{
+  return searchpath( NULL, name, DLL );
+}
+
 
 #if defined(OS_WINDOWS)
 
 const char * searchpath(const char* path, const char * name, const char* ext )
 {
-  static char fullname[MAX_PATH_LENGTH];
+  static char fullname[MAX_PATH_LEN];
   char * filepart;
 
   if (SearchPath(path,
                  name,
                  ext,
-                 MAX_PATH_LENGTH,   /* size of buffer */
+                 MAX_PATH_LEN,   /* size of buffer */
                  fullname,
                  &filepart))
     return fullname;
@@ -229,13 +246,13 @@ const char * searchpath(const char* path, const char * name, const char* ext )
     return name;
 }
 
-#else
+#else /* various unix's */
 
 #if defined(OS_CYGWIN)
 /* Cygwin needs special treatment because of the implicit ".exe" at the
    end of executable file names */
 
-static bool searchpath_file_ok(const char * name)
+static bool file_exist(const char * name)
 {
   int fd;
   /* Cannot use stat() here because it adds ".exe" implicitly */
@@ -251,7 +268,7 @@ static bool searchpath_file_ok(const char * name)
 #define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
 #endif
 
-static bool searchpath_file_ok(const char * name)
+static bool file_exist(const char * name)
 {
   struct stat st;
   return (stat(name, &st) == 0 && S_ISREG(st.st_mode));
@@ -263,41 +280,47 @@ static bool searchpath_file_ok(const char * name)
 
 const char * searchpath(const char* path, const char * name, const char* ext )
 {
-  static char fullname[MAX_PATH_LENGTH];
+  static char fullname[MAX_PATH_LEN];
   const char * cp;
   char* p;
 
-  if (path == NULL) return name;
+  if (name == NULL) return NULL;
+  if (ext  == NULL) ext  = "";
+  if (path == NULL) path = getenv("PATH"); /* NULL == default system path */
 
-  /* fullname = malloc(strlen(name) + (path == NULL ? 0 : strlen(path)) + 6); */
+  /* fullname length >= (strlen(name) + (path == NULL ? 0 : strlen(path)) + 6); */
   /* 6 = "/" plus ".exe" plus final "\0" */
-  if (strlen(name) + (path == NULL ? 0 : strlen(path)) + 6 > MAX_PATH_LENGTH)
+  if (strlen(name) + (path == NULL ? 0 : strlen(path)) + 6 > MAX_PATH_LEN)
     return 0;
 
-  if (fullname == NULL) return name;
   /* Check for absolute path name */
   for (cp = name; *cp != 0; cp++) {
     if (*cp == '/' || *cp == '\\') {
-      if (searchpath_file_ok(name)) return name;
-      strcpy(fullname, name);
-      strcat(fullname, ext);
-      if (searchpath_file_ok(name)) return fullname;
-      return name;
+      if (file_exist(name)) return name;
+      str_copy(fullname, name, MAX_PATH_LEN);
+      str_cat(fullname, ext, MAX_PATH_LEN);
+      if (file_exist(fullname)) return fullname;
+      break;
     }
   }
   /* Search in path */
-  if (path == NULL) return 0;
-  while(1) {
-    for (p = fullname; *path != 0 && *path != ':' && *path != ';'; p++, path++) *p = *path;
-    if (p != fullname) *p++ = '/';
-    strcpy(p, name);
-    if (searchpath_file_ok(fullname)) return fullname;
-    strcat(fullname, ext);
-    if (searchpath_file_ok(fullname)) return fullname;
-    if (*path == 0) break;
-    path++;
+  while(path && *path != 0) {
+    long len;
+    for( len = 0; path[len] != 0 && path[len] != ':' && path[len] != ';' ) len++;
+    if (len < MAX_PATH_LEN) {
+      str_copy( fullname, path, len+1 );
+      if (len > 0) str_cat( fullname, "/", MAX_PATH_LEN );
+      str_cat( fullname, name, MAX_PATH_LEN );
+
+      if (file_exist(fullname)) return fullname;
+      str_cat(fullname, ext, MAX_PATH_LEN);
+      if (file_exist(fullname)) return fullname;
+    }
+    path = path+len;
+    if (*path != 0) path++; /* skip seperator */
   }
-  return 0;
+
+  return NULL;
 }
 
 

@@ -205,6 +205,10 @@ SOURCE=.\heap\gc_ctrl.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\heap\globroots.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\heap\major_gc.c
 # End Source File
 # Begin Source File

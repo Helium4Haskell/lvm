@@ -42,6 +42,6 @@
   /* string/list conversion */      \
   PRIM(prim_string_of_chars, "ala" )\
   PRIM(prim_chars_of_string, "aa" ) \
-  PRIM(prim_string_length, "la" )   
+  PRIM(prim_string_length, "la" )
 
 #endif

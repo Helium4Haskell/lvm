@@ -121,7 +121,8 @@ enum rec_fields {
   Field_extern_nameflag,
   Field_extern_link,
   Field_extern_call,
-  Field_extern_fun,
+  Field_extern_fun,       /* the real address: [void*] */
+  Field_extern_symbol,    /* a possible [Symbol] custom block, containing a handle and the real address */
   Rec_extern_size,
 
   Field_import_module = Field_flags+1,

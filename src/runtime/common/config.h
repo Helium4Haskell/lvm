@@ -28,6 +28,10 @@
 #include <m.h>
 #include <s.h>
 
+#define in  const
+#define out
+#define inout
+
 /* typedef short int16; */            /* FIXME -- not true on the Cray T3E */
 /* typedef unsigned short uint16; */  /* FIXME -- not true on the Cray T3E */
 

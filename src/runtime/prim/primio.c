@@ -66,13 +66,13 @@ void (*channel_mutex_unlock_exn) (void) = NULL;
 
 /* Functions shared between input and output */
 
-struct channel * open_descriptor(int fd, bool out)
+struct channel * open_descriptor(int fd, bool output)
 {
   struct channel * channel;
 
   channel = (struct channel *) stat_alloc(sizeof(struct channel));
   channel->fd = fd;
-  channel->output = out;
+  channel->output = output;
   channel->offset = 0;
   channel->curr = channel->max = channel->buff;
   channel->end = channel->buff + IO_BUFFER_SIZE;
@@ -425,9 +425,9 @@ static value alloc_channel(struct channel *chan)
 primitives
 ----------------------------------------------------------------------*/
 
-value prim_open_descriptor(long fd, bool out)
+value prim_open_descriptor(long fd, bool output)
 {
-  return alloc_channel(open_descriptor(fd,out));
+  return alloc_channel(open_descriptor(fd,output));
 }
 
 value channel_descriptor(value vchannel)   /* ML */

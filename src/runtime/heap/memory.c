@@ -25,7 +25,7 @@
 
 #include "memory.h"
 #include "compact.h"
-#include "heapfast.h"     
+#include "heapfast.h"
 #include "core/signals.h" /* urge_major_slice */
 #include "core/print.h"   /* Bstring_of_bsize */
 

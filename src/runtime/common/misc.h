@@ -121,6 +121,11 @@ void gc_message (int level, const char* msg, unsigned long);
 int stricmp( const char* s, const char* t );
 #endif
 
+/* string routines */
+void str_copy( char* dest, const char* src, long size );
+void str_cat ( char* dest, const char* src, long size );
+long str_len ( const char* src );
+
 /* Memory routines */
 void memmov (char *, char *, unsigned long);
 char *aligned_malloc (size_t, int, void **);

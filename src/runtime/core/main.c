@@ -15,6 +15,7 @@
 #include "mlvalues.h"
 #include "memory.h"
 #include "heap/heap.h"
+#include "dynamic.h"
 #include "custom.h"
 
 #include "fail.h"
@@ -360,9 +361,10 @@ void start_module( const char* name )
 
   module = load_module( name );
   debug_gc();
-
   stat_end_init();
+
   evaluate_name( module, "main" );
+  
   CAMLreturn0;
 }
 
@@ -403,6 +405,7 @@ int main( int argc, const char** argv )
           ,heap_percent_free_init, heap_max_percent_free_init
           ,gc_verbose_init, heap_wsize_max_init );
   init_signals();
+  init_dynamic();
   init_evaluator();
   debug_gc();
 
@@ -416,6 +419,7 @@ int main( int argc, const char** argv )
   stat_start_done();
   done_signals();
   done_gc();
+  done_dynamic(); /* must be after [done_gc] */
   stat_end_done();
   if (args[0] && timings_report) stat_timings_report();
   if (args[0] && heap_report)    stat_heap_report();
