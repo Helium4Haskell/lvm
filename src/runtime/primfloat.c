@@ -139,16 +139,20 @@ enum fp_round fp_round_unmask( long rnd )
 
 #if defined(_MSC_VER)
 # define FLOAT_ASM_IA32
+# define asm_fnclex()     __asm{ fnclex }
 # define asm_fstcw(cw)    __asm{ fstcw cw }
 # define asm_fldcw(cw)    __asm{ fldcw cw }
 # define asm_fstsw(sw)    __asm{ fstsw sw }
+# define asm_fnstsw(sw)   __asm{ fnstsw sw }
 # define asm_fldenv(env)  __asm{ fldenv env }
 # define asm_fstenv(env)  __asm{ fstenv env }
 #elif defined(__GNUC__)
 # define FLOAT_ASM_IA32
+# define asm_fnclex()     __asm __volatile("fnclex")
 # define asm_fstcw(cw)    __asm __volatile("fstcw %0" : "=m" (cw))
 # define asm_fldcw(cw)    __asm __volatile("fldcw %0" : : "m" (cw))
 # define asm_fstsw(sw)    __asm __volatile("fstsw %0" : "=m" (sw))
+# define asm_fnstsw(sw)   __asm __volatile("fnstsw %0" : "=m" (sw))
 # define asm_fldenv(env)  __asm __volatile("fldenv %0" : : "m" (*(env)))
 # define asm_fstenv(env)  __asm __volatile("fstenv %0" : "=m" (*(env)))
 #else
@@ -163,53 +167,53 @@ enum fp_round fp_round_unmask( long rnd )
 ----------------------------------------------------------------------*/
 #if defined(FLOAT_ASM_IA32)
 
-#define FP_STICKY_MASK 0x003f
-#define FP_TRAP_MASK   0x003f
-#define FP_ROUND_MASK  0x0c00
+#define _FP_STICKY_MASK 0x003f
+#define _FP_TRAP_MASK   0x003f
+#define _FP_ROUND_MASK  0x0c00
 
-#define FP_STATUS_REG  1
-#define FP_ENV_SIZE    7
+#define _FP_STATUS_REG  1
+#define _FP_ENV_SIZE    7
 
-#define FP_X_INV  0x01
-#define FP_X_DNML 0x02
-#define FP_X_DZ   0x04
-#define FP_X_OFL  0x08
-#define FP_X_UFL  0x10
-#define FP_X_IMP  0x20
+#define _FP_X_INV  0x01
+#define _FP_X_DNML 0x02
+#define _FP_X_DZ   0x04
+#define _FP_X_OFL  0x08
+#define _FP_X_UFL  0x10
+#define _FP_X_IMP  0x20
 
-#define FP_RN     0x0000
-#define FP_RM     0x0400
-#define FP_RP     0x0800
-#define FP_RZ     0x0c0
+#define _FP_RN     0x0000
+#define _FP_RM     0x0400
+#define _FP_RP     0x0800
+#define _FP_RZ     0x0c0
 
 typedef unsigned int fp_reg;
 
 static long fp_sticky_masks[Fp_exn_count] =
-  { FP_X_INV, FP_X_DZ, FP_X_OFL, FP_X_UFL, FP_X_IMP, FP_X_DNML };
+  { _FP_X_INV, _FP_X_DZ, _FP_X_OFL, _FP_X_UFL, _FP_X_IMP, _FP_X_DNML };
 
 static long fp_trap_masks[Fp_exn_count] =
-  { FP_X_INV, FP_X_DZ, FP_X_OFL, FP_X_UFL, FP_X_IMP, FP_X_DNML };
+  { _FP_X_INV, _FP_X_DZ, _FP_X_OFL, _FP_X_UFL, _FP_X_IMP, _FP_X_DNML };
 
 static long fp_round_masks[fp_round_count] =
-  { FP_RN, FP_RP, FP_RM, FP_RZ };
+  { _FP_RN, _FP_RP, _FP_RM, _FP_RZ };
 
 
 long fp_get_sticky( void )
 {
   volatile fp_reg sw;
   asm_fstsw(sw);
-  return (sw & FP_STICKY_MASK);
+  return (sw & _FP_STICKY_MASK);
 }
 
 long fp_set_sticky( long sticky )
 {
   volatile fp_reg sw;
-  volatile fp_reg env[FP_ENV_SIZE];
+  volatile fp_reg env[_FP_ENV_SIZE];
   asm_fstenv(env);
-  sw                 = env[FP_STATUS_REG];
-  env[FP_STATUS_REG] = (env[1] & ~FP_STICKY_MASK) | (sticky & FP_STICKY_MASK);
-  asm_fldenv(env);
-  return (sw & FP_STICKY_MASK);
+  sw                  = env[_FP_STATUS_REG];
+  env[_FP_STATUS_REG] = (env[1] & ~_FP_STICKY_MASK) | (sticky & _FP_STICKY_MASK);
+  if (sw != env[_FP_STATUS_REG]) { asm_fldenv(env); }
+  return (sw & _FP_STICKY_MASK);
 }
 
 
@@ -220,35 +224,45 @@ static fp_reg fp_control( fp_reg control, fp_reg mask, fp_reg resmask )
   asm_fstcw(cw);
   if (mask != 0) {
     cwnew = (cw & ~mask) | (control & mask);
-    asm_fldcw(cwnew);
+    if (cwnew != cw) { asm_fldcw(cwnew); }
   }
   return (cw & resmask);
 }  
 
 long fp_get_traps( void )
 {
-  return ~fp_control(0,0,FP_TRAP_MASK);
+  return (~fp_control(0,0,_FP_TRAP_MASK) & _FP_TRAP_MASK);
 }
 
 long fp_set_traps( long traps )
 {
-  return ~fp_control(~traps,FP_TRAP_MASK,FP_TRAP_MASK);
+  return (~fp_control((~traps & _FP_TRAP_MASK),_FP_TRAP_MASK,_FP_TRAP_MASK) & _FP_TRAP_MASK);
 }
 
 enum fp_round fp_get_round( void )
 {
-  return fp_round_unmask(fp_control(0,0,FP_ROUND_MASK));
+  return fp_round_unmask(fp_control(0,0,_FP_ROUND_MASK));
 }
 
 enum fp_round fp_set_round( enum fp_round rnd )
 {
-  return fp_round_unmask(fp_control(fp_round_mask(rnd),FP_ROUND_MASK,FP_ROUND_MASK));
+  return fp_round_unmask(fp_control(fp_round_mask(rnd),_FP_ROUND_MASK,_FP_ROUND_MASK));
+}
+
+long fp_clear(void)
+{
+  volatile fp_reg sw;
+  asm_fnstsw(sw);
+  asm_fnclex();
+  return (sw & _FP_STICKY_MASK);
 }
 
 void fp_reset(void)
 {
 #ifdef HAS_CONTROLFP
   _fpreset();
+#else
+  fp_clear();
 #endif
 }
 
@@ -281,7 +295,12 @@ static long fp_round_masks[fp_round_count] =
 
 void fp_reset( void )
 {
-  return;
+  fp_clear();
+}
+
+long fp_clear()
+{
+  return fp_set_sticky(0);
 }
 
 /* sticky */
@@ -338,6 +357,11 @@ void fp_reset( void )
   _fpreset();
 }
 
+long fp_clear( void )
+{
+  return _clearfp();
+}
+
 /* rounding */
 enum fp_round fp_get_round( void )
 {
@@ -390,6 +414,11 @@ static long fp_round_masks[fp_round_count] =
 void fp_reset( void )
 {
   return;
+}
+
+long fp_clear( void )
+{
+  return 0;
 }
 
 /* sticky */

@@ -4,6 +4,7 @@ extern float        "float_of_string" :: "Fz"
 extern fpgetsticky  "fp_get_sticky"   :: "I"
 extern fptrapmask   "fp_trap_mask"    :: "Ii"
 extern fpsettraps   "fp_set_traps"    :: "II"
+instruction add "addfloat":: Float -> Float -> Float
 
 data ArithmeticException
   = FloatInvalid                      -- float invalid operation
@@ -23,4 +24,7 @@ data ArithmeticException
 
 main = case fptrapmask FloatInexact of
         mask -> case fpsettraps mask of 
-                  _ -> case float "1.0" of _ -> 42
+                  _ -> case float "1.0" of 
+                        x -> case float "0.1" of
+                               y -> case add x y of
+                                      _ -> 42

@@ -46,8 +46,13 @@ struct thread_state {
   value*  stack_fp;
   value*  exn_fp;
 
+  /* trapped signals & exception frames */
   value   save_signals[Sig_count];
   struct  exception_frame* exn_frame;
+
+  /* floating point state */
+  long    fp_sticky;
+  long    fp_traps;
 };
 
 /*----------------------------------------------------------------------

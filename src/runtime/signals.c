@@ -42,7 +42,7 @@
 #include "thread.h"
 #include "systhread.h"
 #include "signals.h"
-
+#include "primfloat.h"
 
 /*----------------------------------------------------------------------
   define signals
@@ -388,8 +388,8 @@ struct fpe_info {
 
 
 /* floating point exceptions are synchronous */
-/* Visual C++ & mingw32 */
-#if defined(HAS_CONTROLFP)
+/* Visual C++ */
+#if defined(_MSC_VER)
 static struct fpe_info  fpe_table[] = {
   { _FPE_INVALID            , Fpe_invalid },
   { _FPE_DENORMAL           , Fpe_denormal },
@@ -403,15 +403,6 @@ static struct fpe_info  fpe_table[] = {
   { _FPE_STACKOVERFLOW      , Fpe_stackoverflow },
   { _FPE_STACKUNDERFLOW     , Fpe_stackunderflow },
 
-#ifdef __MINGW32__
-  { _EM_INVALID             , Fpe_invalid },
-  { _EM_DENORMAL            , Fpe_denormal },
-  { _EM_ZERODIVIDE          , Fpe_zerodivide },
-  { _EM_OVERFLOW            , Fpe_overflow },
-  { _EM_UNDERFLOW           , Fpe_underflow },
-  { _EM_INEXACT             , Fpe_inexact },
-#endif
-
   { _FPE_EXPLICITGEN        , Fpe_error },
   { -1                      , Fpe_error }
 };
@@ -421,12 +412,16 @@ static void handle_signal_fpe( int sig, int syserr )
   enum exn_arithmetic err = Fpe_error;
   struct fpe_info* info;
 #ifdef __MINGW32__
-  syserr = _clearfp();
-#endif
+  syserr = fp_clear();
+  for( info = fpe_table; info->syserr != -1; info++ ) {
+    if ((info->syserr & syserr) != 0) { err = info->err; break; }
+  }
+#else
   for( info = fpe_table; info->syserr != -1; info++ ) {
     if (info->syserr == syserr) { err = info->err; break; }
   }
-  _fpreset();
+#endif
+  fp_reset();
   raise_arithmetic_exn( err );
 }
 
@@ -443,7 +438,7 @@ static void done_fpe_handler( void )
 
 
 /* POSIX */
-#elif defined(POSIX_SIGNALS)
+#elif defined(POSIX_SIGNALS) && defined(FPE_FLTINV)
 static struct fpe_info  fpe_table[] = {
   { FPE_FLTINV, Fpe_invalid },
   { FPE_FLTDIV, Fpe_zerodivide },
@@ -460,6 +455,7 @@ static void handle_signal_fpe( int sig, siginfo_t* siginfo, void* p)
   for( info = fpe_table; info->syserr != -1; info++ ) {
     if (info->syserr == siginfo->si_code) { err = info->err; break; }
   }
+  fp_reset();
   raise_arithmetic_exn( err );
 }
 
@@ -484,11 +480,21 @@ static void done_fpe_handler( void )
   oldfpe = SIG_DFL;
 }
 
-/* other systems */
+/* other systems, including mingw32 */
 #else
+enum exn_arithmetic info_table[] = 
+  { Fpe_zerodivide, Fpe_overflow, Fpe_invalid, Fpe_underflow, Fpe_inexact, -1 };
+
 void handle_signal_fpe( int sig )
 {
-  raise_arithmetic_exn( Fpe_invalid );
+  enum exn_arithmetic  exn = Fpe_error;
+  enum exn_arithmetic* info;
+  long mask = fp_clear();
+  for( info = info_table; *info != -1; info++ ) {
+    if ((mask & fp_sticky_mask(*info)) != 0) { exn = *info; break; }
+  }
+  fp_reset();
+  raise_arithmetic_exn( exn );
 }
 
 void init_fpe_handler( void )

@@ -36,6 +36,9 @@ long fp_trap_mask( enum exn_arithmetic ex );
 long fp_get_traps( void );
 long fp_set_traps( long traps );
 
+/* the following two functions can be called from
+   a signal handler and should always succeed */
+long fp_clear( void );
 void fp_reset( void );
 
 #endif /* _primfloat_h */

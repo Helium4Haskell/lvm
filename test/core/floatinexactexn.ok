@@ -1,5 +1,2 @@
 exception at "FloatInexactExn.main":
   floating point result is inexact.
-
-trace:
-  demanded from "FloatInexactExn.main"

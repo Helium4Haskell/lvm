@@ -110,6 +110,19 @@
   Ins( SWITCHCON, 2 ),  \
   Ins( MATCHINT, 2 ),   \
   \
+  Ins( ADDFLOAT, 0 ),  \
+  Ins( SUBFLOAT, 0 ),  \
+  Ins( MULFLOAT, 0 ),  \
+  Ins( DIVFLOAT, 0 ),  \
+  Ins( NEGFLOAT, 0 ),  \
+  \
+  Ins( EQFLOAT, 0 ), \
+  Ins( NEFLOAT, 0 ), \
+  Ins( LTFLOAT, 0 ), \
+  Ins( GTFLOAT, 0 ), \
+  Ins( LEFLOAT, 0 ), \
+  Ins( GEFLOAT, 0 ), \
+  \
   /* internal instructions */ \
   Ins( PUSHCAF, 1 ),    \
   Ins( STOP, 0 )

@@ -239,4 +239,16 @@ effect instr
       LEINT            -> pop 1
       GEINT            -> pop 1
 
+      ADDFLOAT           -> pop 1
+      SUBFLOAT           -> pop 1
+      MULFLOAT           -> pop 1
+      DIVFLOAT           -> pop 1
+
+      EQFLOAT            -> pop 1
+      NEFLOAT            -> pop 1
+      LTFLOAT            -> pop 1
+      GTFLOAT            -> pop 1
+      LEFLOAT            -> pop 1
+      GEFLOAT            -> pop 1
+
       other -> return ()

@@ -88,11 +88,9 @@ extern wsize_t stack_wsize_max, stack_wsize_threshold, stack_wsize_init;
   case Thread_complete:
   case Thread_yield:
   default: {
-    if (thread->stack_sp[0] != Atom(0)) {
-      print( "final value: " );
-      print_value(module, thread->stack_sp[0]);
-      print( "\n");
-    }
+    print( "final value: " );
+    print_value(module, thread->stack_sp[0]);
+    print( "\n");
     break;
   }}
 

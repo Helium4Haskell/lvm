@@ -23,13 +23,14 @@
 #include "instr.h"
 #include "ccall.h"
 #include "stack.h"
+#include "primfloat.h"
 #include "evaluator.h"
 
 
 #ifdef DEBUG
-#undef TRACE_TRACE
-#undef TRACE_INSTR
-#undef TRACE_STACK
+#define TRACE_TRACE
+#define TRACE_INSTR
+#define TRACE_STACK
 #undef GC_AT_EACH_INSTR
 #endif
 
@@ -128,9 +129,11 @@
   machine actions
 ----------------------------------------------------------------------*/
 #define Return(r)         { Setup_for_gc; \
-                            Restore_exception_handler(exn_frame,thread); \
+                            thread->fp_sticky = fp_get_sticky(); \
+                            thread->fp_traps  = fp_get_traps(); \
                             thread->result = (r); \
-                            return; }
+                            Restore_exception_handler(exn_frame,thread); \
+                            return; }                             
 
 #define Raise_runtime_exn(exn)    { Setup_for_exn(); raise_runtime_exn_1( exn, copy_string(find_name_of_code( thread->module, thread->code )) ); }
 #define Raise_arithmetic_exn(exn) { Setup_for_exn(); raise_arithmetic_exn( exn ); }
@@ -347,11 +350,10 @@ void evaluate( struct thread_state* thread )
   /* set the instruction basic offset for 64bit machines */
   Set_instr_base;
 
-
   /* install the exception handler */
   Setup_exception_handler(exn_frame,thread,exn, \
                           { Restore_after_exn(); \
-                            pc = 0;
+                            pc = 0; \
                             Push(exn); \
                             goto raise_exception; \
                           });
@@ -362,6 +364,10 @@ void evaluate( struct thread_state* thread )
   fp      = thread->stack_fp;
   if (sp >= fp) fatal_error( "fatal error: corrupted stack -- (%sp >= %fp) on enter" );
 
+  /* restore/initialize floating point state */
+  fp_reset();
+  fp_set_traps(thread->fp_traps);
+  fp_set_sticky(thread->fp_sticky);
 
   /* start execution by entering the value on top of the stack */
   goto enter;
@@ -1571,7 +1577,7 @@ returncon:
       div = Long_val(sp[0]) / divisor;
       mod = Long_val(sp[0]) % divisor;
 
-      /* floored division: if ((divisor < 0 && mod > 0) || (divisor > 0 && mod < 0)) div--; */
+      /* adjust to euclidean division */
       if (mod < 0) {
        if (divisor > 0) div = div-1;
                    else div = div+1;
@@ -1590,7 +1596,7 @@ returncon:
       if (divisor == 0) { Raise_arithmetic_exn( Int_zerodivide ); }
       mod = Long_val(sp[0]) % divisor;
 
-      /* floored modulus: if ((divisor < 0 && mod > 0) || (divisor > 0 && mod < 0)) mod = mod + div; // was: divisor; */
+      /* adjust to euclidean modulus */
       if (mod < 0) {
         if (divisor > 0) mod = mod + divisor;
                     else mod = mod - divisor;
@@ -1656,20 +1662,59 @@ returncon:
 /*----------------------------------------------------------------------
   Compare integer operations
 ----------------------------------------------------------------------*/
-#define Compare_instr(sign,opname,tst) \
+#define Int_compare(opname,tst) \
     Instr(opname): { \
-      sp[1] = Val_bool((sign long)sp[0] tst (sign long)sp[1]); \
+      sp[1] = Val_bool((long)sp[0] tst (long)sp[1]); \
       Pop(); \
       Next; }
 
-    Compare_instr(signed,EQINT,==)
-    Compare_instr(signed,NEINT,!=)
-    Compare_instr(signed,LTINT,<)
-    Compare_instr(signed,GTINT,>)
-    Compare_instr(signed,LEINT,<=)
-    Compare_instr(signed,GEINT,>=)
+    Int_compare(EQINT,==)
+    Int_compare(NEINT,!=)
+    Int_compare(LTINT,<)
+    Int_compare(GTINT,>)
+    Int_compare(LEINT,<=)
+    Int_compare(GEINT,>=)
 
+/*----------------------------------------------------------------------
+  floating point operations
+----------------------------------------------------------------------*/
+#define Float_op(opname,op) \
+    Instr(opname): { \
+      Require(Is_block(sp[0]) && Tag_val(sp[0]) == Double_tag); \
+      Require(Is_block(sp[1]) && Tag_val(sp[1]) == Double_tag); \
+      Setup_for_exn(); \
+      sp[1] = copy_double(Double_val(sp[0]) op Double_val(sp[1])); \
+      Pop(); \
+      Next; }
+      
+    Float_op(ADDFLOAT,+)
+    Float_op(SUBFLOAT,+)
+    Float_op(MULFLOAT,*)
+    Float_op(DIVFLOAT,/)
 
+    Instr(NEGFLOAT): { 
+      Require(Is_block(sp[0]) && Tag_val(sp[0]) == Double_tag); \
+      Setup_for_exn();
+      sp[0] = copy_double( - Double_val(sp[0]) );
+      Next; 
+    }
+
+#define Float_compare(opname,tst) \
+    Instr(opname): { \
+      Require(Is_block(sp[0]) && Tag_val(sp[0]) == Double_tag); \
+      Require(Is_block(sp[1]) && Tag_val(sp[1]) == Double_tag); \
+      Setup_for_exn(); \
+      sp[1] = Val_bool(Double_val(sp[0]) tst Double_val(sp[1])); \
+      Pop(); \
+      Next; }
+
+    Float_compare(EQFLOAT,==)
+    Float_compare(NEFLOAT,!=)
+    Float_compare(LTFLOAT,<)
+    Float_compare(GTFLOAT,>)
+    Float_compare(LEFLOAT,<=)
+    Float_compare(GEFLOAT,>=)
+    
 /*----------------------------------------------------------------------
   Call External functions
 ----------------------------------------------------------------------*/

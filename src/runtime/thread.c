@@ -49,6 +49,9 @@ struct thread_state* thread_create( unsigned long stack_init_wsize, unsigned lon
   thread->exn_frame  = NULL;
   for( i = 0; i < Sig_count; i++) thread->save_signals[i] = 0;
 
+  thread->fp_sticky = 0; 
+  thread->fp_traps  = 0; /* no fp exception is trapped by default */
+
   /* insert into the threads list: this makes the module & stack visible to the GC */
   thread->next = threads;
   threads = thread;

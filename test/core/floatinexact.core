@@ -3,6 +3,7 @@ module Float where
 
 instruction neq "neint"  :: Int -> Int -> Int
 instruction and "andint" :: Int -> Int -> Int
+instruction add "addfloat":: Float -> Float -> Float
 
 extern float        "float_of_string" :: "Fz"
 extern fpgetsticky  "fp_get_sticky"   :: "I"
@@ -25,5 +26,9 @@ data ArithmeticException
   | FloatStackUnderflow               -- float hardware stack has underflowed
 
 main = case float "1.0" of 
-        _ -> case fpstickymask FloatInexact of
-               mask -> neq (and mask fpgetsticky) 0
+        x -> case float "0.1" of
+               y -> case add x y of
+                      _ -> case fpstickymask FloatInexact of
+                             mask -> case fpgetsticky of
+                                       sw -> case and mask sw of
+                                               status -> neq status 0
