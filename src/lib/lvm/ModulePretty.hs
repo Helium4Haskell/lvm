@@ -9,12 +9,14 @@
 
 -- $Id$
 
-module ModulePretty ( modulePretty ) where
+module ModulePretty ( modulePretty, ppId, ppVarId, ppConId ) where
 
+import Char     ( isAlphaNum, isAlpha, isLower, isUpper )
 import PPrint
 import Byte     ( stringFromBytes )
-import Id       ( Id, stringFromId )
+import Id       ( Id, stringFromId, idFromString )
 import IdMap    ( listFromMap )
+import IdSet    ( IdSet, setFromList, elemSet )
 import Module
 
 ----------------------------------------------------------------
@@ -26,62 +28,147 @@ modulePretty ppValue mod
 
 ppModule ::  (v -> Doc) -> Module v -> Doc
 ppModule ppValue (Module moduleName major minor decls)
-  =  text "module" <+> ppId moduleName <+> text "where"
- <$> vcat (map (\decl -> ppDecl ppValue decl <> line) decls)
+  =  text "module" <+> ppConId moduleName <+> text "where"
+ <$> vcat (map (\decl -> ppDecl ppValue decl <> semi <> line) decls)
  <$> empty
 
+ppDecl :: (v -> Doc) -> Decl v -> Doc
 ppDecl ppValue decl
-  = nest 2 (ppDeclHeader decl <> (  
+  = nest 2 $
     case decl of
-      DeclValue{} -> line <> text "=" <+> ppValue (valueValue decl)
-      DeclCon{}   -> line <> text "=" <+> text "[tag=" <> pretty (conTag decl) 
-                                      <>  text ", arity=" <> pretty (declArity decl) <> text "]"
-      DeclExtern{}-> text " ::" <+> text (externType decl)
-      other       -> empty
-   ))
+      DeclValue{}     -> ppVarId (declName decl) <+> ppAttrs decl 
+                         <$> text "=" <+> ppValue (valueValue decl)
+      DeclCon{}       -> text "con" <+> ppConId (declName decl) <+> ppAttrs decl 
+                         <$> text "=" <+> text "#(" <> pretty (conTag decl) <> 
+                                          text ","  <> pretty (declArity decl) <> text ")"
+      DeclCustom{}    -> text "custom" <+> ppDeclKind (declKind decl) <+> ppId (declName decl) <+> ppAttrs decl
+      DeclAbstract{}  -> text "abstract" <+> ppVarId (declName decl) <+> ppNoImpAttrs decl
+                         <$> text "=" <+> ppImported (declAccess decl) <+> pretty (declArity decl)
+      DeclImport{}    -> text "import" <+> ppDeclKind (importKind (declAccess decl)) 
+                         <+> ppId (declName decl) <+> ppNoImpAttrs decl
+                         <$> text "=" <+> ppImported (declAccess decl)
+      DeclExtern{}    -> text "extern" <+> ppVarId (declName decl) <+> ppAttrs decl
+      other           -> error "ModulePretty.ppDecl: unknown declaration"
+            
 
-ppDeclHeader decl
-  = ppDeclSort decl <> ppId (declName decl) <+> text ":" <+> ppAccess (declAccess decl) <+> ppCustoms (declCustoms decl)
+ppNoImpAttrs decl
+  = ppAttrsEx True decl
 
-ppDeclSort decl
-  = case decl of
-      DeclValue{}   -> empty
-      DeclCon{}     -> text "con "
-      DeclExtern{}  -> text "extern "
-      DeclCustom{}  -> text "custom" <+> ppDeclKind (declKind decl) <> text " "
-      DeclImport{}  -> text "import "
-      DeclAbstract{}-> text "abstract "
-      other         -> text "<unknown declaration>"
+ppAttrs decl
+  = ppAttrsEx False decl
 
-ppDeclKind kind
-  = case kind of
-      DeclKindCustom id -> ppId id
-      other             -> pretty (fromEnum kind)
+ppAttrsEx hideImp decl
+  = if (null (declCustoms decl) && not (accessPublic (declAccess decl)))
+     then empty
+     else text ":" <+> ppAccess (declAccess decl) 
+          <+> (if (not hideImp) then ppImportAttr (declAccess decl) else empty) 
+          <> ppCustoms (declCustoms decl)
+
+ppAccess acc
+  = if (accessPublic acc) then text "public" else text "private"
+
+ppImportAttr  acc
+  = case acc of
+      Defined public -> empty
+      Imported public modid impid impkind major minor
+        -> text "import" <+> ppDeclKind impkind <+> ppConId modid <> char '.' <> ppId impid <> space
+  
+ppImported acc
+  = case acc of
+      Defined public -> error "ModulePretty.ppImported: internal error: abstract or import value should always be imported!"
+      Imported public modid impid impkind major minor
+        -> ppConId modid <> char '.' <> ppId impid
+  
 
 ppCustoms customs
-  = list (map ppCustom customs)
+  = if (null customs) 
+     then empty
+     else list (map ppCustom customs)
 
 ppCustom custom
   = case custom of
       CustomInt i         -> pretty i
       CustomName id       -> ppId id
       CustomBytes bs      -> dquotes (string (stringFromBytes bs))
-      CustomLink id kind  -> text "link" <+> ppDeclKind kind <+> ppId id
+      CustomLink id kind  -> text "custom" <+> ppDeclKind kind <+> ppId id
       CustomDecl kind cs  -> text "custom" <+> ppDeclKind kind <+> ppCustoms cs
       CustomNothing       -> text "nothing"
       other               -> error "ModulePretty.ppCustom: unknown custom kind"
 
+ppDeclKind kind
+  = case kind of
+      DeclKindCustom id   -> ppId id
+--      DeclKindName        
+--      DeclKindKind
+--      DeclKindBytes       
+--      DeclKindCode
+      DeclKindValue       -> ppId (idFromString "val")
+      DeclKindCon         -> ppId (idFromString "con")
+      DeclKindImport      -> ppId (idFromString "import")
+      DeclKindModule      -> ppId (idFromString "module")
+      DeclKindExtern      -> ppId (idFromString "extern")
+--      DeclKindExternType      
+      other               -> pretty (fromEnum kind)
+
+
 ppId :: Id -> Doc
 ppId id
-  = text (stringFromId id)
+  = ppEscapeId isAlpha '$' id
 
-ppAccess acc
-  = case acc of
-      Defined public 
-        -> ppPublic public
-      Imported public modid impid impkind major minor
-        -> ppPublic public <+> text "import" <+> ppId modid <> char '.' <> ppId impid
+ppVarId :: Id -> Doc
+ppVarId id
+  = ppEscapeId isLower '$' id
 
-ppPublic public
-  = if public then text "public" else text "private"
+ppConId :: Id -> Doc
+ppConId id
+  = ppEscapeId isUpper '@' id
 
+ppEscapeId isValid c id
+  = if (not (isReserved id) && firstOk && ordinary)
+     then text name
+     else char c <> text (concatMap escape name) <> char ' '
+  where
+    name     = stringFromId id
+    firstOk  = case name of
+                 []     -> False
+                 (c:cs) -> isValid c
+    ordinary = all idchar name
+    idchar c = isAlphaNum c || c == '_' || c == '\''
+    
+escape c
+  = case c of
+      ' '   -> "\\s"
+      '.'   -> "\\."
+      '\a'  -> "\\a"
+      '\b'  -> "\\b"
+      '\f'  -> "\\f"
+      '\n'  -> "\\n"
+      '\r'  -> "\\r"
+      '\t'  -> "\\t"
+      '\v'  -> "\\v"
+      '\\'  -> "\\\\"
+      '\"'  -> "\\\""
+      '\''  -> "\\'"
+      _     -> [c]
+
+
+isReserved :: Id -> Bool
+isReserved id
+  = elemSet id reserved
+  
+reserved :: IdSet
+reserved
+  = setFromList $ map idFromString $
+    ["module","where"
+    ,"import","abstract","extern"
+    ,"custom","val","con"
+    ,"match","with"
+    ,"let","rec","in"
+    ,"static","dynamic","runtime"
+    ,"stdcall","ccall","instruction"
+    ,"decorate"
+    ,"private","public","nothing"
+    ,"type","data","forall","exist"
+    ,"case","of"
+    ,"if","then","else"
+    ]

@@ -393,11 +393,11 @@ displayIO handle simpleDoc
 -- default pretty printers: show, putDoc and hPutDoc
 -----------------------------------------------------------
 instance Show Doc where
-  showsPrec d doc       = displayS (renderPretty 0.4 80 doc)
+  showsPrec d doc       = displayS (renderPretty 0.5 70 doc)
 
 putDoc :: Doc -> IO ()
 putDoc doc              = hPutDoc stdout doc
-hPutDoc handle doc      = displayIO handle (renderPretty 0.4 80 doc)
+hPutDoc handle doc      = displayIO handle (renderPretty 0.5 70 doc)
 
 
 

@@ -16,7 +16,7 @@ import Byte         ( stringFromBytes )
 import Id           ( Id, stringFromId )
 import IdSet        ( listFromSet )
 import Core
-import ModulePretty ( modulePretty )
+import ModulePretty ( modulePretty, ppId, ppVarId, ppConId )
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
@@ -32,17 +32,17 @@ ppExpr  p expr
   = case expr of
    --   (Let (Strict (Bind id1 expr)) (Match id2 alts)) | id1 == id2
    --               -> prec 0 $ hang 2 (text "case" <+> ppExpr 0 expr <+> text "of" <+> ppId id1 <$> ppAlts alts)
-      Match x as  -> prec 0 $ hang 2 (text "match" <+> ppId x <+> text "with" <$> ppAlts  as)
+      Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <$> ppAlts  as)
       Let bs x    -> prec 0 $ align (ppLetBinds bs (text "in" <+> ppExpr  0 x))
-      Lam id x    -> prec 0 $ text "\\" <> ppId  id <+> ppLams "->" (</>)  x
+      Lam id x    -> prec 0 $ text "\\" <> ppVarId id <+> ppLams "->" (</>)  x
       Ap e1 e2    -> prec 9 $ ppExpr  9 e1 <+> ppExpr  10 e2
-      Var id      -> ppId  id
+      Var id      -> ppVarId  id
       Con con     -> ppCon (ppExpr 0) con
       Lit lit     -> ppLit lit
       Note (FreeVar fv) e
-                -> align (semiBraces (map (ppId ) (listFromSet fv))
-                         <$> ppExpr  p e)
-      Note n e  -> ppExpr  p e
+                -> align (text "{" <+> sep (map (ppVarId ) (listFromSet fv)) <+> text "}"
+                         <$> ppExpr p e)
+      Note n e  -> ppExpr p e
       other     -> text "<unknown>"
   where
     prec p'  | p' >= p   = id
@@ -50,43 +50,43 @@ ppExpr  p expr
 
 ppCon ppTag con
   = case con of
-     ConId id         -> ppId id
-     ConTag tag arity -> text "(@" <> ppTag tag <> char ',' <> pretty arity <> text ")"
+     ConId id         -> ppConId id
+     ConTag tag arity -> text "#(" <> ppTag tag <> char ',' <> pretty arity <> text ")"
 
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
 ppLams arrow next  x
   = case x of
-      Lam id x -> ppId  id <+> ppLams arrow next  x
+      Lam id x -> ppVarId id <+> ppLams arrow next  x
       other    -> text arrow `next` ppExpr  0 x
 
 
 ppLetBinds binds doc
   = case binds of
-      NonRec bind -> nest 4 (text "let" <+> ppBind bind) </> doc
-      Strict bind -> nest 5 (text "let!" <+> ppBind bind) </> doc
-      Rec recs    -> nest 7 (text "letrec" <+> ppBinds recs) </> doc
+      NonRec bind -> nest 4 (text "let" <+> ppBind bind) <$> doc
+      Strict bind -> nest 5 (text "let!" <+> ppBind bind) <$> doc
+      Rec recs    -> nest 8 (text "let rec" <+> ppBinds recs) <$> doc
 
 ppBinds  binds
   = vcat (map ppBind binds)
 
 ppBind (Bind id expr)
-  = nest 2 (ppId  id <+> ppLams "=" (<+>)  expr)
+  = nest 2 (ppId  id <+> ppLams "=" (</>)  expr <> semi)
 
 
 ppAlts  alts
   = vcat (map ppAlt alts)
 
 ppAlt  (Alt pat expr)
-  = nest 2 (ppPat  pat <+> text "->" </> ppExpr  0 expr)
+  = nest 4 (text "|" <+> ppPat pat <+> text "->" </> ppExpr  0 expr)
 
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
-ppPat  pat
+ppPat pat
   = case pat of
-      PatCon con ids -> hsep (ppCon pretty con : map (ppId ) ids)
+      PatCon con ids -> hsep (ppCon pretty con : map (ppVarId) ids)
       PatLit lit  -> ppLit lit
       PatDefault  -> text "_"
 
@@ -97,6 +97,3 @@ ppLit lit
       LitDouble d -> pretty d
       LitBytes s  -> dquotes (string (stringFromBytes s))
 
-ppId :: Id -> Doc
-ppId id
-  = text (stringFromId id)

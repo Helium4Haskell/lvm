@@ -56,7 +56,7 @@ compile src
       ; messageLn ("parsing")
       ; (mod, implExps, es)
                    <- coreParseExport source
---      ; messageDoc "parsed"  (corePretty mod)
+      ; messageDoc "parsed"  (corePretty mod)
 
       ; messageLn ("resolving imports")
       ; chasedMod  <- lvmImport (findModule path) mod
@@ -72,8 +72,8 @@ compile src
 
       ; messageDoc "core"         (corePretty coremod)
 --      ; messageDoc "assembler"    (asmPretty asmmod)
-      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
-      ; messageDoc "instructions" (lvmPretty lvmmod)
+--      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
+--      ; messageDoc "instructions" (lvmPretty lvmmod)
 
       ; let target  = (reverse (drop 5 (reverse source)) ++ ".lvm")
       ; messageLn  ("writing    : " ++ showFile target)
