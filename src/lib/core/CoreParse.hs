@@ -860,14 +860,14 @@ pextern
       ; mod <- lexString <|> return (stringFromId id)
       ; (modname,name) <- pExternName mod
       ; (TString tp,arity)  <- do{ lexeme LexCOLCOL; ptypeString } -- ptypeDecl
-      ; return (DeclExtern id public arity tp linkConv callConv modname name [])
+      ; return (DeclExtern id private arity tp linkConv callConv modname name [])
       }
   <|>
     do{ lexeme LexINSTR
       ; id <- varid
       ; s  <- lexString
       ; (tp,arity) <- ptypeDecl
-      ; return (DeclExtern id public arity (show (ppType tp)) LinkStatic CallInstr "" (Plain s) [])
+      ; return (DeclExtern id private arity (show (ppType tp)) LinkStatic CallInstr "" (Plain s) [])
       }
 
 ------------------
