@@ -25,8 +25,6 @@ import Instr
 import InstrPretty ( instrPretty )
 import ModulePretty( modulePretty )
 
-
-  
 {--------------------------------------------------------------
   Magic numbers
 --------------------------------------------------------------}
