@@ -33,6 +33,7 @@
   \
   PRIM(fp_round_int,"IF") \
   PRIM(fp_trunc_int,"IF") \
+  PRIM(fp_near_int, "IF") \
   \
   PRIM(fp_reset       ,"v" ) \
   PRIM(fp_sticky_mask ,"li") \

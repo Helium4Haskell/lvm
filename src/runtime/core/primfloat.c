@@ -289,6 +289,14 @@ long fp_trunc_int( double x )
   return r;
 }
 
+long fp_near_int( double x )
+{
+  enum fp_round save = fp_set_round( fp_round_near );
+  long          r    = fp_round_int(x);
+  fp_set_round(save);
+  return r;
+}
+
 /*----------------------------------------------------------------------
 -- Rounding: portable C
 ----------------------------------------------------------------------*/
@@ -340,6 +348,10 @@ long fp_trunc_int( double x )
   return (long)(x);
 }
 
+long fp_near_int( double x )
+{
+  return (long)fp_near(x);
+}
 #endif
 
 /*----------------------------------------------------------------------
