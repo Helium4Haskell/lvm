@@ -13,7 +13,7 @@ module CoreRemoveDead( coreRemoveDead ) where
 
 import qualified Set
 import Standard ( foldlStrict, trace )
-import Id       ( Id )
+import Id       ( Id, idFromString )
 import IdSet    ( IdSet, emptySet, elemSet, insertSet, setFromList, unionSet )
 import Core
 
@@ -45,7 +45,11 @@ coreRemoveDead :: CoreModule -> CoreModule
 coreRemoveDead mod
   = mod{ moduleDecls = filter (isUsed used) (moduleDecls mod) }
   where
-    used  = foldlStrict usageDecl Set.empty (moduleDecls mod)
+    -- Retain main$ even though it is private and not used
+    -- It cannot be public because it would be imported and clash
+    -- in other modules
+    used  = Set.insert (DeclKindValue, idFromString "main$") 
+                (foldlStrict usageDecl Set.empty (moduleDecls mod))
     
 ----------------------------------------------------------------
 -- Is a declaration used?
