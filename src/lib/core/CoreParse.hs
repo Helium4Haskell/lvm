@@ -856,7 +856,16 @@ parenType
       ; case tps of
           []    -> do{ id <- identifier (return "()"); return (TCon id) } -- (setSortId SortType id))
           [tp]  -> return tp
-          other -> return (foldl TAp (TCon (idFromString "()")) tps)  
+          other -> return
+                (foldl
+                    TAp
+                    (TCon (idFromString
+                            (  "("
+                            ++ replicate (length tps - 1) ','
+                            ++ ")"
+                            )))
+                    tps
+                )
       }
 
 listType
