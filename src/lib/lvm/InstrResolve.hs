@@ -123,12 +123,13 @@ resolve (PACKCON con v)
       ; return [PACKCON con var]
       }
 
-resolve (EVAL is)
+resolve (EVAL _ is)
   = do{ push 3
+      ; d   <- depth
       ; is' <- based (resolves is)
       ; pop 3
       ; push 1
-      ; return [EVAL is']
+      ; return [EVAL d is']
       }
 
 resolve (CATCH is)
@@ -184,7 +185,7 @@ resolveSlide n is
       ; d1  <- depth
       ; let m = d1-d0-n
       ; pop m
-      ; return (is' ++ [SLIDE n m (d1-n)])
+      ; return (is' ++ [SLIDE n m d1])
       }
 
 resolveAlts match alts

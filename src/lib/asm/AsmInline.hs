@@ -48,6 +48,15 @@ inlineExpr env expr
                     -> let e1' = inlineExpr env e1  -- de-annotate
                        in  inlineExpr (extendMap id e1' env) e2
 
+      -- trivial
+      Let id e1 e2  | trivial e1
+                    -> let e1' = inlineExpr env (deAnnotate e1)
+                       in inlineExpr (extendMap id e1' env) e2
+                       
+      Eval id e1 e2 | whnfTrivial e1
+                    -> let e1' = inlineExpr env (deAnnotate e1)
+                       in inlineExpr (extendMap id e1' env) e2
+
       -- inline-able let! binding
       Eval id (Note (Occur Once) e1) e2  
                     -> let e1' = inlineExpr env e1 -- de-annotate
@@ -112,6 +121,34 @@ inlineAlt env (Alt pat expr)
     patIds (PatCon id ids) = (id:ids)
     patIds (PatLit lit)    = []
 
+{---------------------------------------------------------------
+  deAnnotate
+---------------------------------------------------------------}
+deAnnotate :: Expr -> Expr
+deAnnotate expr
+  = case expr of
+      Note note e  -> deAnnotate e
+      other        -> expr
+
+{---------------------------------------------------------------
+  trivial   
+---------------------------------------------------------------}
+trivial :: Expr -> Bool
+trivial expr
+  = case expr of
+      Note note e   -> trivial e
+      Ap id []      -> True
+      Con id []     -> True
+      Lit lit       -> True
+      other         -> False
+
+whnfTrivial :: Expr -> Bool
+whnfTrivial expr
+  = case expr of
+      Note note e   -> whnfTrivial e
+      Con id []     -> True
+      Lit lit       -> True
+      other         -> False
 
 {---------------------------------------------------------------
   firstuse

@@ -18,4 +18,4 @@ import AsmInline ( asmInline )
 ---------------------------------------------------------------}
 asmOptimize :: AsmModule -> AsmModule
 asmOptimize mod
-  = asmInline mod
+  = mod --asmInline mod

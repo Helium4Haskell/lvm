@@ -17,7 +17,7 @@ module Instr( Instr(..)
 
             , arityFromCon,    tagFromCon, indexFromCon
             , arityFromGlobal, indexFromGlobal
-            , offsetFromVar,   idFromVar
+            , offsetFromVar,   idFromVar, depthFromVar
 
             , opcodeFromInstr, instrFromOpcode
             , instrFromName, nameFromInstr, isCATCH
@@ -53,6 +53,7 @@ arityFromGlobal (Global id c arity)  = arity
 indexFromGlobal (Global id c arity)  = c
 
 offsetFromVar   (Var id offset depth)  = offset
+depthFromVar    (Var id offset depth)  = depth
 idFromVar       (Var id offset depth)  = id
 
 ----------------------------------------------------------------
@@ -78,7 +79,7 @@ data Instr    =
 
               -- structured instructions
               | CATCH       ![Instr]               -- for generating PUSHCATCH
-              | EVAL        ![Instr]               -- for generating PUSHCONT
+              | EVAL        !Depth ![Instr]        -- for generating PUSHCONT
               | RESULT      ![Instr]               -- for generating SLIDE
 
               | MATCHCON    ![Alt]
@@ -376,7 +377,7 @@ enumFromInstr instr
 
     -- structured instructions
       CATCH       is          -> 0
-      EVAL        is          -> 1
+      EVAL        d is        -> 1
       RESULT      is          -> 2
 
       MATCHCON    alts        -> 3
@@ -513,7 +514,7 @@ nameFromInstr instr
 
     -- structured instructions
       CATCH       is          -> "CATCH"
-      EVAL        is          -> "EVAL"
+      EVAL        d is        -> "EVAL"
       RESULT      is          -> "RESULT"
 
       MATCHCON    alts        -> "MATCHCON"

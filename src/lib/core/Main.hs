@@ -34,8 +34,8 @@ import LvmImport  ( lvmImport )         -- resolve import declarations
 --
 ----------------------------------------------------------------
 message s
-  = return () 
-  -- = putStr s
+  --   = return () 
+  = putStr s
 
 main
   = do{ [arg] <- getArgs

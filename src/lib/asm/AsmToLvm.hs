@@ -58,41 +58,22 @@ cgExpr env expr
   = case expr of
       -- optimized schemes
       Eval id0 (Note (Occur Once) e0) (Match id1 alts)  | id0 == id1 
-                        -> [EVAL [ATOM (cgExpr env e0),ENTER]] ++ cgMatch env alts
+                        -> [EVAL 0 [ATOM (cgExpr env e0),ENTER]] ++ cgMatch env alts
       Eval id e1 e2     | whnf env e1
                         -> [ATOM (cgExpr env e1),VAR id] ++ cgExpr env e2
-        
+      Eval id1 e1 (Ap id2 []) | id1 == id2
+                        -> cgExpr env e1
+
       -- basic cases
       LetRec binds expr -> cgLetRec env binds ++ cgExpr env expr
       Let id atom expr  -> cgLet env id atom ++ cgExpr env expr
-      Eval id expr expr'-> [EVAL [ATOM (cgExpr env expr),ENTER],VAR id] ++ cgExpr env expr'
+      Eval id expr expr'-> [EVAL 0 [ATOM (cgExpr env expr),ENTER],VAR id] ++ cgExpr env expr'
       Match id alts     -> cgVar env id ++ cgMatch env alts
       Prim id args      -> cgPrim env id args
       Note note expr    -> cgExpr env expr
       atom              -> (cgAtom env atom)
 --      other             -> error "AsmToCode.cgExpr: undefined case"
 
-whnf env expr
-  = case expr of
-      LetRec bs e   -> whnf env e
-      Let id e1 e2  -> whnf env e2
-      Eval id e1 e2 -> whnf env e2
-      Match id alts -> all (whnfAlt env) alts
-      Prim id args  -> whnfPrim env id
-      Ap id args    -> False
-      Con id args   -> True
-      Lit lit       -> True
-      Note note e   -> whnf env e
-
-whnfAlt env (Alt pat e)
-  = whnf env e
-
-whnfPrim env id
-  = case lookupInstr id env of
-      Nothing    -> case lookupGlobal id env of
-                      Nothing    -> error ("AsmToCode.whnfPrim: unknown primitive " ++ show id)
-                      Just arity -> False -- TODO: look at type of primitive
-      Just instr -> instrHasStrictResult instr
 
 {---------------------------------------------------------------
  let bindings
@@ -200,11 +181,11 @@ cgAtom' env atom
       LetRec bs e2-> cgLetRec env bs ++ cgAtom' env e2
       Note note e -> cgAtom' env e
 
-      -- arising from strict inliner
+      -- optimizer: inlined strict bindings 
       Eval id e1 e2  | whnf env e1
                   -> [ATOM (cgExpr env e1), VAR id] ++ cgAtom' env e2
       Eval id e1 e2
-                  -> [EVAL [ATOM (cgExpr env e1), ENTER], VAR id] ++ cgAtom' env e2
+                  -> [EVAL 0 [ATOM (cgExpr env e1), ENTER], VAR id] ++ cgAtom' env e2
 
 
       other       -> error ("AsmToCode.cgAtom: non-atomic expression encountered")
@@ -228,6 +209,29 @@ cgVar env id
       Nothing     -> [PUSHVAR (varFromId id)]
       Just arity  -> [PUSHCODE (Global id 0 arity)]
 
+{---------------------------------------------------------------
+ whnf: returns True when the expression puts a weak head normal form
+       value on the stack.
+---------------------------------------------------------------}
+whnf env expr
+  = case expr of
+      LetRec bs e   -> whnf env e
+      Let id e1 e2  -> whnf env e2
+      Eval id e1 e2 -> whnf env e2
+      Match id alts -> all (whnfAlt env) alts
+      Prim id args  -> whnfPrim env id
+      Ap id args    -> False
+      Con id args   -> True
+      Lit lit       -> True
+      Note note e   -> whnf env e
+
+whnfAlt env (Alt pat e)
+  = whnf env e
+
+whnfPrim env id
+  = case lookupInstr id env of
+      Nothing    -> False -- TODO: look at the type of a primitive
+      Just instr -> instrHasStrictResult instr
 
 
 {---------------------------------------------------------------

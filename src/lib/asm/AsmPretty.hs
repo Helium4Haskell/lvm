@@ -54,7 +54,7 @@ ppExprEx pars expr
       Note note e     -> pars $ align $ ppNote note </> ppExpr e
 
 ppNote (Occur occ)
-  = angles (ppOccur occ)
+  = angled (ppOccur occ)
 
 ppOccur occ
   = case occ of
@@ -94,5 +94,5 @@ ppId id
 commaBraces doc
   = encloseSep lbrace rbrace comma doc
 
-angles d
+angled d
   = char '<' <> d <> char '>'

@@ -45,7 +45,7 @@ ppInstr instr
 
     -- structured instructions
       CATCH instrs            -> nest 2 (text name <$> ppInstrs instrs)
-      EVAL instrs             -> nest 2 (text name <$> ppInstrs instrs)
+      EVAL d instrs           -> nest 2 (text name <+> pretty d <$> ppInstrs instrs)
       RESULT instrs           -> nest 2 (text name <$> ppInstrs instrs)
 
       SWITCHCON alts          -> nest 2 (text name <$> ppAlts alts)
@@ -63,7 +63,7 @@ ppInstr instr
 
     -- stack instructions
       ARGCHK      n           -> text name  <+> pretty n
-      SLIDE       n m depth   -> text name  <+> pretty n <+> pretty m
+      SLIDE       n m depth   -> text name  <+> pretty n <+> pretty m <+> pretty depth
       STUB        var         -> text name <+> ppVar var
 
     -- control

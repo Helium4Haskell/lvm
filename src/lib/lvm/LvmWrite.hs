@@ -187,7 +187,7 @@ emit instr
       MATCHINT alts           -> [opcode] ++ emitMatch alts
       SWITCHCON alts          -> todo
 
-      EVAL is                 -> let scrut = emits is
+      EVAL d is               -> let scrut = emits is
                                  in  emit (PUSHCONT (length scrut)) ++ scrut
 
       -- push instructions
@@ -286,7 +286,7 @@ resolves f is
 resolve :: Instr -> Emit Instr
 resolve instr
   = case instr of
-      EVAL is         -> resolves EVAL is
+      EVAL d is       -> resolves (EVAL d) is
       RESULT is       -> resolves RESULT is
       MATCHCON alts   -> resolveAlts MATCHCON alts
       MATCHINT alts   -> resolveAlts MATCHINT alts
