@@ -216,13 +216,16 @@ bool is_pathsep( const char c )
 /* As someone might run the windows version of lvmrun in
    bash, which uses ':' as path seperator, both ';' and ':'
    should be recognized on Windows and Cygwin as well
-   Rijk-Jan
+   Rijk-Jan.
+
+   No, this is not true, for example "c:\program files"
+   Daan.
    */
-/* #if defined(OS_WINDOWS) || defined(OS_CYGWIN)
-  return (c==';'); */
-/* #else */
+#if defined(OS_WINDOWS) || defined(OS_CYGWIN)
+  return (c==';'); 
+#else 
   return (c==';' || c == ':');
-/* #endif */
+#endif 
 }
 
 bool is_filesep( const char c )
