@@ -13,15 +13,14 @@
 # make depend	 - build dependencies for hs files, ag dependencies are	written	by hand
 # make clean	 - remove .hi and .o files
 
+include ../config/makefile
+
 #the main program you want to generate
 MAIN	= coreasm
 
 #the haskell compiler
 HC	= ghc
 HC_OPTS	= -static -package lang -i$(IFACES)
-RM	= rm -f
-STRIP	= strip
-EXE	= .exe
 
 #Haskell sources
 COMMON	= common/Id.hs common/IdMap.hs common/IdSet.hs common/IntMap.hs \
