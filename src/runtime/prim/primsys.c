@@ -187,7 +187,7 @@ long prim_open(const char* path, long flags, long perm)
   int ret;
   ret = open(String_val(path), flags
 /* #if !macintosh */
-             , Int_val(perm) | _S_IREAD | _S_IWRITE
+             , Int_val(perm) 
 /* #endif */
                                        );
   if (ret == -1) sys_error(copy_string(path));
