@@ -1,0 +1,7 @@
+{- import/export -}
+module Import1 where
+
+import ImportRec0( square )
+import Abstract( sum, fromTo {- actually from Export  -} )
+
+main  = square (sum (fromTo 1 100))

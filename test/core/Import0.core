@@ -1,0 +1,8 @@
+{- import/export -}
+module Import0( sum, fromTo ) where
+
+import Export( foldl, add = addint, fromTo, Cons )
+
+main  = sum  (Cons 1 (fromTo 2 100))
+
+sum   = foldl add 0

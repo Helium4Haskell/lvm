@@ -1,0 +1,8 @@
+{- import/export -}
+module Import3( product ) where
+
+import Import2
+
+main  = product (fromTo 1 10)
+
+product   = foldl mulint 1
