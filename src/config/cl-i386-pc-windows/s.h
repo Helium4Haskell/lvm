@@ -1,6 +1,8 @@
 /* operating system settings "cl-i386-pc-windows" */
 #define OS_TYPE "windows"
 #define OS_WINDOWS
+#define EXE ".exe"
+#define DLL ".dll"
 #define CCALL __cdecl
 #define STDCALL __stdcall
 #define HAS_WINDOWS_H

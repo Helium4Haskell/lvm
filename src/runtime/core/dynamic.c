@@ -115,8 +115,8 @@ value load_dynamic_symbol( const char*    libname,
         v = dynamic_symbol( lib, name, true );
         break;
     case Name_decorate: {
-        char decorated[MAX_PATH];
-        dynamic_decorate( decorated, name, MAX_PATH, cconv, type );
+        char decorated[MAXPATH];
+        dynamic_decorate( decorated, name, MAXPATH, cconv, type );
         v = dynamic_symbol( lib, decorated, false );
         break;
         }
