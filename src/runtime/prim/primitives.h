@@ -25,11 +25,22 @@
   PRIM(fp_sin,  "FF") \
   PRIM(fp_cos,  "FF") \
   PRIM(fp_tan,  "FF") \
+  PRIM(fp_asin, "FF") \
+  PRIM(fp_acos, "FF") \
+  PRIM(fp_atan, "FF") \
   PRIM(fp_ceil, "FF") \
   PRIM(fp_floor,"FF") \
   PRIM(fp_round,"FF") \
   PRIM(fp_trunc,"FF") \
   PRIM(fp_near, "FF")  \
+  \
+  PRIM(fp_radix          , "l")  \
+  PRIM(fp_mantissa_digits, "l")  \
+  PRIM(fp_min_exp        , "l")  \
+  PRIM(fp_max_exp        , "l")  \
+  PRIM(fp_decode_fraction, "lF")  \
+  PRIM(fp_decode_exponent, "lF")  \
+  PRIM(fp_encode         , "Fll")  \
   \
   PRIM(fp_round_int,"IF") \
   PRIM(fp_trunc_int,"IF") \

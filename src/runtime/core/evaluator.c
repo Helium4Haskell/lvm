@@ -1366,7 +1366,8 @@ returncon:
       sz = Fsize_val(v);
       if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
       Store_field(v,i,x);
-      Pop_n(2);
+      Pop_n(3);
+      Push(v);
       Next;
     }
 

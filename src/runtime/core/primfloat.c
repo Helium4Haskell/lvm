@@ -103,6 +103,7 @@ double fp_pow( double x, double y )
 double fp_sqrt( double x )
 {
   if (x<0.0) raise_arithmetic_exn( Fpe_sqrtneg );
+
   return sqrt(x);
 }
 
@@ -114,6 +115,7 @@ double fp_exp( double x )
 double fp_log( double x )
 {
   if (x<0.0) raise_arithmetic_exn( Fpe_logneg );
+
   return log(x);
 }
 
@@ -132,6 +134,86 @@ double fp_tan( double x )
   return tan(x);
 }
 
+double fp_asin( double x )
+{
+  return asin(x);
+}
+
+double fp_acos( double x )
+{
+  return acos(x);
+}
+
+double fp_atan( double x )
+{
+  return atan(x);
+}
+
+long fp_radix( )
+{
+  return (long)FLT_RADIX;
+}
+
+long fp_mantissa_digits( )
+{
+  return (long)DBL_MANT_DIG;
+}
+
+long fp_min_exp( )
+{
+  return (long)DBL_MIN_EXP;
+}
+
+long fp_max_exp( )
+{
+  return (long)DBL_MAX_EXP;
+}
+
+/* this should be defined in mlvalues, alongside with Max_long */
+#define Nbits_long 		(8 * (long)sizeof(long) - 2)
+
+/*----------------------------------------------------------------------
+-- AD, 20040429
+-- The following implementation does not do what it is supposed to do,
+-- it computes the smallest fraction (i.e. least amount of zeros at least significant side)
+-- instead of the Integer corresponding to the normalized fraction.
+-- This is due to lack of infinite precision int's. The result should
+-- be scaled up by fp_radix() ^ fp_mantissa_digits(), which does not fit in an int.
+----------------------------------------------------------------------*/
+static long fp_decode( double value, int *exp )
+{
+  int e ;
+  double d = frexp( value, &e ) ;
+  long l = lrint( ldexp( d, Nbits_long ) ) ;
+  int shift = (int)Nbits_long ;
+  int sign = 1 ;
+  if ( l < 0 )
+  {
+    sign = -1 ;
+    l = -l ;
+  }
+  for ( ; shift > 0 && l > 0 && ! (l & 1L) ; shift--, l >>= 1 ) ;
+  *exp = e - shift ;
+  return sign * l ;
+}
+
+long fp_decode_fraction( double x )
+{
+  int e ;
+  return fp_decode( x, &e ) ;
+}
+
+long fp_decode_exponent( double x )
+{
+  int e ;
+  fp_decode( x, &e ) ;
+  return (long)e ;
+}
+
+double fp_encode( long frac, long exp )
+{
+  return ldexp( (double)frac, exp ) ;
+}
 
 
 /*----------------------------------------------------------------------
@@ -159,14 +241,24 @@ long  fp_trap_mask( enum exn_arithmetic ex )
     return fp_trap_masks[ex];
 }
 
+
+
 long fp_trap_mask_default(void)
+
 {
+
   enum exn_arithmetic ex;
+
   long mask;
+
   for( mask=0,ex=0; ex<Fpe_inexact; ex++ ) {
+
     mask |= fp_trap_mask(ex);
+
   }
+
   return mask;
+
 }
 
 long fp_round_mask( enum fp_round rnd )
@@ -297,12 +389,20 @@ long fp_trunc_int( double x )
   return r;
 }
 
+
+
 long fp_near_int( double x )
+
 {
+
   enum fp_round save = fp_set_round( fp_round_near );
+
   long          r    = fp_round_int(x);
+
   fp_set_round(save);
+
   return r;
+
 }
 
 /*----------------------------------------------------------------------
@@ -356,9 +456,13 @@ long fp_trunc_int( double x )
   return (long)(x);
 }
 
+
 long fp_near_int( double x )
+
 {
+
   return (long)fp_near(x);
+
 }
 #endif
 
@@ -407,15 +511,25 @@ long fp_get_sticky( void )
 
 long fp_set_sticky( long sticky )
 {
+
   long sw = fp_get_sticky();
   if (sticky!=sw) {
+
     volatile fp_reg env[_FP_ENV_SIZE];
+
     asm_fstenv(env);
+
     env[_FP_STATUS_REG] = (env[_FP_STATUS_REG] & ~_FP_STICKY_MASK) | (sticky & _FP_STICKY_MASK);
+
     asm_fldenv(env);      
+
   }
+
   return sw;
+
 }
+
+
 
 static fp_reg fp_control( fp_reg control, fp_reg mask, fp_reg resmask )
 {
@@ -472,14 +586,18 @@ void fp_save( long* sticky, long* traps, enum fp_round* round )
   Assert(sticky && traps);
   *traps  = fp_get_traps();
   *sticky = fp_get_sticky();
+
   *round  = fp_get_round();
 }
 
 void fp_restore( long sticky, long traps, enum fp_round round )
 {
   fp_set_traps(traps);
+
   fp_set_sticky(sticky);
+
   fp_set_round(round);
+
 }
 
 
@@ -558,6 +676,7 @@ void fp_save( long* sticky, long* traps, enum fp_round* round )
   Assert(sticky && traps);
   *traps  = fp_get_traps();
   *sticky = fp_get_sticky();
+
   *round  = fp_get_round();
 }
 
@@ -565,6 +684,7 @@ void fp_restore( long sticky, long traps, enum fp_round round )
 {
   fp_set_traps(traps);
   fp_set_sticky(sticky);
+
   fp_set_round(round);
 }
 
@@ -639,12 +759,14 @@ void fp_save( long* sticky, long* traps, enum fp_round* round )
 {
   Assert(sticky && traps);
   *traps = fp_get_traps();
+
   *round = fp_get_round();
 }
 
 void fp_restore( long sticky, long traps, enum fp_round round )
 {
   fp_set_traps(traps);
+
   fp_set_round(round);
 }
 

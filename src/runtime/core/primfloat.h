@@ -11,9 +11,12 @@
 #ifndef _primfloat_h
 #define _primfloat_h
 
+
 #include "fail.h" /* just for [exn_arithmetic] */
 
+
 floating_t float_of_string( const char* s );
+long fp_near_int( double x ) ;
 
 /*----------------------------------------------------------------------
 -- IEEE floating point interface
@@ -33,6 +36,7 @@ enum fp_round fp_set_round( enum fp_round rnd );
 long fp_sticky_mask( enum exn_arithmetic ex );
 long fp_get_sticky( void );
 long fp_set_sticky( long sticky );
+
 
 long fp_trap_mask_default(void);
 long fp_trap_mask( enum exn_arithmetic ex );
