@@ -39,7 +39,7 @@ lvmToBytes mod
   = let (idxName,recs) = bytesFromModule mod
         headerlen = 32
         header    = block
-                    [ encodeInt recHeader
+                    [ recHeader
                     , encodeInt headerlen
                     , encodeInt totallen
                     , encodeInt lvmMajorVersion
@@ -52,7 +52,7 @@ lvmToBytes mod
                     ]
 
         footerlen = 4
-        footer    = block $ map encodeInt [ recFooter, footerlen, totallen ]
+        footer    = block [ recFooter, encodeInt footerlen, encodeInt totallen ]
 
         brecs     = cats recs 
         totallen  = bytesLength brecs + headerlen + 8 + footerlen + 8

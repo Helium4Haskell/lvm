@@ -78,7 +78,6 @@ data Access
   | Imported { accessPublic :: !Bool, importModule :: Id, importName :: Id, importKind :: !DeclKind
              , importMajorVer :: !Int, importMinorVer :: !Int }
             
-
 public  = Defined True
 private = Defined False
 
@@ -132,7 +131,6 @@ declKindFromDecl decl
       DeclCustom{}   -> declKind decl
       DeclImport{}   -> importKind (declAccess decl)
       other          -> error "Module.declKindFromDecl: unknown declaration"
-
 
 {---------------------------------------------------------------
   Utility functions

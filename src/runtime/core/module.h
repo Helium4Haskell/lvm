@@ -36,8 +36,8 @@ struct module_footer_t
          total_length;
 };
 
-#define Magic_header 0x214C564D
-#define Magic_footer (Magic_header+1)
+#define Magic_header 0x1F4C564D
+#define Magic_footer 0x1E4C564D
 
 /*----------------------------------------------------------------------
   MODULES

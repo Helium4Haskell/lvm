@@ -17,18 +17,25 @@
 module Special( doesFileExist
               , openBinary, closeBinary, readBinary, writeBinaryChar
               , ST, STArray, runST, newSTArray, readSTArray, writeSTArray
+              , unsafeCoerce
               ) where
 
 import Directory( doesFileExist )
 import IO       ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
-import IOExts   ( openFileEx, IOModeEx(..) )
+import IOExts   ( openFileEx, IOModeEx(..))
 
 #if (__GLASGOW_HASKELL__ >= 503)
+import GHC.Base ( unsafeCoerce# )
 import ST       ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray)
 #else
+import GlaExts  ( unsafeCoerce# )
 import LazyST   ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray)
 #endif
               
+unsafeCoerce :: a -> b
+unsafeCoerce x
+  = unsafeCoerce# x
+
 openBinary :: FilePath -> IOMode -> IO Handle
 openBinary path mode
   = openFileEx path (BinaryMode mode)

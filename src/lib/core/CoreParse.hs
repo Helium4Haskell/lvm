@@ -17,7 +17,7 @@ import qualified PPrint
 import Standard( foldlStrict )
 import Parsec hiding (satisfy)
 import Byte   ( bytesFromString )
-import Id     ( Id, stringFromId, idFromString )
+import Id     ( Id, stringFromId, idFromString, dummyId )
 import IdSet  ( IdSet, deleteSet, unionSet, emptySet, singleSet, listFromSet )
 import IdMap
 import IdSet

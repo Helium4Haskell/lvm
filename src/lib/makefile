@@ -20,7 +20,7 @@ MAIN	= coreasm
 
 #the haskell compiler
 HC	= ghc
-HC_OPTS = -cpp -static -package lang -i$(IFACES)
+HC_OPTS = -static -package lang -i$(IFACES)
 
 #Haskell sources
 COMMON	= common/Id.hs common/IdMap.hs common/IdSet.hs common/IntMap.hs \
@@ -58,6 +58,9 @@ OBJS = $(SRCS:.hs=.o)
 $(MAIN)$(EXE): $(OBJS)
 	  $(HC)	-o $@ $(HC_OPTS) $(OBJS)
 	  $(STRIP) $@
+
+common/ghc/Special.hi: common/ghc/Special.hs
+	$(HC) -c $< -cpp -fglasgow-exts $(HC_OPTS) -i$(LIBPATH)
 
 
 # Standard suffix rules

@@ -125,11 +125,11 @@ static void read_header( const char* name, int handle,
     raise_module( name, "truncated header" );
   }
 
-  if (Magic_header != Long_val(header->magic))
+  if (Magic_header != header->magic)
   {
     word_t rev_magic = header->magic;
     Reverse_word(  &rev_magic, &rev_magic );
-    if (Magic_header != Long_val(rev_magic)) {
+    if (Magic_header != rev_magic) {
       file_close(handle);
       raise_module( name, "invalid magic number" );
     }
@@ -202,7 +202,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
   read_count  = file_read( handle, &footer, sizeof(footer) );
   if (read_count != sizeof(footer)) Rec_raise( "truncated footer section" );
   if (is_rev_endian) { Reverse_word( &footer.magic, &footer.magic ); }
-  if (Long_val(footer.magic) != Magic_footer) Rec_raise( "invalid magic number in footer section" );
+  if (footer.magic != Magic_footer) Rec_raise( "invalid magic number in footer section" );
 
   /* process all records in the buffer */
   for(p = buffer, i = 1; i <= Wosize_records(records); i++)
