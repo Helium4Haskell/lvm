@@ -31,7 +31,7 @@ void start_module( const char* name )
   debug_gc();
   stat_end_init();
 
-  evaluate_name( module, "main" );
+  evaluate_name( module, "main$" );
 
   CAMLreturn0;
 }
