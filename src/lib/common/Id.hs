@@ -30,7 +30,7 @@ import Standard  (foldlStrict)
 import qualified IntMap
 
 import Data.IORef( IORef, newIORef, readIORef, writeIORef )
-import GHC.IOBase( unsafePerformIO )
+import IOExts( unsafePerformIO )
 
 ----------------------------------------------------------------
 -- Types

@@ -21,7 +21,7 @@ module Standard( trace, warning, assert
                , raiseIO, raiseErr
                ) where
 
-import GHC.IOBase (unsafePerformIO)
+import IOExts (unsafePerformIO)
 import List       (isPrefixOf)
 import IO
 import System     (getEnv)
