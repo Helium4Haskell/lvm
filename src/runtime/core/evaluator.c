@@ -703,7 +703,7 @@ raise_exception:
   RETURN: enter an int or constructor
 ----------------------------------------------------------------------*/
     todoInstr(RETURNFLOAT)
-    
+
     Instr(RETURNCON0): {
       Push(Atom(pc[0]));
       goto return_enter;
@@ -1003,7 +1003,7 @@ returncon:
       Next;
     }
 
-    todoInstr(MATCHFLOAT)    
+    todoInstr(MATCHFLOAT)
 
     Instr(MATCH): {
       wsize_t    i;
@@ -1724,7 +1724,7 @@ returncon:
       Next; }
 
     Float_op(ADDFLOAT,+)
-    Float_op(SUBFLOAT,+)
+    Float_op(SUBFLOAT,-)
     Float_op(MULFLOAT,*)
     Float_op(DIVFLOAT,/)
 
