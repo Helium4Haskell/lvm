@@ -674,7 +674,7 @@ enterloop:
             } else
             #endif
             { value nap;
-              Trace_argchk( "update with nap", upd );
+              Trace_argchk( "update with indirect nap", upd );
               Allocate(nap,args+1,Nap_tag);
               Field(nap,0) = Val_code((pc-2));
               for( i = args; i > 0; i--) { Field(nap,i) = sp[i+2] = sp[i-1]; }
