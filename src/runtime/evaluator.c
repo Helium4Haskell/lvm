@@ -1789,6 +1789,10 @@ returncon:
       Next;
     }
 
+    /* QuotInt and RemInt use truncated division, ie. 
+       QuotInt D d = trunc(D/d)
+       RemInt D d  = D - d*(QuotInt D d)
+    */
     Instr(QUOTINT): {
       long divisor = Long_val(sp[1]);
       if (divisor == 0) Raise_arithmetic_exn( Int_zerodivide );
@@ -1805,6 +1809,9 @@ returncon:
       Next;
     }
 
+    /* DivInt and ModInt use euclidean division, ie.
+       the modulus is always positive.
+    */
     Instr(DIVINT): {
       /* round towards negative infinity */
       long divisor = Long_val(sp[1]);
@@ -1814,22 +1821,32 @@ returncon:
       if (divisor == 0) { Raise_arithmetic_exn( Int_zerodivide );}
       div = Long_val(sp[0]) / divisor;
       mod = Long_val(sp[0]) % divisor;
-      if ((divisor < 0 && mod > 0) || (divisor > 0 && mod < 0)) div--;
+      
+      /* floored division: if ((divisor < 0 && mod > 0) || (divisor > 0 && mod < 0)) div--; */
+      if (mod < 0) {
+       if (divisor > 0) div = div-1;
+                   else div = div+1;
+      }
+
       sp[1] = Val_long(div);
       Pop();
       Next;
     }
 
     Instr(MODINT): {
-      /* modulo has the sign of the divisor */
+      /* modulo is always positive */
       long divisor = Long_val(sp[1]);
-      long div;
       long mod;
 
       if (divisor == 0) { Raise_arithmetic_exn( Int_zerodivide ); }
-      div = Long_val(sp[0]) / divisor;
       mod = Long_val(sp[0]) % divisor;
-      if ((divisor < 0 && mod > 0) || (divisor > 0 && mod < 0)) mod = mod + div; // was: divisor;
+      
+      /* floored modulus: if ((divisor < 0 && mod > 0) || (divisor > 0 && mod < 0)) mod = mod + div; // was: divisor; */
+      if (mod < 0) {
+        if (divisor > 0) mod = mod + divisor;
+                    else mod = mod - divisor;
+      }
+
       sp[1] = Val_long(mod);
       Pop();
       Next;
