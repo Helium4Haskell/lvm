@@ -33,6 +33,9 @@
 #include "compact.h"
 #include "print.h" /* Bstring_of_bsize */
 
+/* LVM */
+struct inv_block_t inv_block = { Make_header(1, Inv_tag, Caml_white), 0 };
+
 /* call "check_heap_size" from "major_slice".
    Checks the maximal heap size and tries a compaction first before raising an exception.
    Doesn't work while in a  minor collection since exceptions can't be raised while

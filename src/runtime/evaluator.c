@@ -501,7 +501,7 @@ enterloop:
         goto return_enter;
       }
 
-      Assert( Is_heap_val(accu) || Tag_val(accu) == Code_tag);
+      Assert( Is_heap_val(accu) || Tag_val(accu) == Code_tag || Tag_val(accu) == Inv_tag);
       switch(Tag_val(accu)) {
         case Code_tag: {
           /* jump to the code */

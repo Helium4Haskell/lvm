@@ -52,12 +52,19 @@ void check_heap_size(void);
 
 /* LVM */
 #define Is_heap_val(v)  (Is_block(v) && (Is_young(v) || Is_in_heap(v)))
-#define Store_field_0(v,i)      Store_field(v,i,0)
 #define Create_indirection(v,w) { nat i; \
                                   Tag_val(v) = Ind_tag; \
                                   Store_field(v,0,w); \
                                   for( i = 1; i < Wosize_val(v); i++ ) { Store_field_0(v,i); } \
                                 }
+
+struct inv_block_t {
+  header_t header;
+  value    body;
+};
+
+struct inv_block_t inv_block;
+#define Store_field_0(v,i)      Store_field(v,i,(value)(&(inv_block.body)))
 
 
 #ifdef NATIVE_CODE
