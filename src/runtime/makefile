@@ -27,7 +27,7 @@ CORE	= main.c stats.c \
 	  
 HEAP	= fixed.c bytes.c \
 	  alloc.c compact.c custom.c finalise.c freelist.c gc_ctrl.c \
-	  major_gc.c minor_gc.c memory.c roots.c weak.c
+	  major_gc.c minor_gc.c memory.c roots.c weak.c globroots.c
 
 PRIM	= prims.c \
 	  primio.c primsys.c primstring.c 

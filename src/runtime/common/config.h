@@ -25,13 +25,8 @@
 #ifndef _config_
 #define _config_
 
-#ifdef _MSC_VER
-# include "../config/cl-i386-pc-windows/m.h"
-# include "../config/cl-i386-pc-windows/s.h"
-#else
-# include <m.h>
-# include <s.h>
-#endif
+#include <m.h>
+#include <s.h>
 
 /* typedef short int16; */            /* FIXME -- not true on the Cray T3E */
 /* typedef unsigned short uint16; */  /* FIXME -- not true on the Cray T3E */

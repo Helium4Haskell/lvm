@@ -126,7 +126,7 @@ static int do_write(int fd, char *p, int n)
 {
   int retcode;
 
-  Assert(!Is_young(p));
+/*  Assert(!Is_young(p)); */
 #ifdef HAS_UI
   retcode = ui_write(fd, p, n);
 #else
@@ -242,7 +242,7 @@ static int do_read(int fd, char *p, unsigned int n)
 {
   int retcode;
 
-  Assert(!Is_young(p));
+/*  Assert(!Is_young(p)); */
   Enter_blocking_section();
 #ifdef HAS_UI
   retcode = ui_read(fd, p, n);

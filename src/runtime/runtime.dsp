@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
+# ADD CPP /nologo /W3 /GX /O2 /I "common" /I "../config/cl-i386-pc-windows" /I "." /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -70,7 +70,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "DEBUG" /FR /YX /FD /GZ /c
+# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "." /I "common" /I "../config/cl-i386-pc-windows" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "DEBUG" /FR /YX /FD /GZ /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
@@ -92,306 +92,162 @@ LINK32=link.exe
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
+# Begin Group "core"
+
+# PROP Default_Filter "*.c"
 # Begin Source File
 
-SOURCE=.\alloc.c
+SOURCE=.\core\ccall.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\bytes.c
+SOURCE=.\core\dynamic.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\ccall.c
+SOURCE=.\core\evaluator.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\compact.c
+SOURCE=.\core\fail.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\custom.c
+SOURCE=.\core\instr.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\dynamic.c
+SOURCE=.\core\loader.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\evaluator.c
+SOURCE=.\core\main.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\fail.c
+SOURCE=.\core\misc.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\finalise.c
+SOURCE=.\core\module.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\fixed.c
+SOURCE=.\core\primfloat.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\freelist.c
+SOURCE=.\core\print.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\gc_ctrl.c
+SOURCE=.\core\schedule.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\instr.c
+SOURCE=.\core\signals.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\loader.c
+SOURCE=.\core\stack.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\main.c
+SOURCE=.\core\stats.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\major_gc.c
+SOURCE=.\core\sys.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\memory.c
+SOURCE=.\core\systhread.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\minor_gc.c
+SOURCE=.\core\thread.c
+# End Source File
+# End Group
+# Begin Group "heap"
+
+# PROP Default_Filter "*.c"
+# Begin Source File
+
+SOURCE=.\heap\alloc.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\misc.c
+SOURCE=.\heap\bytes.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\module.c
+SOURCE=.\heap\compact.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\primfloat.c
+SOURCE=.\heap\custom.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\primio.c
+SOURCE=.\heap\finalise.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\primstring.c
+SOURCE=.\heap\fixed.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\primsys.c
+SOURCE=.\heap\freelist.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\print.c
+SOURCE=.\heap\gc_ctrl.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\roots.c
+SOURCE=.\heap\major_gc.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\schedule.c
+SOURCE=.\heap\memory.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\signals.c
+SOURCE=.\heap\minor_gc.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\stack.c
+SOURCE=.\heap\roots.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\static.c
+SOURCE=.\heap\weak.c
+# End Source File
+# End Group
+# Begin Group "prim"
+
+# PROP Default_Filter "*.c"
+# Begin Source File
+
+SOURCE=.\prim\primio.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\stats.c
+SOURCE=.\prim\prims.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\sys.c
+SOURCE=.\prim\primstring.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\systhread.c
+SOURCE=.\prim\primsys.c
 # End Source File
-# Begin Source File
-
-SOURCE=.\thread.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\weak.c
-# End Source File
+# End Group
 # End Group
 # Begin Group "Header Files"
 
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
-# Begin Source File
-
-SOURCE=.\alloc.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\bytes.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\ccall.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\compact.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\config.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\custom.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\dynamic.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\evaluator.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\fail.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\finalise.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\fixed.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\freelist.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\gc.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\gc_ctrl.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\instr.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\loader.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\lvmmemory.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\major_gc.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\memory.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\minor_gc.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\misc.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\mlvalues.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\module.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\primfloat.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\primio.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\primstring.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\primsys.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\print.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\reverse.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\roots.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\schedule.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\signals.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\stack.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\static.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\stats.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\sys.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\systhread.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\thread.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\weak.h
-# End Source File
 # End Group
 # Begin Group "Resource Files"
 

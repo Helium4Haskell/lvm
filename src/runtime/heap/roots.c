@@ -26,6 +26,7 @@
 #include "memory.h"
 #include "roots.h"
 #include "fixed.h"
+#include "globroots.h"
 #include "core/thread.h"
 
 /* declared in "fixed.h" */
@@ -33,43 +34,8 @@ extern struct fixed_block* fixed_blocks;
 
 struct caml__roots_block *local_roots = NULL;
 
-/* FIXME turn this into a table and synchronise with asmrun/roots.c */
-struct global_root {
-  value * root;
-  struct global_root * next;
-};
-
-static struct global_root * global_roots = NULL;
-
 void (*scan_roots_hook) (scanning_action f) = NULL;
 
-/* Register a global C root */
-
-void register_global_root(value *r)
-{
-  struct global_root * gr;
-
-  Assert (((long) r & 3) == 0);  /* compact.c demands this (for now) */
-  gr = (struct global_root *) stat_alloc(sizeof(struct global_root));
-  gr->root = r;
-  gr->next = global_roots;
-  global_roots = gr;
-}
-
-/* Un-register a global C root */
-
-void remove_global_root(value *r)
-{
-  struct global_root ** gp, * gr;
-  for (gp = &global_roots; *gp != NULL; gp = &(*gp)->next) {
-    gr = *gp;
-    if (gr->root == r) {
-      *gp = gr->next;
-      stat_free(gr);
-      return;
-    }
-  }
-}
 
 /* FIXME rename to [oldify_young_roots] and synchronise with asmrun/roots.c */
 /* Call [oldify] on (at least) all the roots that point to the minor heap. */
@@ -92,16 +58,16 @@ void oldify_local_roots (void)
 
   /* The threads */
   for( thread = threads; thread != NULL; thread = thread->next ) {
-    oldify(thread->module,&(thread->module));
+    oldify_one(thread->module,&(thread->module));
     for (sp = thread->stack_sp; sp < thread->stack_top; sp++) {
-      oldify( *sp, sp );
+      oldify_one( *sp, sp );
     }
   }
 
   /* The fixed memory blocks */
   for (fixed = fixed_blocks; fixed != NULL; fixed = fixed->next ) {
     for( vp = fixed->data; vp < fixed->data + fixed->size; vp++ ) {
-      oldify( *vp, vp );
+      oldify_one( *vp, vp );
     }
   }
 
@@ -110,18 +76,18 @@ void oldify_local_roots (void)
     for (i = 0; i < lr->ntables; i++){
       for (j = 0; j < lr->nitems; j++){
         sp = &(lr->tables[i][j]);
-        oldify (*sp, sp);
+        oldify_one(*sp, sp);
       }
     }
   }
   /* Global C roots */
-  for (gr = global_roots; gr != NULL; gr = gr->next) {
-    oldify(*(gr->root), gr->root);
+  for (gr = caml_global_roots.forward[0]; gr != NULL; gr = gr->forward[0]) {
+    oldify_one(*(gr->root), gr->root);
   }
   /* Finalised values */
-  final_do_young_roots (&oldify);
+  final_do_young_roots (&oldify_one);
   /* Hook */
-  if (scan_roots_hook != NULL) (*scan_roots_hook)(&oldify);
+  if (scan_roots_hook != NULL) (*scan_roots_hook)(&oldify_one);
 }
 
 /* Call [darken] on all roots */
@@ -142,8 +108,8 @@ void do_roots (scanning_action f)
   do_local_roots(f, threads, fixed_blocks, local_roots);
 
   /* Global C roots */
-  for (gr = global_roots; gr != NULL; gr = gr->next) {
-    f (*(gr->root), gr->root);
+  for (gr = caml_global_roots.forward[0]; gr != NULL; gr = gr->forward[0]) {
+    f(*(gr->root), gr->root);
   }
   /* Finalised values */
   final_do_strong_roots (f);

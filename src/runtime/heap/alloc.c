@@ -102,7 +102,7 @@ value copy_string(const char *s)
             else len = strlen(s);
 
   res = alloc_string(len);
-  bcopy(s, String_val(res), len);
+  memmove(String_val(res), s, len);
   return res;
 }
 

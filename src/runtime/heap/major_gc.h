@@ -68,7 +68,7 @@ extern char *gc_sweep_hp;
 void init_major_heap (asize_t);
 asize_t round_heap_chunk_size (asize_t);
 void darken (value, value *);
-void major_collection_slice (void);
+long major_collection_slice (long);
 void major_collection (void);
 void finish_major_cycle (void);
 
