@@ -132,7 +132,7 @@ static void read_header( const char* name, int handle,
     Reverse_word(  &rev_magic, &rev_magic );
     if (Magic_header != rev_magic) {
       file_close(handle);
-      raise_module( name, "invalid magic number" );
+      raise_module( name, "invalid magic number.\n\nHINT: Maybe it's not a valid LVM file" );
     }
 
     *is_rev_endian = 1;
