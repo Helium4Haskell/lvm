@@ -1,0 +1,10 @@
+-- test round
+module FloatRound where
+
+extern float "float_of_string" :: "Fz"
+extern round "fp_nearest" :: "FF"
+
+main = let! x = float "2.5"
+            y = round x
+       in y
+

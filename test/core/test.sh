@@ -5,7 +5,7 @@ rm -f $1.out
 ../../src/lib/coreasm $1    >>$1.out  2>>$1.out
 
 echo running $1
-../../src/runtime/lvmrun $1 >>$1.out   2>>$1.out
+../../src/runtime/lvmrun -S200k -H4M $1 >>$1.out   2>>$1.out
 
 if compare $1.out $1.ok >> /dev/null; then
 echo ok
