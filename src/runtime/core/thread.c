@@ -28,7 +28,7 @@ extern wsize_t stack_wsize_total;
 ----------------------------------------------------------------------*/
 struct thread_state* threads = NULL;
 
-struct thread_state* thread_create( unsigned long stack_init_wsize, unsigned long threshold_wsize
+struct thread_state* thread_new( unsigned long stack_init_wsize, unsigned long threshold_wsize
                                    , unsigned long stack_max_wsize, value module, value code )
 {
   struct thread_state* thread;

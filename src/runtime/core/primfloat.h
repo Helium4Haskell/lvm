@@ -40,5 +40,7 @@ long fp_set_traps( long traps );
    a signal handler and should always succeed */
 long fp_clear( void );
 void fp_reset( void );
+void fp_save( long* sticky, long* traps );
+void fp_restore( long sticky, long traps );
 
 #endif /* _primfloat_h */

@@ -237,6 +237,8 @@ case "$cc,$host" in
     cccompopts="-fno-defer-pop $gcc_warnings -D_XOPEN_SOURCE=500";;
   *,powerpc-*-aix4.3*)
     cccompopts="-D_XOPEN_SOURCE=500";;
+  gcc*,*-*-macosx*)
+    cccompopts="-traditional-cpp $gcc_warnings";;
   gcc*,*-*-cygwin*)
     cccompopts="$gcc_warnings"
     exe=".exe"

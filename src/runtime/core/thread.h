@@ -61,7 +61,7 @@ extern struct thread_state*  threads;
 /*----------------------------------------------------------------------
    Functions on threads
 ----------------------------------------------------------------------*/
-struct thread_state* thread_create( unsigned long stack_init_wsize, unsigned long threshold_wsize
+struct thread_state* thread_new( unsigned long stack_init_wsize, unsigned long threshold_wsize
                                    , unsigned long stack_max_wsize, value module, value code );
 void                 thread_destroy( struct thread_state* thread );
 void                 thread_grow_stack( struct thread_state* thread );

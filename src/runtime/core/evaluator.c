@@ -130,8 +130,7 @@
   machine actions
 ----------------------------------------------------------------------*/
 #define Return(r)         { Setup_for_gc; \
-                            thread->fp_sticky = fp_get_sticky(); \
-                            thread->fp_traps  = fp_get_traps(); \
+                            fp_save(&thread->fp_sticky,&thread->fp_traps); \
                             thread->result = (r); \
                             Restore_exception_handler(exn_frame,thread); \
                             return; }
@@ -367,8 +366,7 @@ void evaluate( struct thread_state* thread )
 
   /* restore/initialize floating point state */
   fp_reset();
-  fp_set_traps(thread->fp_traps);
-  fp_set_sticky(thread->fp_sticky);
+  fp_restore(thread->fp_sticky,thread->fp_traps);
 
   /* start execution by entering the value on top of the stack */
   goto enter;

@@ -128,7 +128,7 @@ enum fp_round fp_round_unmask( long rnd )
     the default GNU [float.h].
   - Cygwin does have [ieefp.h] but no library that implements it.
   - FreeBSD [fpsetsticky] clears all the sticky flags instead of setting them.
-  - NetBSD [fpsetsticky] sets the control word! instead of the status word,
+  - NetBSD [fpsetsticky] sets the control word instead of the status word,
     effectively enabling SIG_FPE signals instead of setting sticky flags..
 
   Incredible, especially when we consider that the x87 was the driving
@@ -174,7 +174,7 @@ enum fp_round fp_round_unmask( long rnd )
 #define _FP_ROUND_MASK  0x0c00
 
 #define _FP_STATUS_REG  1
-#define _FP_ENV_SIZE    7
+#define _FP_ENV_SIZE    10  /* actually 7, but just to be safe, we take a larger value */
 
 #define _FP_X_INV  0x01
 #define _FP_X_DNML 0x02
@@ -269,6 +269,19 @@ void fp_reset(void)
 }
 
 
+void fp_save( long* sticky, long* traps )
+{
+  Assert(sticky && traps);
+  *traps  = fp_get_traps();
+  *sticky = fp_get_sticky();
+}
+
+void fp_restore( long sticky, long traps )
+{
+  fp_set_traps(traps);
+  fp_set_sticky(sticky);
+}
+
 /*----------------------------------------------------------------------
 -- IEEE floating point on standard unix's
 ----------------------------------------------------------------------*/
@@ -339,6 +352,20 @@ enum fp_round fp_set_round( enum fp_round rnd )
 }
 
 
+void fp_save( long* sticky, long* traps )
+{
+  Assert(sticky && traps);
+  *traps  = fp_get_traps();
+  *sticky = fp_get_sticky();
+}
+
+void fp_restore( long sticky, long traps )
+{
+  fp_set_traps(traps);
+  fp_set_sticky(sticky);
+}
+
+
 /*----------------------------------------------------------------------
 -- IEEE floating point on Visual C++/Mingw32/Borland systems
 ----------------------------------------------------------------------*/
@@ -389,6 +416,10 @@ long fp_set_traps( long traps )
 /* sticky */
 long fp_get_sticky( void )
 {
+  /* we could return it, but since we can't set the sticky bits,
+     we can have indeterminate results with multiple threads
+     through the [fp_save]/[fp_restore] calls. */
+  raise_arithmetic_exn( Fpe_unemulated );
   return (_statusfp() & _MCW_EM);
 }
 
@@ -397,6 +428,18 @@ long fp_set_sticky( long sticky )
 {
   raise_arithmetic_exn( Fpe_unemulated );
   return fp_get_sticky();
+}
+
+
+void fp_save( long* sticky, long* traps )
+{
+  Assert(sticky && traps);
+  *traps  = fp_get_traps();
+}
+
+void fp_restore( long sticky, long traps )
+{
+  fp_set_traps(traps);
 }
 
 
@@ -462,7 +505,20 @@ enum fp_round fp_set_round( enum fp_round rnd )
   return fp_round_near;
 }
 
+
+void fp_save( long* sticky, long* traps )
+{
+  Assert(sticky && traps);
+  /* nothing to do */
+}
+
+void fp_restore( long sticky, long traps )
+{
+  /* nothing to do */
+}
+
 #endif
+
 
 /*
 int main( int argc, char** argv )

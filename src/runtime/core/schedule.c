@@ -78,7 +78,7 @@ extern wsize_t stack_wsize_max, stack_wsize_threshold, stack_wsize_init;
     CAMLreturn0;
   }
 
-  thread = thread_create( stack_wsize_init, stack_wsize_threshold, stack_wsize_max, module, code );
+  thread = thread_new( stack_wsize_init, stack_wsize_threshold, stack_wsize_max, module, code );
   schedule( thread );
 
   switch (thread->result) {
