@@ -347,7 +347,7 @@ static void parse_malloc_name( const char** name, const char* newname )
   int   len;
   Assert(name);
   Assert(newname);
-  
+
   /* determine length */
   if (newname==NULL) return;
   for(len=0;newname[len]!='\0' && newname[len]!=' ';len++) { /*nothing*/ }
@@ -356,7 +356,7 @@ static void parse_malloc_name( const char** name, const char* newname )
   /* allocate new name */
   p = (char*)malloc(len+1);
   str_cpy(p,newname,len+1);
-  if (*name!=NULL) free((char*)*name); 
+  if (*name!=NULL) free((char*)*name);
   *name = p;
 }
 

@@ -222,10 +222,10 @@ bool is_pathsep( const char c )
    Daan.
    */
 #if defined(OS_WINDOWS) || defined(OS_CYGWIN)
-  return (c==';'); 
-#else 
+  return (c==';');
+#else
   return (c==';' || c == ':');
-#endif 
+#endif
 }
 
 bool is_filesep( const char c )

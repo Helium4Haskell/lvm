@@ -661,7 +661,7 @@ raise_exception:
       } else {
         fp = recover_synchronous( fp, exn );
       }
-  
+
       /* reload exn since a gc may have happened */
       exn = Popx();
 

@@ -91,7 +91,7 @@ value string_of_float( float_t f, int prec, char type )
    case 'f': snprintf( buffer, 144, "%.*f", prec, f ); break;
    case 'F': snprintf( buffer, 144, "%.*F", prec, f ); break;
    case 'G': snprintf( buffer, 144, "%.*G", prec, f ); break;
-   case 'g': 
+   case 'g':
    default : snprintf( buffer, 144, "%.*g", prec, f ); break;
   }
 
@@ -193,8 +193,8 @@ enum fp_round fp_round_unmask( long rnd )
 
   Incredible, especially when we consider that the x87 was the driving
   force behind the IEEE 754 standard. Because of all these problems,
-  We implement floating point support in assembly by default on the IA32 
-  platforms. Surprisingly, it is quite easy to do which makes one wonder 
+  We implement floating point support in assembly by default on the IA32
+  platforms. Surprisingly, it is quite easy to do which makes one wonder
   why the implementations are so diverse.
 ----------------------------------------------------------------------*/
 #if defined(ARCH_IA32)

@@ -55,7 +55,7 @@ value alloc (mlsize_t wosize, tag_t tag)
 
 value alloc_major(mlsize_t wosize, tag_t tag)
 {
-  value result; 
+  value result;
   Assert (tag < 256);
   if (wosize == 0){
     result = Atom (tag);
@@ -110,7 +110,7 @@ value alloc_string_major (mlsize_t len)
 
   result = alloc_shr (wosize, String_tag);
   result = check_urgent_gc(result);
-  
+
   Field (result, wosize - 1) = 0;
   offset_index = Bsize_wsize (wosize) - 1;
   Byte (result, offset_index) = (char)(offset_index - len);

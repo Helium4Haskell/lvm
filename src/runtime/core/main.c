@@ -46,7 +46,7 @@ void start_module( const char* name )
     if (code==0) {
       code = find_code(module,"main");
       if (code==0) {
-        fatal_error( "fatal error: neither \"main\" or \"main$\" is defined\n" );   
+        fatal_error( "fatal error: neither \"main\" or \"main$\" is defined\n" );
         CAMLreturn0;
       }
       showfinal = true;

@@ -151,17 +151,17 @@ value call_extern( value* sp, long arg_count, void* fun
     /* generic C call with double result */
     if (cconv == Call_c) {
       switch (arg_count) {
-      case 1:  if (is_float_type(type[1])) 
-                 result = ((fun_c_dd)fun)(float_args[0]); 
+      case 1:  if (is_float_type(type[1]))
+                 result = ((fun_c_dd)fun)(float_args[0]);
                else
-                 result = ((fun_c_dI)fun)(args[0]); 
+                 result = ((fun_c_dI)fun)(args[0]);
                break;
       case 2:  if (is_float_type(type[1]) && is_float_type(type[2]))
-                 result = ((fun_c_ddd)fun)(float_args[0],float_args[1]); 
+                 result = ((fun_c_ddd)fun)(float_args[0],float_args[1]);
                else if (is_float_type(type[1]))
-                 result = ((fun_c_ddI)fun)(float_args[0],args[0]); 
+                 result = ((fun_c_ddI)fun)(float_args[0],args[0]);
                else
-                 result = ((fun_c_dII)fun)(args[0],args[1]);                
+                 result = ((fun_c_dII)fun)(args[0],args[1]);
                break;
       default:  raise_internal( "extern call \"%s\": sorry, this argument count is unsupported (%i)", name, arg_count );
       }

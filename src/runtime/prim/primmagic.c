@@ -23,12 +23,12 @@ enum value_kind {
       if (Is_long(v)) {
         /* int */
         v = Atom(Kind_int);
-      } 
+      }
       else {
         tag_t tag = Tag_val(v);
         if (tag <= Con_max_tag) {
           v = Atom(Kind_con);
-        } 
+        }
         else {
           switch (tag) {
           case Raise_tag:   v = Atom(Kind_raise); break;
@@ -40,13 +40,12 @@ enum value_kind {
           case Code_tag:    v = Atom(Kind_code); break;
           case String_tag:  v = Atom(Kind_bytes); break;
           case Double_tag:  v = Atom(Kind_float); break;
-          case Suspend_tag: v = Atom(Kind_suspend); break;          
+          case Suspend_tag: v = Atom(Kind_suspend); break;
           case Custom_tag:  v = Atom(Kind_custom); break;
           default:          v = Atom(Kind_unknown); break;
-          }  
+          }
         }
       }
       sp[0] = v;
       Next;
     }
-
