@@ -9,13 +9,10 @@
 
 -- $Id$
 
--- TODO: the single IdMap can lead to name clashes, use proper indices 
--- where every id belongs to the namespace of declkind
-
 module LvmWrite( lvmWriteFile, lvmToBytes ) where
 
 import Standard ( assert)
-import Id       ( Id, stringFromId )
+import Id       ( Id, stringFromId, setNameSpace )
 import IdMap    ( IdMap, emptyMap, insertMap, lookupMap, listFromMap )
 import Byte
 import Instr
@@ -101,7 +98,7 @@ emitDecl decl
       other           -> error "LvmWrite.emitDecl: invalid declaration at this phase"
 
 emitDValue (DeclValue id access mbEnc instrs custom)
-  = do{ idxEnc  <- maybe (return 0) (\(Link id declkind) -> findIndex id) mbEnc
+  = do{ idxEnc  <- maybe (return 0) (\(Link id declkind) -> findIndex declkind id) mbEnc
       ; idxCode <- emitInstrs instrs
       ; emitNamedBlock id DeclKindValue [encodeInt (flags access), encodeInt arity
                                         ,encodeIdx idxEnc, encodeIdx idxCode] custom
@@ -121,13 +118,15 @@ emitDExtern (DeclExtern id access arity tp linkconv callconv libname externname 
   = do{ idxType            <- emitExternType tp
       ; idxLibName         <- emitNameString libname
       ; (nameFlag,idxName) <- emitNameExtern
-      ; emitNamedBlock id DeclKindExtern  [encodeInt (flags access), encodeInt arity
-                                          ,encodeIdx idxType
-                                          ,encodeIdx idxLibName, encodeIdx idxName
-                                          ,encodeInt nameFlag
-                                          ,encodeInt (fromEnum linkconv)
-                                          ,encodeInt (fromEnum callconv)
-                                          ] custom
+      ; idxId              <- emitName id
+      ; emitBlockEx (Just id) DeclKindValue DeclKindExtern  
+            (block [encodeIdx idxId, encodeInt (flags access), encodeInt arity
+                    ,encodeIdx idxType
+                    ,encodeIdx idxLibName, encodeIdx idxName
+                    ,encodeInt nameFlag
+                    ,encodeInt (fromEnum linkconv)
+                    ,encodeInt (fromEnum callconv)
+                    ]) custom
       }
   where
     emitNameExtern  = case externname of
@@ -144,8 +143,10 @@ emitImport id declkind access@(Imported public moduleName importName kind majorV
   = assert (declkind==kind) "LvmWrite.emitImport: kinds don't match" $
     do{ idxModule <- emitModule moduleName majorVer minorVer
       ; idxName   <- emitName importName
-      ; emitNamedBlock id DeclKindImport [encodeInt (flags access), encodeIdx idxModule
-                                         ,encodeIdx idxName, encodeInt (fromEnum declkind)] customs
+      ; idxId     <- emitName id
+      ; emitBlockEx (Just id) declkind DeclKindImport 
+          (block [encodeIdx idxId, encodeInt (flags access), encodeIdx idxModule
+                 , encodeIdx idxName, encodeInt (fromEnum declkind)]) customs
       }
 
 emitModule name major minor
@@ -339,12 +340,12 @@ resolvePat pat
       other       -> return pat
 
 resolveGlobal f (Global id _ arity)
-  = do{ idx <- findIndex id
+  = do{ idx <- findIndex DeclKindValue id
       ; return (f (Global id idx arity))
       }
 
 resolveCon f (Con id _ arity tag)
-  = do{ idx <- findIndex id
+  = do{ idx <- findIndex DeclKindCon id
       ; return (f (Con id idx arity tag))
       }
 
@@ -379,11 +380,14 @@ emitBytes bs
   = emitBlock Nothing DeclKindBytes (blockBytes bs) []
 
 emitBlock mbId kind bs custom
+  = emitBlockEx mbId kind kind bs custom
+
+emitBlockEx mbId kindId kind bs custom
   = do{ bcustom <- emitCustoms custom
       ; let bytes = cat bs bcustom
             total = cat (block [encodeInt (fromEnum kind),encodeInt (bytesLength bytes)]) bytes
       ; assert ((bytesLength bytes `mod` 4) == 0) "LvmWrite.emitBlock: unaligned size" $
-        emitPrimBlock mbId total
+        emitPrimBlock mbId kindId total
       }
 
 {--------------------------------------------------------------
@@ -402,7 +406,7 @@ emitCustom custom
       CustomBytes bs   -> do{ idx <- emitBytes bs; return (encodeIdx idx) }
       CustomName id    -> do{ idx <- emitName id; return (encodeIdx idx) }
       CustomDecl (Link id kind) 
-        -> do{ idx <- findIndex id; return (encodeIdx idx) }
+        -> do{ idx <- findIndex kind id; return (encodeIdx idx) }
 
 {--------------------------------------------------------------
   Emit Monad
@@ -426,17 +430,17 @@ runEmit (Emit e)
   = let (x,State _ env bbs) = e env (State 0 emptyMap [])  -- yes, a recursive, lazy, env :-)
     in (x,reverse bbs)
 
-emitPrimBlock :: Maybe Id -> Bytes -> Emit Index
-emitPrimBlock mid bs
+emitPrimBlock :: Maybe Id -> DeclKind -> Bytes -> Emit Index
+emitPrimBlock mid kind bs
   = Emit (\env (State count map bbs) ->
             let index = count+1
-            in (index, State index (maybe map (\id -> insertMap id index map) mid) (bs:bbs)))
+            in (index, State index (maybe map (\id -> insertMap (setNameSpace kind id) index map) mid) (bs:bbs)))
 
 -- a nice lazy formulation, we can calculate all indices before writing the bytes.
-findIndex :: Id -> Emit Index
-findIndex id
+findIndex :: DeclKind -> Id -> Emit Index
+findIndex kind id 
   = Emit (\env st ->
-          (case lookupMap id env of
+          (case lookupMap (setNameSpace kind id) env of
              Nothing  -> (error ("LvmWrite.findIndex: undeclared identifier: " ++ show (stringFromId id)))
              Just idx -> (idx)
           , st))

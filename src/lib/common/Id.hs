@@ -123,7 +123,7 @@ mapWithSupply f supply xs
 -- Bit masks used within an Id
 --
 -- 0x | 0 0 0 0 | 0 0 0 0 |
---    |         |     F E |  sort (=namespace) of the id
+--    |         |     F E |  sort (=namespace) of the id  (TODO: just 128 entries is too few)
 --    |       F | F F     |  hash index in the hash table
 --    | 7 F F   |         |  index in the list of id's in the leaves of the hash table
 --    |         |       1 |  unique id (no name available)
