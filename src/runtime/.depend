@@ -49,14 +49,14 @@ core/schedule.o: core/schedule.c common/mlvalues.h common/config.h \
  common/misc.h heap/heap.h common/memory.h heap/gc.h heap/gc_ctrl.h \
  heap/minor_gc.h heap/major_gc.h heap/freelist.h core/print.h \
  core/module.h common/fixed.h common/fail.h core/thread.h \
- core/signals.h /usr/include/mingw/signal.h core/evaluator.h
+ core/signals.h /usr/include/signal.h core/evaluator.h
 core/signals.o: core/signals.c common/mlvalues.h common/config.h \
  common/misc.h common/alloc.h common/fail.h core/failexn.h heap/heap.h \
  common/memory.h heap/gc.h heap/gc_ctrl.h heap/minor_gc.h \
  heap/major_gc.h heap/freelist.h core/thread.h core/signals.h \
  core/systhread.h core/primfloat.h
 core/stack.o: core/stack.c common/mlvalues.h common/config.h common/misc.h \
- common/fail.h heap/heapfast.h heap/heap.h common/memory.h heap/gc.h \
+ common/alloc.h common/fail.h heap/heap.h common/memory.h heap/gc.h \
  heap/gc_ctrl.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
  core/thread.h core/signals.h
 core/stats.o: core/stats.c common/mlvalues.h common/config.h common/misc.h \
@@ -94,8 +94,10 @@ heap/freelist.o: heap/freelist.c common/config.h heap/freelist.h \
 heap/gc_ctrl.o: heap/gc_ctrl.c common/mlvalues.h common/config.h \
  common/misc.h common/alloc.h heap/compact.h common/custom.h \
  heap/finalise.h heap/roots.h common/memory.h heap/heap.h heap/gc.h \
- heap/gc_ctrl.h heap/minor_gc.h heap/major_gc.h heap/freelist.h
-heap/main.o: heap/main.c
+ heap/gc_ctrl.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
+ core/thread.h core/signals.h
+heap/globroots.o: heap/globroots.c common/memory.h common/mlvalues.h \
+ common/config.h common/misc.h heap/globroots.h
 heap/major_gc.o: heap/major_gc.c common/mlvalues.h common/config.h \
  common/misc.h heap/compact.h common/custom.h common/fail.h \
  heap/finalise.h heap/roots.h common/memory.h heap/heap.h heap/gc.h \
@@ -114,7 +116,7 @@ heap/minor_gc.o: heap/minor_gc.c common/mlvalues.h common/config.h \
 heap/roots.o: heap/roots.c common/mlvalues.h common/config.h common/misc.h \
  heap/finalise.h heap/roots.h common/memory.h heap/heap.h heap/gc.h \
  heap/gc_ctrl.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
- common/fixed.h core/thread.h core/signals.h
+ common/fixed.h heap/globroots.h core/thread.h core/signals.h
 heap/weak.o: heap/weak.c common/mlvalues.h common/config.h common/misc.h \
  common/alloc.h common/fail.h common/memory.h heap/heap.h heap/gc.h \
  heap/gc_ctrl.h heap/minor_gc.h heap/major_gc.h heap/freelist.h
@@ -123,7 +125,7 @@ prim/primio.o: prim/primio.c common/mlvalues.h common/config.h \
  common/custom.h prim/primio.h prim/primsys.h
 prim/prims.o: prim/prims.c common/mlvalues.h common/config.h common/misc.h \
  common/fail.h prim/prims.h prim/../core/module.h common/fixed.h \
- prim/../core/sys.h
+ prim/primitives.h prim/../core/sys.h
 prim/primstring.o: prim/primstring.c common/mlvalues.h common/config.h \
  common/misc.h common/memory.h common/alloc.h common/fail.h \
  prim/primstring.h

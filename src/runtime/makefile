@@ -15,9 +15,9 @@ include ../config/makefile
 #LINKOPT    = $(LINKOPTS)
 #CCOPT_FAST = -O3 $(CCOPTS) -g -DTRACE_TRACE -DTRACE_INSTR -DTRACE_STACK
 
-CCOPT	   = $(CCOPTS) -I. -Icommon
+CCOPT	   = -O2 $(CCOPTS) -I. -Icommon
 LINKOPT    = $(LINKOPTS)
-CCOPT_FAST = $(CCOPTS) -I. -Icommon
+CCOPT_FAST = -O3 $(CCOPTS) -I. -Icommon
 
 CORE	= main.c stats.c \
 	  schedule.c evaluator.c instr.c thread.c stack.c \
