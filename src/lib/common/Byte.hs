@@ -40,6 +40,8 @@ data Bytes  = Nil
             | Cons Byte   !Bytes    -- Byte is not strict since LvmWrite uses it lazily right now.
             | Cat  !Bytes !Bytes
 
+instance Show Bytes where
+  show bs   = show (listFromBytes bs)
 
 {----------------------------------------------------------------
   conversion to bytes

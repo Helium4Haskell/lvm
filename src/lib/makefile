@@ -29,7 +29,7 @@ COMMON	= common/Id.hs common/IdMap.hs common/IdSet.hs common/IntMap.hs \
 	  common/PPrint.hs common/TopSort.hs \
 	  common/ghc/Special.hs
 
-LVM	= lvm/Lvm.hs lvm/LvmPretty.hs lvm/LvmWrite.hs \
+LVM	= lvm/Lvm.hs lvm/LvmPretty.hs lvm/LvmWrite.hs lvm/LvmRead.hs lvm/LvmImport.hs\
 	  lvm/Module.hs lvm/ModulePretty.hs \
 	  lvm/Instr.hs lvm/InstrPretty.hs lvm/InstrResolve.hs lvm/InstrRewrite.hs
 
@@ -94,7 +94,6 @@ clean:
 depend :
 	ghc -M $(HC_OPTS) $(SRCS)
 
-
 # DO NOT DELETE: Beginning of Haskell dependencies
 common/Id.o : common/Id.hs
 common/Id.o : common/IntMap.hi
@@ -131,6 +130,25 @@ lvm/LvmWrite.o : common/Byte.hi
 lvm/LvmWrite.o : common/IdMap.hi
 lvm/LvmWrite.o : common/Id.hi
 lvm/LvmWrite.o : common/Standard.hi
+lvm/LvmRead.o : lvm/LvmRead.hs
+lvm/LvmRead.o : lvm/ModulePretty.hi
+lvm/LvmRead.o : lvm/InstrPretty.hi
+lvm/LvmRead.o : lvm/Instr.hi
+lvm/LvmRead.o : lvm/Lvm.hi
+lvm/LvmRead.o : common/Byte.hi
+lvm/LvmRead.o : common/IdMap.hi
+lvm/LvmRead.o : common/Id.hi
+lvm/LvmRead.o : common/Standard.hi
+lvm/LvmRead.o : common/PPrint.hi
+lvm/LvmImport.o : lvm/LvmImport.hs
+lvm/LvmImport.o : common/PPrint.hi
+lvm/LvmImport.o : lvm/InstrPretty.hi
+lvm/LvmImport.o : lvm/ModulePretty.hi
+lvm/LvmImport.o : lvm/LvmRead.hi
+lvm/LvmImport.o : lvm/Module.hi
+lvm/LvmImport.o : common/IdMap.hi
+lvm/LvmImport.o : common/Id.hi
+lvm/LvmImport.o : common/Standard.hi
 lvm/Module.o : lvm/Module.hs
 lvm/Module.o : lvm/Instr.hi
 lvm/Module.o : common/IdSet.hi
@@ -211,6 +229,7 @@ core/CoreParse.o : common/IdMap.hi
 core/CoreParse.o : common/Id.hi
 core/CoreParse.o : common/Byte.hi
 core/CoreParse.o : parsec/Parsec.hi
+core/CoreParse.o : common/Standard.hi
 core/CoreLexer.o : core/CoreLexer.hs
 core/CoreLexer.o : common/Standard.hi
 core/CoreNormalize.o : core/CoreNormalize.hs
@@ -260,6 +279,7 @@ parsec/ParsecError.o : parsec/ParsecError.hs
 parsec/ParsecError.o : parsec/ParsecPos.hi
 parsec/ParsecPos.o : parsec/ParsecPos.hs
 core/Main.o : core/Main.hs
+core/Main.o : lvm/LvmImport.hi
 core/Main.o : lvm/LvmWrite.hi
 core/Main.o : lvm/LvmPretty.hi
 core/Main.o : asm/AsmToLvm.hi

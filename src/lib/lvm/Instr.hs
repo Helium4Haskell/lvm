@@ -39,8 +39,11 @@ type Tag      = Int
 type Arity    = Int
 
 data Global   = Global !Id Index !Arity
+              deriving Show
 data Con      = Con    !Id Index !Arity !Tag
+              deriving Show
 data Var      = Var    !Id !Offset !Depth
+              deriving Show
 
 arityFromCon    (Con id c arity tag) = arity
 tagFromCon      (Con id c arity tag) = tag
@@ -58,8 +61,10 @@ idFromVar       (Var id offset depth)  = id
 data Pat      = PatCon !Con
               | PatInt !Int
               | PatDefault
+              deriving Show
 
 data Alt      = Alt !Pat ![Instr]
+              deriving Show
 
 data Instr    =
               -- pseudo instructions
@@ -187,7 +192,7 @@ data Instr    =
               | NEWCON3 !Con
 
               | RETURNCON0 !Con
-
+              deriving Show
 
 ----------------------------------------------------------------
 -- Instruction instances

@@ -35,8 +35,8 @@ thd3 (a,b,c)  = c
 ----------------------------------------------------------------
 -- debugging
 ----------------------------------------------------------------
-trace s x     = seq (unsafePerformIO (hPutStr stderr s)) x
-warning s x   = trace ("\nwarning: " ++ s ++ "\n") x
+trace s x     = seq (unsafePerformIO (hPutStrLn stderr s)) x
+warning s x   = trace ("\nwarning: " ++ s) x
 
 assert p msg x
   = if (p) then x else warning msg x

@@ -46,37 +46,51 @@ type DeclKind   = Int
 data Access     = Private
                 | Public
                 | Import { importPublic :: !Bool
-                         , importModule :: !Id, importName :: !Id
+                         , importModule :: Id, importName :: Id
                          , importVerMajor :: !Int, importVerMinor :: !Int }
+                deriving Show
 
 
 data DValue v   = DValue    { valueAccess  :: !Access, valueEnc :: !(Maybe Id), valueValue :: v, valueCustoms :: !Customs }
+                deriving Show
+
 data DAbstract  = DAbstract { abstractAccess :: !Access, abstractArity :: !Arity }
+                deriving Show
+
 data DCon       = DCon      { conAccess    :: !Access, conArity    :: !Arity, conTag :: !Tag, conCustoms :: !Customs }
+                deriving Show
+
 data DExtern    = DExtern   { externAccess :: !Access, externArity :: !Arity
                             , externType   :: !String
                             , externLink   :: !LinkConv, externCall :: !CallConv
                             , externLib    :: !String, externName :: !ExternName, externCustoms :: !Customs }
+                deriving Show
+
 data DCustom    = DCustom   { customAccess :: !Access, customKind :: !DeclKind, customCustoms :: !Customs }
+                deriving Show
+
 data DImport    = DImport   { importAccess :: !Access, importKind :: !DeclKind }
+                deriving Show
 
 type Customs    = [Custom]
 data Custom     = CtmInt   !Int
-                | CtmIndex !Id
+                | CtmIndex Id
                 | CtmBytes !Bytes
-                | CtmName  !Id
+                | CtmName  Id
+                deriving Show
 
 
 -- externals
 data ExternName = Plain    !String
                 | Decorate !String
                 | Ordinal  !Int
+                deriving Show
 
 data CallConv   = CallC | CallStd | CallInstr
-                deriving (Eq, Enum)
+                deriving (Show, Eq, Enum)
 
 data LinkConv   = LinkStatic | LinkDynamic | LinkRuntime
-                deriving (Eq, Enum)
+                deriving (Show, Eq, Enum)
 
 declValue,declCon,declImport,declExtern :: Int
 declValue      = 3

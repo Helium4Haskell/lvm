@@ -13,11 +13,14 @@ module LvmImport( lvmImport ) where
 
 
 import Monad    ( foldM )
-import Standard ( foldlStrict)
+import Standard ( foldlStrict )
 import Id       ( Id, stringFromId )
 import IdMap    ( IdMap, emptyMap, insertMap, elemMap, updateMap, listFromMap, lookupMap, findMap  )
 import Module   
 import LvmRead  ( lvmReadFile )
+import ModulePretty
+import InstrPretty
+import PPrint
 
 {--------------------------------------------------------------
   lvmImport: replace all import declarations with
@@ -44,14 +47,14 @@ readModuleImports findModule loaded id mod
   
 readModule findModule loaded id  
   | elemMap id loaded  = return loaded
-  | otherwise          = do{ fname <- findModule id
+  | otherwise          = do{ fname <- findModule id                        
                            ; mod   <- lvmReadFile fname
                            ; readModuleImports findModule loaded id mod
                            }
 
 imported mod
   = map (importModule . importAccess . snd) (imports mod)
-
+    
 {---------------------------------------------------------------
 lvmResolveImports:
   replaces all "DImport" declarations with the real
@@ -90,7 +93,7 @@ resolveImport visited modid loaded x@(id,DImport access@(Import public imodid im
       = case lookup impid (imports imod) of
           Nothing  -> error ("LvmImport.resolveImport: unresolved identifier: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
           Just imp -> let loaded' = resolveImport (modid:visited) imodid loaded (impid,imp)
-                      in resolveImport visited modid loaded' x
+                      in resolveImport (imodid:visited) modid loaded' x
 
     update mod'
       = updateMap modid mod' loaded
