@@ -90,9 +90,9 @@ value string_of_float( float_t f, int prec, char type )
    case 'E': snprintf( buffer, 144, "%.*E", prec, f ); break;
    case 'f': snprintf( buffer, 144, "%.*f", prec, f ); break;
    case 'F': snprintf( buffer, 144, "%.*F", prec, f ); break;
-   case 'g': snprintf( buffer, 144, "%.*g", prec, f ); break;
-   case 'G': 
-   default : snprintf( buffer, 144, "%.*G", prec, f ); break;
+   case 'G': snprintf( buffer, 144, "%.*G", prec, f ); break;
+   case 'g': 
+   default : snprintf( buffer, 144, "%.*g", prec, f ); break;
   }
 
   return copy_string(buffer);
@@ -134,27 +134,6 @@ double fp_tan( double x )
   return tan(x);
 }
 
-long fp_round( double x )
-{
-  return (long)(x);
-}
-
-long fp_trunc( double x )
-{
-  double i;
-  modf(x,&i);
-  return (long)(i);
-}
-
-double fp_ceil( double x )
-{
-  return ceil(x);
-}
-
-double fp_floor( double x )
-{
-  return floor(x);
-}
 
 
 /*----------------------------------------------------------------------
@@ -199,10 +178,8 @@ enum fp_round fp_round_unmask( long rnd )
   return fp_round_near;
 }
 
-
-
 /*----------------------------------------------------------------------
-  The ieee conformance on i386 platforms is bizar:
+  The IEEE conformance on i386 platforms is bizar:
   - Microsoft Visual C and Borland C provide no mechanism
     to set the sticky flags. On top of that, the MS functions are
     very inefficient since they convert all the bits to some other
@@ -215,10 +192,10 @@ enum fp_round fp_round_unmask( long rnd )
     effectively enabling SIG_FPE signals instead of setting sticky flags..
 
   Incredible, especially when we consider that the x87 was the driving
-  force behind the IEEE 754 standard. We implement floating point support
-  in assembly by default on the IA32 platforms. Surprisingly, it is
-  quite easy to do which makes one wonder why it the implementations are
-  so diverse.
+  force behind the IEEE 754 standard. Because of all these problems,
+  We implement floating point support in assembly by default on the IA32 
+  platforms. Surprisingly, it is quite easy to do which makes one wonder 
+  why the implementations are so diverse.
 ----------------------------------------------------------------------*/
 #if defined(ARCH_IA32)
 
@@ -231,6 +208,8 @@ enum fp_round fp_round_unmask( long rnd )
 # define asm_fnstsw(sw)   __asm{ fnstsw sw }
 # define asm_fldenv(env)  __asm{ fldenv env }
 # define asm_fstenv(env)  __asm{ fstenv env }
+# define asm_frndint(r,x) __asm{ fld x }; __asm{ frndint }; __asm{ fstp r }
+# define asm_fist(r,x)    __asm{ fld x }; __asm{ fistp r }
 #elif defined(__GNUC__)
 # define FLOAT_ASM_IA32
 # define asm_fnclex()     __asm __volatile("fnclex")
@@ -240,12 +219,128 @@ enum fp_round fp_round_unmask( long rnd )
 # define asm_fnstsw(sw)   __asm __volatile("fnstsw %0" : "=m" (sw))
 # define asm_fldenv(env)  __asm __volatile("fldenv %0" : : "m" (*(env)))
 # define asm_fstenv(env)  __asm __volatile("fstenv %0" : "=m" (*(env)))
+# define asm_frndint(r,x) __asm __volatile("frndint"  : "=t" (r) : "0" (x));
+# define asm_fist(r,x)    __asm __volatile("fistl %0" : "=m" (r) : "t" (x));
 #else
   /* no assembler support, use default implementations */
 #endif
 
 #endif
 
+
+/*----------------------------------------------------------------------
+-- Rounding: use asm on i386 platforms
+----------------------------------------------------------------------*/
+#if defined(FLOAT_ASM_IA32)
+
+double fp_round( double x )
+{
+  volatile double r;
+  asm_frndint(r,x);
+  return r;
+}
+
+long fp_round_int( double x )
+{
+  volatile long r;
+  asm_fist(r,x);
+  return r;
+}
+
+
+#define fp_round_with(r,x,rnd) { enum fp_round save = fp_set_round( rnd ); \
+                                 (r) = fp_round(x); \
+                                 fp_set_round(save); \
+                               }
+
+double fp_floor( double x )
+{
+  double r;
+  fp_round_with(r,x,fp_round_down);
+  return r;
+}
+
+double fp_ceil( double x )
+{
+  double r;
+  fp_round_with(r,x,fp_round_up);
+  return r;
+}
+
+double fp_trunc( double x )
+{
+  double r;
+  fp_round_with(r,x,fp_round_zero);
+  return r;
+}
+
+double fp_nearest( double x )
+{
+  double r;
+  fp_round_with(r,x,fp_round_near);
+  return r;
+}
+
+long fp_trunc_int( double x )
+{
+  enum fp_round save = fp_set_round( fp_round_zero );
+  long          r    = fp_round_int(x);
+  fp_set_round(save);
+  return r;
+}
+
+/*----------------------------------------------------------------------
+-- Rounding: portable C
+----------------------------------------------------------------------*/
+#else
+
+double fp_floor( double x )
+{
+  return floor(x);
+}
+
+double fp_ceil( double x )
+{
+  return ceil(x);
+}
+
+double fp_trunc( double x )
+{
+  double i;
+  modf(x,&i);
+  return i;
+}
+
+double fp_nearest( double x )
+{
+  double y = x+0.5;       /* x + 0.5 */
+  double z = fp_floor(y); /* result  */
+  if (y==z && (y/2.0)!=fp_floor(y/2.0)) z = z-1.0;
+  return z;
+}
+
+double fp_round( double x )
+{
+  switch (fp_get_round()) {
+    case fp_round_up:   return fp_ceil(x);
+    case fp_round_down: return fp_floor(x);
+    case fp_round_zero: return fp_trunc(x);
+    case fp_round_near:
+    default:            return fp_nearest(x);
+  }
+}
+
+long fp_round_int( double x )
+{
+  return (long)fp_round(x);
+}
+
+long fp_trunc_int( double x )
+{
+  return (long)(x);
+}
+
+#endif
 
 /*----------------------------------------------------------------------
 -- IEEE floating point on i386 platforms
@@ -269,7 +364,7 @@ enum fp_round fp_round_unmask( long rnd )
 #define _FP_RN     0x0000
 #define _FP_RM     0x0400
 #define _FP_RP     0x0800
-#define _FP_RZ     0x0c0
+#define _FP_RZ     0x0c00
 
 typedef unsigned int fp_reg;
 
@@ -365,6 +460,7 @@ void fp_restore( long sticky, long traps )
   fp_set_sticky(sticky);
 }
 
+
 /*----------------------------------------------------------------------
 -- IEEE floating point on standard unix's
 ----------------------------------------------------------------------*/
@@ -451,6 +547,7 @@ void fp_restore( long sticky, long traps )
 
 /*----------------------------------------------------------------------
 -- IEEE floating point on Visual C++/Mingw32/Borland systems
+-- can't set the sticky flags :-(
 ----------------------------------------------------------------------*/
 #elif defined(HAS_CONTROLFP)
 
@@ -517,7 +614,7 @@ long fp_set_sticky( long sticky )
 void fp_save( long* sticky, long* traps )
 {
   Assert(sticky && traps);
-  *traps  = fp_get_traps();
+  *traps = fp_get_traps();
 }
 
 void fp_restore( long sticky, long traps )
@@ -538,6 +635,8 @@ static long fp_trap_masks[Fp_exn_count] =
 
 static long fp_round_masks[fp_round_count] =
   { 0,0,0,0 };
+
+static enum fp_round fp_reg_round = fp_round_near;
 
 void fp_reset( void )
 {
@@ -578,14 +677,14 @@ long fp_set_traps( long traps )
 /* rounding */
 enum fp_round fp_get_round( void )
 {
-  raise_arithmetic_exn( Fpe_unemulated );
-  return fp_round_near;
+  return fp_reg_round;
 }
 
 enum fp_round fp_set_round( enum fp_round rnd )
 {
-  raise_arithmetic_exn( Fpe_unemulated );
-  return fp_round_near;
+  enum fp_round old = fp_reg_round;
+  fp_reg_round = rnd;
+  return old;
 }
 
 

@@ -27,8 +27,11 @@
   PRIM(fp_tan,  "FF") \
   PRIM(fp_ceil, "FF") \
   PRIM(fp_floor,"FF") \
-  PRIM(fp_round,"IF") \
-  PRIM(fp_trunc,"IF") \
+  PRIM(fp_round,"FF") \
+  PRIM(fp_trunc,"FF") \
+  \
+  PRIM(fp_round_int,"IF") \
+  PRIM(fp_trunc_int,"IF") \
   \
   PRIM(fp_reset       ,"v" ) \
   PRIM(fp_sticky_mask ,"li") \
