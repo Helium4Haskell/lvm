@@ -208,29 +208,64 @@ parseModule
       }
 
 modulePublic :: Bool -> (IdSet,IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
-modulePublic allPublic (exports,exportCons,exportData,exportDataCon,exportMods) mod
+modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) mod
   = mod{ moduleDecls = map setPublic (moduleDecls mod) }
   where
     setPublic decl  | declPublic decl = decl{ declAccess = (declAccess decl){ accessPublic = True } }
                     | otherwise       = decl
-
-    declPublic decl
-      = case decl of
-          DeclValue{}     -> allPublic || elemSet (declName decl) exports
-          DeclAbstract{}  -> allPublic || elemSet (declName decl) exports
-          DeclExtern{}    -> allPublic || elemSet (declName decl) exports
-          DeclCon{}       -> allPublic || elemSet (declName decl) exportCons || elemSet (conTypeName decl) exportDataCon
-          DeclCustom{}    -> (declKind decl == customData || declKind decl==customTypeDecl) 
-                             && (allPublic || elemSet (declName decl) exportData)
-          DeclImport{}    -> case importKind (declAccess decl) of
-                               DeclKindValue  -> allPublic || elemSet (declName decl) exports
-                               DeclKindExtern -> allPublic || elemSet (declName decl) exports
-                               DeclKindCon    -> allPublic || elemSet (declName decl) exportCons 
-                               DeclKindModule -> allPublic || elemSet (declName decl) exportMods
-                               DeclKindCustom id -> (id==idFromString "data" || id==idFromString "typedecl")
-                                                    && (allPublic || elemSet (declName decl) exportData)
-                               other          -> False
-          other           -> False
+    
+    isExported decl elemIdSet =
+        let
+            access = declAccess decl
+            name   = declName   decl
+        in
+        if implicit then
+            case decl of
+                DeclImport{} ->  False
+                _ ->
+                    case access of
+                        Imported{} -> False
+                        _          -> True
+        else
+            case access of
+                Imported{ importModule = id }
+                    | elemSet id exportMods               -> True
+                    | otherwise                           -> elemIdSet
+                Defined{}
+                    | elemSet (moduleName mod) exportMods -> True
+                    | otherwise                           -> elemIdSet
+                other -> elemIdSet
+    
+    declPublic decl =
+        let
+            name = declName decl
+        in
+        case decl of
+            DeclValue{}     ->  isExported decl (elemSet name exports)
+            DeclAbstract{}  ->  isExported decl (elemSet name exports)
+            DeclExtern{}    ->  isExported decl (elemSet name exports)
+            DeclCon{}       ->  isExported decl
+                                    (  elemSet name exportCons
+                                    || elemSet (conTypeName decl) exportDataCon
+                                    )
+            DeclCustom{}    ->  isExported decl
+                                    (   (  declKind decl == customData
+                                        || declKind decl == customTypeDecl
+                                        )
+                                    &&  elemSet name exportData
+                                    )
+            DeclImport{}    ->  not implicit && case importKind (declAccess decl) of
+                                    DeclKindValue  -> isExported decl (elemSet name exports)
+                                    DeclKindExtern -> isExported decl (elemSet name exports)
+                                    DeclKindCon    -> isExported decl (elemSet name exportCons) 
+                                    DeclKindModule -> isExported decl (elemSet name exportMods)
+                                    DeclKindCustom id
+                                     | id == idFromString "data"
+                                       ||
+                                       id == idFromString "typedecl" ->
+                                         isExported decl (elemSet name exportData)
+                                    other          -> False
+            other           -> False
 
     conTypeName (DeclCon{declCustoms=(tp:CustomLink id customData:rest)})  = id
     conTypeName other  = dummyId
@@ -893,8 +928,9 @@ semiTerm p
 -- Lexeme parsers
 ----------------------------------------------------------------
 customid
-  =   variable
+  =   varid
   <|> conid
+  <|> parens (opid <|> conopid)
   <|> do{ s <- lexString; return (idFromString s) }
   <?> "custom identifier"
 

@@ -12,7 +12,7 @@ custom typedecl Set : public ["forall a.Set a = List a"]
 custom infix (+) : public [5,right]
 custom infix (*) : public [6,left]
 
--- another "helium" specific way to do the above
+-- another, "helium" specific, way to do the above
 custom helium infix  : public ["infixr 9 (+),(*)"]
 custom helium "type" : public ["type Set a = List a"]
 
