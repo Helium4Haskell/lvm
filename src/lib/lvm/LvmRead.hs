@@ -34,7 +34,7 @@ lvmMinor  = 0
 magic     = 0x4C564D58
 
 
-data Record     = RecValue    Id !Int !(DValue [Instr])               
+data Record     = RecValue    Id !(DValue [Instr])               
                 | RecAbstract Id !DAbstract
                 | RecImport   Id !DImport
                 | RecCon      Id !DCon
@@ -72,7 +72,7 @@ lvmRead ns fname bs
 readModule :: Read (Module v,[Record])
 readModule
   = do{ tag    <- readint
-      ; readGuard (tag == magic) "readHeader" ("invalid LVM file: magic number is incorrect")
+      ; readGuard (tag == magic) "readHeader" "magic number is incorrect"
       ; len    <- readint
       ; total  <- readint
       ; lvmmajor <- readint
@@ -314,8 +314,9 @@ readEnclosing
       ; if (idx == 0) 
           then return Nothing
           else resolve idx (\rec -> case rec of
-                                     RecValue id _ _ -> Just id
-                                     other           -> error "readEnclosing" "invalid enclosing index"
+                                     RecValue id _    -> Just id
+                                     RecAbstract id _ -> Just id
+                                     other            -> error "readEnclosing" "invalid enclosing index"
                           )
       }
 
@@ -323,7 +324,10 @@ readEnclosing
                    
 
 {--------------------------------------------------------------
-  reader monad
+  Reader monad.
+  Note the lazy recursive definition, where resolving
+  and reading is done in a single pass (using delayed 
+  computations).
 --------------------------------------------------------------}
 newtype Read a    = Read (Env -> State -> Result a)
 type    Records   = Array Int Record
