@@ -248,7 +248,7 @@ lexer pos ('=':'>':cs)          | nonSym cs = (pos,LexARROW)  : nextinc lexer po
 lexer pos ('-':'>':cs)          | nonSym cs = (pos,LexRARROW) : nextinc lexer pos 2 cs
 lexer pos ('<':'-':cs)          | nonSym cs = (pos,LexLARROW) : nextinc lexer pos 2 cs
 lexer pos ('.':'.':cs)          | nonSym cs = (pos,LexDOTDOT) : nextinc lexer pos 2 cs
-lexer pos ('\'':'\'':cs)        = nextinc lexSpecialId pos 2 cs
+lexer pos ('\'':'\'':cs)        = nextinc (lexSpecialId pos) pos 2 cs
 
 lexer pos ('.':cs)              | nonSym cs = (pos,LexDOT)    : nextinc lexer pos 1 cs
 lexer pos (',':cs)              | nonSym cs = (pos,LexCOMMA)  : nextinc lexer pos 1 cs
@@ -304,16 +304,19 @@ lexWhile ctype con pos0 pos cs       = let (ident,rest)  = span ctype cs
                                        in  (pos0,con ident) : seq pos' (lexer pos' rest)
 
 
-lexSpecialId pos cs
+lexSpecialId originalPos pos cs -- originalPos points to where '' started. it should
+                                -- be used as the position of the identifier because of the layout rule
+                                -- y = 4
+                                -- ''x'' = 3   -- x and y should be in the same context
   = let (ident,rest) = span (\c -> (not (isSpace c) && c /= '\'')) cs in
     case rest of
       ('\'':'\'':cs')-> let pos' = foldlStrict newpos pos (ident ++ "''") in
                         seq pos' $
                         case ident of
-                          []          -> (pos,LexError "empty special identifier") : (lexer pos' cs')
-                          ":"         -> (pos,LexError "empty special con identifier") : (lexer pos' cs')
-                          (':':conid) -> (pos,LexCon conid) : (lexer pos' cs')
-                          other       -> (pos,LexId ident)  : (lexer pos' cs')
+                          []          -> (originalPos,LexError "empty special identifier") : (lexer pos' cs')
+                          ":"         -> (originalPos,LexError "empty special con identifier") : (lexer pos' cs')
+                          (':':conid) -> (originalPos,LexCon conid) : (lexer pos' cs')
+                          other       -> (originalPos,LexId ident)  : (lexer pos' cs')
       other          -> let pos' = foldlStrict newpos pos (ident) in
                         (pos',LexError ("expecting '' after special identifier " ++ show ident)):lexer pos' rest
 
