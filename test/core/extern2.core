@@ -1,5 +1,0 @@
-module Extern2 where
-
-extern dynamic stdcall tickCount "kernel32" ordinal 391 :: "i"
-
-main = tickCount
