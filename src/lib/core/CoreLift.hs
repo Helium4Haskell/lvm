@@ -108,20 +108,22 @@ liftBindsRec env recs
         env'    = foldl insertLifted env (zip recs fvs)
 
         -- put the computed free variables back into the bindings as lambdas
-        exprs'  = zipWith (addLambdas env) fvs (map (liftExpr env') exprs)
-        recs'   = zipWith Bind ids exprs'
+        recs'  = zipWith (addLambdas env) fvs (zipWith Bind ids (map (liftExpr env') exprs))
     in (recs', env')
 
 
-addLambdas env fv (Note (FreeVar _) expr)  | not (isAtomExpr env expr)
-  = Note (FreeVar emptySet) (foldr Lam expr fv)
-addLambdas env fv (Note n expr)
-  = Note n expr
-addLambdas env fv expr
+addLambdas env fv bind@(Bind id (Note (FreeVar _) expr))  
+  | isAtomExpr env expr = bind
+--  | isValueExpr expr    = Bind id (Note (FreeVar fvset) (Let (NonRec (Bind id (foldlStrict (\e v -> Ap e (Var v)) (Var id) fv))) (Var id)))
+  | otherwise           = Bind id (Note (FreeVar emptySet) (foldr Lam expr fv))
+  where
+    fvset = setFromList fv
+
+addLambdas env fv bind
   = error "CoreLift.addLambdas: no free variable annotation. Do coreFreeVar first?"
 
 insertLifted env ((Bind id expr),fv)
-  = if (isAtomExpr env expr)
+  = if (isAtomExpr env expr) -- || isValueExpr expr)
      then env
      else extendFree env id fv
 
@@ -173,3 +175,9 @@ isAtomExpr env expr
       Con id    -> True
       Lit lit   -> True
       other     -> False
+
+isValueExpr expr
+  = case expr of
+      Note n e  -> isValueExpr e
+      Lam id e  -> False
+      other     -> True
