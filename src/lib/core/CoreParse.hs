@@ -97,7 +97,7 @@ arityFromKind kind
 
 ppType :: Type -> Doc
 ppType tp
-  = ppTypeEx 0 tp -- !!! (addForall tp)
+  = ppTypeEx 0 tp
 
 ppTypeEx :: Int -> Type -> Doc
 ppTypeEx level tp
@@ -287,15 +287,24 @@ pexports
   where
     split (values,cons,datas,datacons,mods) exp
       = case exp of
-          ExportValue id  -> (insertSet id values,cons,datas,datacons,mods)
-          ExportCon   id  -> (values,insertSet id cons,datas,datacons,mods)
-          ExportData  id  -> (values,cons,insertSet id datas,datacons,mods)
+          ExportValue   id -> (insertSet id values,cons,datas,datacons,mods)
+          ExportCon     id -> (values,insertSet id cons,datas,datacons,mods)
+          ExportData    id -> (values,cons,insertSet id datas,datacons,mods)
           ExportDataCon id -> (values,cons,datas,insertSet id datacons,mods)
-          ExportModule id  -> (values,cons,datas,datacons,insertSet id mods)
+          ExportModule  id -> (values,cons,datas,datacons,insertSet id mods)
 
 pexport :: TokenParser [Export]
 pexport
-  = do{ id <- variable
+  = do{ lexeme LexLPAREN
+      ; entity <-
+            do { id <- opid   ; return (ExportValue id) }
+            <|>
+            do { id <- conopid; return (ExportCon   id) }
+      ; lexeme LexRPAREN
+      ; return [entity]
+      }
+  <|>
+    do{ id <- varid
       ; return [ExportValue id]
       }
   <|>
@@ -306,7 +315,9 @@ pexport
           ; return (ExportData id:cons)
           }
         <|>
-        return [ExportData id]
+        -- no parenthesis: could be either a
+        -- constructor or a type constructor
+        return [ExportData id, ExportCon id]
       }      
   <|>
     do{ lexeme LexMODULE
@@ -319,7 +330,7 @@ pexportCons id
       ; return [ExportDataCon id]
       }
   <|>
-    do{ ids <- sepBy conid (lexeme LexCOMMA)
+    do{ ids <- sepBy constructor (lexeme LexCOMMA)
       ; return (map ExportCon ids)
       }
 
@@ -359,20 +370,54 @@ pabstractCon
 pimport :: TokenParser [CoreDecl]
 pimport
   = do{ lexeme LexIMPORT
-      ; id <- conid
-      ; commaParens (pimportValue id <|> pimportCon id)
-        <|> return [DeclImport id (Imported False id dummyId DeclKindModule 0 0) []]
+      ; modid <- conid
+      ; do{ xss <- commaParens (pimport' modid)
+          ; return (concat xss)
+          }
+        <|>
+        return [DeclImport modid (Imported False modid dummyId DeclKindModule 0 0) []]
       }
 
-pimportValue modid
-  = do{ id <- variable
+pimport' :: Id -> TokenParser [CoreDecl]
+pimport' modid
+  = do{ lexeme LexLPAREN
+      ; (kind, id) <-
+            do { id <- opid   ; return (DeclKindValue, id) }
+            <|>
+            do { id <- conopid; return (DeclKindCon  , id) }
+      ; lexeme LexRPAREN
       ; impid <- option id (do{ lexeme LexASG; variable })
-      ; return (DeclImport id (Imported False modid impid DeclKindValue 0 0) [])
+      ; return [DeclImport id (Imported False modid impid kind 0 0) []]
+      }
+  <|>
+    do{ id <- varid
+      ; impid <- option id (do{ lexeme LexASG; variable })
+      ; return [DeclImport id (Imported False modid impid DeclKindValue 0 0) []]
+      }
+  <|>
+    do{ lexeme LexCUSTOM
+      ; kind <- lexString
+      ; id   <- variable <|> constructor
+      ; impid <- option id (do { lexeme LexASG; variable <|> constructor })
+      ; return [DeclImport id (Imported False modid impid (DeclKindCustom (idFromString kind)) 0 0) []]
+      }
+  <|>
+    do{ id <- typeid
+      ; impid <- option id (do{ lexeme LexASG; variable })
+      ; do{ lexeme LexLPAREN
+          ; cons <- sepBy (pimportCon modid) (lexeme LexCOMMA)
+          ; lexeme LexRPAREN
+          ; return (DeclImport id (Imported False modid impid customData 0 0) [] : cons)
+          }
+        <|>
+        return
+            [DeclImport id (Imported False modid impid DeclKindCon 0 0) []]
       }
 
+pimportCon :: Id -> TokenParser CoreDecl
 pimportCon modid
-  = do{ id <- constructor
-      ; impid <- option id (do{ lexeme LexASG; constructor })
+  = do{ id    <- constructor
+      ; impid <- option id (do{ lexeme LexASG; variable })
       ; return (DeclImport id (Imported False modid impid DeclKindCon 0 0) [])
       }
 

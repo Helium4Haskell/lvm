@@ -134,42 +134,10 @@ resolveImport visited modid loaded x@(DeclImport id access@(Imported public imod
     case lookupMap imodid loaded of
       Nothing   -> error ("LvmImport.resolveImport: import module is not loaded: " ++ stringFromId imodid)
       Just imod -> case lookupDecl impid kind (moduleDecls imod) of
-                     []   -> {- update mod
-                               { moduleDecls = DeclAbstract
-                                    { declName    = id
-                                    , declAccess  = access
-                                    , declArity   = 0
-                                    , declCustoms =
-                                        [ CustomDecl
-                                            (DeclKindCustom (idFromString "type"))
-                                            [CustomBytes (bytesFromString "a")]
-                                        , CustomName (idFromString "fake")
-                                        ]
-                                    }
-                                    :
-                                    (moduleDecls mod)
-                               } -}
-                             -- !!! return a fake function
-                             notfound imodid impid
+                     []   -> notfound imodid impid
                      ds   -> case filter (not . isDeclImport) ds of
                                []  -> case filter isDeclImport ds of
-                                        []  -> {- update mod
-                                                   { moduleDecls = DeclAbstract
-                                                        { declName   = id
-                                                        , declAccess = access
-                                                        , declArity  = 0
-                                                        , declCustoms =
-                                                            [ CustomDecl
-                                                                (DeclKindCustom (idFromString "type"))
-                                                                [CustomBytes (bytesFromString "a")]
-                                                            , CustomName (idFromString "fake")
-                                                            ]
-                                                        }
-                                                        :
-                                                        (moduleDecls mod)
-                                                   } -}
-                                               -- !!! return a fake function
-                                               notfound imodid impid
+                                        []  -> notfound imodid impid
                                         [d] -> let loaded' = resolveImport (modid:visited) imodid loaded d
                                                in resolveImport (imodid:visited) modid loaded' x
                                         ds  -> ambigious imodid impid
