@@ -33,4 +33,3 @@ extern const char* argv0;
 
 #endif /* _options_h */
 
-@
