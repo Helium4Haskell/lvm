@@ -212,12 +212,12 @@ static const char* variable( const char* str, const char* current, long* varlen 
   else if (is_variable(p[0])) {
     /* normal */
     p += 1;
-    for( len = 0; isalnum(p[len]); len++ ) { /* nothing */ }
+    for( len = 0; isalnum((int)p[len]); len++ ) { /* nothing */ }
     if (varlen) *varlen = len+1;
   }
   else {
     /* no variable start character? */
-    for( len = 0; isalnum(p[len]); len++ ) { /* nothing */ }
+    for( len = 0; isalnum((int)p[len]); len++ ) { /* nothing */ }
     if (varlen) *varlen = len;
   }
 
