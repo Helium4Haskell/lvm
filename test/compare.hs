@@ -1,4 +1,6 @@
 module Main where
+
+import Char   (isSpace)
 import System (exitWith,getArgs,ExitCode(..))
 
 main  
