@@ -9,7 +9,7 @@
 
 -- $Id$
 
-module LvmImport( lvmImport ) where
+module LvmImport( lvmImport, lvmImportDecls ) where
 
 
 import Monad    ( foldM )
@@ -44,6 +44,21 @@ lvmImport findModule mod
             mod1  = findMap (moduleName mod) mods1
       ; return mod1{ moduleDecls = filter (not . isDeclImport) (moduleDecls mod1) }
       }
+
+lvmImportDecls :: (Id -> IO FilePath) -> [Decl v] -> IO [[Decl v]]
+lvmImportDecls findModule importDecls =
+    mapM
+        (\importDecl -> do
+            mod <- lvmImport findModule $
+                Module.Module
+                    { Module.moduleName     = idFromString "Main"
+                    , Module.moduleMajorVer = 0
+                    , Module.moduleMinorVer = 0
+                    , Module.moduleDecls    = [importDecl]
+                    }
+            return (moduleDecls mod)
+        )
+        importDecls
 
 {--------------------------------------------------------------
   lvmImportModules: 

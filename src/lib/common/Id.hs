@@ -180,6 +180,10 @@ isUniq i    = odd i
 instance Eq Id where
   (Id i1) == (Id i2)  = (i1 == i2)
 
+instance Ord Id where
+  i1      <= i2       = stringFromId i2 <= stringFromId i2
+
+
 instance Show Id where
   show id   = "\"" ++ stringFromId id ++ "\""
 
