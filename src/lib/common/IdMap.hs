@@ -24,7 +24,7 @@ module IdMap( module Id
             , foldMap, deleteMap
             , filterMapWithId
             , mapFromList
-            , unionMaps, diffMap
+            , unionMaps, diffMap, unionlMap
             , foldMapWithId
             , isEmptyMap, sizeMap
 
@@ -115,6 +115,10 @@ unionMap (IdMap map1) (IdMap map2)
   = IdMap (IntMap.unionWith err map1 map2)
   where
     err a b   = error "IdMap.unionMap: duplicate identifiers"
+
+unionlMap :: IdMap a -> IdMap a -> IdMap a
+unionlMap (IdMap map1) (IdMap map2)
+  = IdMap (IntMap.unionl map1 map2)
 
 unionMaps maps
   = foldr unionMap emptyMap maps
