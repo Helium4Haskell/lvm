@@ -52,9 +52,9 @@ lvmImportModules findModule mod
 readModuleImports :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> (Module v) -> IO (IdMap (Module v))
 readModuleImports findModule loaded id mod
   = foldM (readModule findModule) (insertMap id mod loaded) (imported mod)
-  
+
 readModule :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> IO (IdMap (Module v))
-readModule findModule loaded id  
+readModule findModule loaded id
   | elemMap id loaded  = return loaded
   | otherwise          = do{ fname <- findModule id                        
                            ; mod   <- lvmReadFile fname
@@ -82,11 +82,9 @@ expandModule loaded mod
 
 expandDecl loaded modname DeclImport{declAccess = access@(Imported{importModule = imodname,importKind = DeclKindModule})}
   = case lookupMap imodname loaded of
-      Nothing   -> notLoadedError (stringFromId modname) :: a
-                   --error ("LvmImport.expandDecl: import module is not loaded: " ++ stringFromId modname)
+      Nothing   -> error ("LvmImport.expandDecl: import module is not loaded: " ++ stringFromId modname)
       Just imod | moduleName imod == modname 
-                -> selfImportError (stringFromId modname) :: a
-                   --error ("LvmImport.expandDecl: module imports itself: " ++ stringFromId modname)
+                -> error ("LvmImport.expandDecl: module imports itself: " ++ stringFromId modname)
       Just imod -> map importDecl (moduleDecls imod)
   where
     importDecl decl
@@ -111,18 +109,20 @@ resolveImports loaded (modid,mod)
 
 resolveImport :: [Id] -> Id -> IdMap (Module v) -> Decl v -> IdMap (Module v)
 resolveImport visited modid loaded x@(DeclImport id access@(Imported public imodid impid kind major minor) customs)
-  | elem modid visited = circularImportError (stringFromId imodid) (stringFromId impid) (map stringFromId visited)
-                         --error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
+  | elem modid visited = error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
   | otherwise = 
     let mod = findMap modid loaded in 
     case lookupMap imodid loaded of
-      Nothing   -> notLoadedError (stringFromId imodid)
-                   --error ("LvmImport.resolveImport: import module is not loaded: " ++ stringFromId imodid)
+      Nothing   -> error ("LvmImport.resolveImport: import module is not loaded: " ++ stringFromId imodid)
       Just imod -> case lookupDecl impid kind (moduleDecls imod) of
-                     []   -> notfound imodid impid
+                     []   -> update mod
+                             -- !!! return the unresolved reference
+                             --notfound imodid impid
                      ds   -> case filter (not . isDeclImport) ds of
                                []  -> case filter isDeclImport ds of
-                                        []  -> notfound imodid impid
+                                        []  -> update mod
+                                               -- !!! return the unresolved reference
+                                               --notfound imodid impid
                                         [d] -> let loaded' = resolveImport (modid:visited) imodid loaded d
                                                in resolveImport (imodid:visited) modid loaded' x
                                         ds  -> ambigious imodid impid
@@ -136,25 +136,7 @@ resolveImport visited modid loaded x@(DeclImport id access@(Imported public imod
       = updateMap modid mod' loaded
         
     notfound imodid impid
-      = notFoundError (stringFromId imodid) (stringFromId impid)
-        --error ("LvmImport.resolveImport: unresolved identifier: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
+      = error ("LvmImport.resolveImport: unresolved identifier: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
 
     ambigious imodid impid
-      = ambigiousError (stringFromId imodid) (stringFromId impid)
-        --error ("LvmImport.resolveImport: ambigious import record: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
-
-ambigiousError       imodid impid = heliumError $
-    "Ambigious import: " ++ imodid ++ "." ++ impid
-notFoundError        imodid impid = heliumError $
-    imodid ++ "." ++ impid ++ " doesn't exist"
-notLoadedError       imodid       = heliumError $
-    "notLoaded:"++imodid
-circularImportError  imodid impid visited = heliumError $
-    "circularImport:" ++ imodid ++ "." ++ impid ++ " " ++ show visited
-selfImportError      modid        = heliumError $
-    modid ++ " imports itself"
-heliumError :: String -> a
-heliumError str =
-    unsafePerformIO $
-        do  putStrLn ("Import error: " ++ str)
-            exitWith (ExitFailure 1)
+      = error ("LvmImport.resolveImport: ambigious import record: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
