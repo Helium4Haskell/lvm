@@ -455,7 +455,7 @@ runEmit (Emit e)
 emitPrimBlock :: Maybe (Id,DeclKind) -> DeclKind -> Bytes -> Emit Index
 emitPrimBlock x kind bs
   = Emit (\env st@(State count map bbs) ->
-            let (index,count',bbs') | sharable kind = case find count bs bbs of   --try to share records
+            let (index,count',bbs') | {-sharable kind-} False = case find count bs bbs of   --try to share records
                                                         Nothing  -> (count+1,count+1,bs:bbs)
                                                         Just idx -> (idx,count,bbs)
                                     | otherwise     = (count+1,count+1,bs:bbs)
