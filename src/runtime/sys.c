@@ -63,11 +63,16 @@
 #include <unistd.h>
 #endif
 
+#ifdef HAS_FLOAT_H
+#include <float.h>
+#endif
+
 #include "alloc.h"
 #include "fail.h"
 #include "memory.h"
 #include "signals.h"
 #include "sys.h"
+
 
 /*----------------------------------------------------------------------
 -- file open/close/read

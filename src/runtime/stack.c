@@ -32,7 +32,7 @@ void lazy_blackhole( value* fp )
       if (tag == Ap_tag) {
         wsize_t i;
         Tag_val(upd) = Inv_tag;
-        for (i = 0; i < Wosize_val(upd); i++) { Store_field( upd, i, 0 ); }
+        for (i = 0; i < Wosize_val(upd); i++) { Store_field_inv( upd, i ); }
       }
       else if (tag == Caf_tag) {
         Tag_val(upd) = Inv_tag;
@@ -80,11 +80,12 @@ value* recover_synchronous( value* fp, value exn )
     switch(Frame_frame(fp)) {
     case frame_update: {
       value upd = Frame_value(fp);
+      Assert(Is_heap_val(upd) && Wosize_val(upd) > 0);
       if (Tag_val(upd) != Raise_tag) {
         wsize_t i;
         Tag_val(upd) = Raise_tag;
         Store_field(upd,0,exn);
-        for (i = 1; i < Wosize_val(upd); i++) { Store_field(upd,i,0); }
+        for (i = 1; i < Wosize_val(upd); i++) { Store_field_inv(upd,i); }
       }
       break;
     }

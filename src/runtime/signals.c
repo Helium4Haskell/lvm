@@ -23,19 +23,26 @@
 /* $Id$ */
 
 #include <stdio.h>
-#include <float.h>
-
 #include "mlvalues.h"
+
+#ifdef OS_WINDOWS
+#include <windows.h>
+#endif
+
+#ifdef HAS_FLOAT_H
+#ifdef __MINGW32__
+#include <../mingw/float.h>
+#else
+#include <float.h>
+#endif
+#endif
+
 #include "alloc.h"
 #include "fail.h"
 #include "thread.h"
 #include "systhread.h"
 #include "signals.h"
 
-
-#ifdef OS_WINDOWS
-#include <windows.h>
-#endif
 
 /*----------------------------------------------------------------------
   define signals
@@ -356,9 +363,6 @@ void install_signal_handler(enum signal_t sig, struct thread_state* thread)
   /* install the handler */
   old_act = set_signal_handler( sig, handle_signal );
   signal_handlers[sig] = thread;
-  #ifdef POSIX_SIGNALS
-  sigaddset(&signals_installed, convert_to_system_signal(sig) );
-  #endif
 
   /* save the previous handler */
   if (old_act == SIG_IGN || old_act == SIG_DFL)
@@ -371,17 +375,20 @@ void install_signal_handler(enum signal_t sig, struct thread_state* thread)
 
 /*----------------------------------------------------------------------
   floating point signals are synchronous -- we use longjmp to escape
+  Since the signal SIG_FPE carries too little information, we try
+  to use system dependent functions in order to access the extra
+  floating point error code.
 ----------------------------------------------------------------------*/
 static sighandler_t oldfpe = SIG_DFL;
 
 struct fpe_info {
-  int          syserr;
+  int                 syserr;
   enum exn_arithmetic err;
 };
 
 
 /* floating point exceptions are synchronous */
-#if defined(_MSC_VER)
+#if defined(OS_WINDOWS)
 static struct fpe_info  fpe_table[] = {
   { _FPE_INVALID            , Fpe_invalid },
   { _FPE_DENORMAL           , Fpe_denormal },
@@ -399,9 +406,9 @@ static struct fpe_info  fpe_table[] = {
   { -1                      , Fpe_invalid }
 };
 
-void handle_signal_fpe( int sig, int syserr )
+static void handle_signal_fpe( int sig, int syserr )
 {
-  enum   exn_arithmetic   err = Fpe_invalid;
+  enum exn_arithmetic err = Fpe_invalid;
   struct fpe_info* info;
   for( info = fpe_table; info->syserr != -1; info++ ) {
     if (info->syserr == syserr) { err = info->err; break; }
@@ -409,17 +416,84 @@ void handle_signal_fpe( int sig, int syserr )
   _fpreset();
   raise_arithmetic_exn( err );
 }
+
+static void init_fpe_handler( void )
+{
+  oldfpe = signal( SIGFPE, (sighandler_t)(handle_signal_fpe) );  
+}
+
+static void done_fpe_handler( void )
+{
+  signal( SIGFPE, oldfpe );
+  oldfpe = SIG_DFL;
+}
+
+/* POSIX */
+#elif defined(POSIX_SIGNALS)
+static struct fpe_info  fpe_table[] = {
+  { FPE_FLTINV, Fpe_invalid },
+  { FPE_FLTDIV, Fpe_zerodivide },
+  { FPE_FLTOVF, Fpe_overflow },
+  { FPE_FLTUND, Fpe_underflow },
+  { FPE_FLTRES, Fpe_inexact },
+  { -1        , Fpe_invalid }
+};
+
+static void handle_signal_fpe( int sig, siginfo_t* siginfo, void* p)
+{
+  enum exn_arithmetic err = Fpe_invalid;
+  struct fpe_info* info;
+  for( info = fpe_table; info->syserr != -1; info++ ) {
+    if (info->syserr == siginfo->si_code) { err = info->err; break; }
+  }
+  raise_arithmetic_exn( err );
+}
+
+static void init_fpe_handler( void )
+{
+  struct sigaction sigact, oldsigact;
+
+  sigact.sa_handler   = act;
+  sigact.sa_sigaction = act;
+  sigact.sa_flags     = SA_SIGINFO;
+  sigemptyset(&sigact.sa_mask);
+  if (sigaction(SIGFPE, &sigact, &oldsigact) == -1) raise_user("signal: couldn't install signal handler for signal %i", signo );
+  oldfpe = oldsigact.sa_handler;
+  sigaddset(&signals_installed, signo );
+}
+
+static void done_fpe_handler( void )
+{
+  set_signal_handler( Sig_fpe, oldfpe );
+  sigdelset(&signals_installed, SIGFPE );
+  oldfpe = SIG_DFL;
+}
+
+/* other systems */
 #else
 void handle_signal_fpe( int sig )
 {
- raise_arithmetic_exn( Fpe_invalid );
+  raise_arithmetic_exn( Fpe_invalid );
+}
+
+void init_fpe_handler( void )
+{
+  oldfpe = set_signal_handler( Sig_fpe, (sighandler_t)handle_signal_fpe );
+}
+
+void done_fpe_handler( void )
+{
+  set_signal_handler( Sig_fpe, oldfpe );
+  oldfpe = SIG_DFL;
 }
 #endif
 
 
 /*----------------------------------------------------------------------
-  On windows, we use SetConsoleCtrlHandler for certain signals
-  This enables us for example to handle application shutdown
+  On windows, we use SetConsoleCtrlHandler for certain signals.
+  This handler runs in its own thread so [push_pending_signal] has
+  to be multi-thread resistant :-)
+  The threading enables us for example to handle application shutdown
   events properly, ie. the program has about 2.5 secs to perform
   a decent shutdown.
 ----------------------------------------------------------------------*/
@@ -465,10 +539,7 @@ void init_signals(void)
   mutex_init( &qmutex );
 
   /* set fpe handler */
-  oldfpe = set_signal_handler( Sig_fpe, (sighandler_t)handle_signal_fpe );
-#ifdef POSIX_SIGNALS
-  sigaddset(&signals_installed,SIGFPE);
-#endif
+  init_fpe_handler();
 
   /* set windows console handler */
 #if defined(OS_WINDOWS)
@@ -494,7 +565,8 @@ void done_signals(void)
         set_signal_handler( sig, (sighandler_t)thread->save_signals[sig] );
     }
   }
-  set_signal_handler( Sig_fpe, oldfpe );
+
+  done_fpe_handler();
 #ifdef POSIX_SIGNALS
   sigemptyset(&signals_installed);
 #endif

@@ -61,6 +61,8 @@ misc.o: misc.c mlvalues.h config.h ../config/m.h ../config/s.h misc.h \
 module.o: module.c mlvalues.h config.h ../config/m.h ../config/s.h \
  misc.h memory.h gc.h major_gc.h freelist.h minor_gc.h module.h \
  fixed.h bytes.h custom.h
+primfloat.o: primfloat.c mlvalues.h config.h ../config/m.h \
+ ../config/s.h misc.h primfloat.h
 primio.o: primio.c mlvalues.h config.h ../config/m.h ../config/s.h \
  misc.h fail.h roots.h memory.h gc.h major_gc.h freelist.h minor_gc.h \
  thread.h module.h fixed.h signals.h alloc.h custom.h primio.h \

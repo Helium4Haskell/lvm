@@ -43,5 +43,4 @@ nat get_msec_count(void);
 nat get_tick_count(void);
 void  get_process_ticks( nat* tick_total, nat* tick_user, nat* tick_system );
 
-
 #endif /* _sys_ */

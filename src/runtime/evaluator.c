@@ -99,25 +99,28 @@
 /*----------------------------------------------------------------------
   safe points
 ----------------------------------------------------------------------*/
-#define Safe_check_()         Safe_checkx(sp[0] = sp[0] /* nothing */)
-#define Safe_check(v)         Safe_checkx((*--sp = (v) ) /* == Push(v) */ )
+#define Safe_check_()         Safe_checkx(sp=sp/* nothing */)
+#define Safe_check(v)         Safe_checkx(Push(v)) 
+#define Safe_signal_check_()  Safe_signal_checkx(sp=sp;/* nothing */)
+#define Safe_signal_check(v)  Safe_signal_checkx(Push(v))
 
-#define Safe_checkx(v)        { Safe_signal_check((v)); \
-                                Safe_stack_check((v)); \
-                                Safe_heap_check((v)); \
-                              }
-
-#define Safe_signal_check(v)  { if (pending_signal()) { (v); Return(Thread_yield); }}
-
-#define Safe_stack_check(v)   { if (sp < thread->stack_lim) { \
-                                  Setup_for_gc;       \
-                                  thread_grow_stack(thread);  \
-                                  Restore_after_gc;  \
-                                } \
+#define Safe_checkx(v)        { Safe_signal_checkx((v)); \
+                                Safe_stack_checkx((v)); \
+                                Safe_heap_checkx((v)); \
                               }
 
 
-#define Safe_heap_check(v)    /* nothing to do :-) */
+#define Safe_signal_checkx(action)  { if (pending_signal()) { {action;}; Return(Thread_yield); }}
+
+#define Safe_stack_checkx(action)   { if (sp < thread->stack_lim) { \
+                                        Setup_for_gc;       \
+                                        thread_grow_stack(thread);  \
+                                        Restore_after_gc;  \
+                                      } \
+                                    }
+
+
+#define Safe_heap_checkx(action)    /* nothing to do :-) */
 
 
 
@@ -590,6 +593,7 @@ enterloop:
 
         case frame_catch: {
           /* functional value without exceptions */
+          /* (test for async or float exceptions has already been done) */
           /* zap the frame and things behind it */
           value* spnew;
           Trace_argchk( "zap catch frame", Frame_value(fp) );
@@ -733,6 +737,8 @@ returnloop:
         }
 
         case frame_catch: {
+          /* before discarding the frame, test for an async or float exception */
+          Safe_signal_check(accu);
           /* ignore the frame */
           fp = Frame_next(fp);
           goto returnloop;
@@ -882,6 +888,8 @@ returncon:
         }
 
         case frame_catch: {
+          /* before discarding the frame, test for an async or float exception */
+          Safe_signal_checkx(Ensure_con(); Push(con));
           /* ignore this frame */
           fp = Frame_next(fp);
           goto returncon;

@@ -20,7 +20,7 @@ LINKOPT    = $(LINKOPTS)
 CCOPT_FAST = -O3 $(CCOPTS)
 
 SRCS	= main.c stats.c \
-	  primio.c primsys.c primstring.c \
+	  primio.c primsys.c primstring.c primfloat.c \
 	  schedule.c evaluator.c instr.c thread.c stack.c \
 	  loader.c module.c print.c \
 	  ccall.c dynamic.c static.c \
