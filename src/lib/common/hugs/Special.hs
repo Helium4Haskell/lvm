@@ -20,7 +20,7 @@ module Special( doesFileExist
               , unsafeCoerce
               ) where
 
-import IO           ( IOMode(..), openFile, ReadMode, hClose )
+import IO           ( IOMode(..), openFile, hClose )
 import IOExtensions ( readBinaryFile, writeBinaryFile )
 import Data.IORef   ( IORef, newIORef, writeIORef, readIORef )
 import LazyST       ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray )
