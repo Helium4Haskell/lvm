@@ -328,6 +328,10 @@ void raise_signal( int sig )
   raise_exn_1( Exn_async_signal, Val_int(sig) );
 }
 
+void raise_eof_exn(void) 
+{
+  raise_system_exn(Exn_eof);
+}
 
 void raise_sys_blocked_io( void )
 {

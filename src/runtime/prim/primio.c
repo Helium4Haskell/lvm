@@ -263,7 +263,7 @@ unsigned char refill(struct channel *channel)
   int n;
 
   n = do_read(channel->fd, channel->buff, IO_BUFFER_SIZE);
-  if (n == 0) { raise_exn( Exn_eof ); }
+  if (n == 0) { raise_eof_exn(); }
   channel->offset += n;
   channel->max = channel->buff + n;
   channel->curr = channel->buff + 1;

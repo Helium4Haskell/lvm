@@ -119,5 +119,6 @@ void raise_exn_str( enum exn_tag exn, const char* msg ) Noreturn;
 
 void raise_arithmetic_exn( enum exn_arithmetic tag ) Noreturn;
 void raise_runtime_exn_1( enum exn_runtime, value v ) Noreturn;
+void raise_eof_exn(void) Noreturn;
 
 #endif /* _fail_h */
