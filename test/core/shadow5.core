@@ -1,0 +1,6 @@
+{- naar aanleiding van een bug van Rijk-Jan van Haaften -}
+module Shadow5 where
+
+main = id 42
+x = x
+id x = x

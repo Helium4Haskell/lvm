@@ -17,7 +17,7 @@ import IdSet  ( IdSet, elemSet, setFromMap )
 import Core
 import qualified Asm
 
-import CoreNoShadow   ( coreNoShadow )    -- rename local variables
+import CoreNoShadow   ( coreNoShadow, coreRename )    -- rename local variables
 import CoreSaturate   ( coreSaturate )    -- saturate constructors, instructions and externs
 import CoreNormalize  ( coreNormalize )   -- normalize core, ie. atomic arguments and lambda's at let bindings
 import CoreFreeVar    ( coreFreeVar )     -- attach free variable information at let bindings
@@ -36,7 +36,7 @@ coreToAsm supply mod
   $ coreFreeVar
   $ coreNormalize supply2
   $ coreSaturate supply1
-  $ coreNoShadow supply0
+  $ coreRename supply0
   $ mod
   where
     (supply0:supply1:supply2:supplies) = splitNameSupplies supply
