@@ -457,7 +457,8 @@ static void init_fpe_handler( void )
   sigact.sa_sigaction = handle_signal_fpe;
   sigact.sa_flags     = SA_SIGINFO;
   sigemptyset(&sigact.sa_mask);
-  if (sigaction(SIGFPE, &sigact, &oldsigact) == -1) raise_user("signal: couldn't install signal handler for signal %i", signo );
+  if (sigaction(SIGFPE, &sigact, &oldsigact) == -1) 
+    raise_user("signal: couldn't install floating point signal handler");
   oldfpe = oldsigact.sa_handler;
   sigaddset(&signals_installed, SIGFPE );
 }
