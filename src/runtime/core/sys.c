@@ -260,8 +260,7 @@ const char* searchpath_dll( const char* name )
 }
 
 
-#if defined(OS_CYGWIN) || defined(OS_WINDOWS)
-// OS_MINGW still seems not to fix the problem
+#if defined(OS_CYGWIN) || defined(OS_MINGW)
 /* - Cygwin needs special treatment because of the implicit ".exe" at the
      end of executable file names
    - Mingw needs special treatment since it "stat" seems to garble the stack.
