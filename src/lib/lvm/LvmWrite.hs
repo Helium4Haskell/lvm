@@ -11,7 +11,7 @@
 
 module LvmWrite( lvmWriteFile, lvmToBytes ) where
 
-import Standard ( assert)
+import Standard ( assert, strict )
 import Id       ( Id, stringFromId, setNameSpace )
 import IdMap    ( IdMap, emptyMap, insertMapWith, lookupMap, listFromMap )
 import Byte
@@ -454,9 +454,19 @@ runEmit (Emit e)
 
 emitPrimBlock :: Maybe (Id,DeclKind) -> Bytes -> Emit Index
 emitPrimBlock x bs
-  = Emit (\env (State count map bbs) ->
-            let index = count+1
-            in (index, State index (maybe map (\(id,kind) -> insertMapWith id [(kind,index)] ((kind,index):) map) x) (bs:bbs)))
+  = Emit (\env st@(State count map bbs) ->
+            let (index,count',bbs') = case find count bs bbs of   --try to share records, especially names/modules/kinds
+                                        Nothing  -> (count+1,count+1,bs:bbs)
+                                        Just idx -> (idx,count,bbs)
+                map'                = case x of
+                                        Just (id,kind) -> insertMapWith id [(kind,index)] ((kind,index):) map
+                                        Nothing        -> map
+            in (index, State count' map' bbs')
+         )
+
+find n x []       = assert (n==0) "LvmWrite.find: count too large" Nothing
+find n x (y:ys)   | x==y       = Just n
+                  | otherwise  = strict find (n-1) x ys
 
 -- a nice lazy formulation, we can calculate all indices before writing the bytes.
 findIndex :: DeclKind -> Id -> Emit Index

@@ -12,8 +12,8 @@
 -- $Id$
 
 module Byte( Byte
-
-           , Bytes, nil, unit, cons, cat, cats, isNil
+           , Bytes  -- instance Show, Eq
+           , nil, unit, cons, cat, cats, isNil
            , bytesLength
            , writeBytes
            , bytesFromList, listFromBytes
@@ -41,7 +41,10 @@ data Bytes  = Nil
             | Cat  !Bytes !Bytes
 
 instance Show Bytes where
-  show bs   = show (listFromBytes bs)
+  show bs     = show (listFromBytes bs)
+
+instance Eq Bytes where
+  bs1 == bs2  = (listFromBytes bs1) == (listFromBytes bs2)
 
 {----------------------------------------------------------------
   conversion to bytes

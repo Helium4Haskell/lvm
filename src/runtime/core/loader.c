@@ -30,6 +30,7 @@
 #include "prim/prims.h"
 #include "options.h"    /* lvmpath */
 
+
 #ifdef TRACE_TRACE
 # define Trace(msg)             { print(msg); print("\n"); }
 # define Trace_i(msg,i)         { print(msg); print(" %i\n", i); }
@@ -241,7 +242,7 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
           Alloc_record(Rec_name_size);
           Word_read(slen);
           String_read(str,slen);
-          Trace_i_str ("Rec_name/bytes/externtype/kind", i, str);
+          Trace_i_str ("Rec_string", i, str);
           Init_field( rec, Field_name_string, str );
           break;
         }
@@ -264,8 +265,8 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
           Store_read( Field_value_enc );
           Store_read( Field_value_code );
           Store_zero( Field_value_fun );
-          Trace_i ("name", Long_val(Field(rec,Field_value_name)));
-          Trace_i ("code", Long_val(Field(rec,Field_value_code)));
+          Trace_i ("-name", Long_val(Field(rec,Field_value_name)));
+          Trace_i ("-code", Long_val(Field(rec,Field_value_code)));
           break;
         }
 
@@ -297,7 +298,8 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
             Store_field( rec, Field_import_kind, Val_long(Decode(impkind)) );
           }
           Store_zero( Field_import_fixup );
-          Trace_i ("name", Long_val(Field(rec,Field_import_name)));
+          Trace_i ("-name", Long_val(Field(rec,Field_import_name)));
+          Trace_i ("-module", Long_val(Field(rec,Field_import_module)));
           break;
         }
 
