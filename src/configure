@@ -636,7 +636,6 @@ fi
 echo "CC=$ccomp" >> makefile
 echo "LINK=$link" >> makefile
 echo "STRIP=$strip" >> makefile
-echo "CCOPTS=$cccompopts" >> makefile
 echo "LINKOPTS=$cclinkopts" >> makefile
 echo "EXE=$exe" >> makefile
 echo "DLL=$dll" >> makefile
@@ -645,6 +644,15 @@ echo "CD=cd" >> makefile
 echo "RM=rm -f" >> makefile
 echo "MKDIR=mkdir -p" >> makefile
 
+case "$config" in
+  cl-i[3456789]86-pc-windows*)
+     echo "CONFIGPATH=../config/$config" >> makefile;;
+  *)
+     echo "CONFIGPATH=../config" >> makefile;;
+esac
+
+echo "CCOPTS=$cccompopts -I\$(CONFIGPATH)" >> makefile
+ 
 rm -f tst$exe hasgot.c *.obj
 
 rm -f ../m.h ../s.h ../Makefile
