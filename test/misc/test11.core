@@ -1,0 +1,18 @@
+module Test11 where
+
+
+instruction primAddInt "addint" :: Int -> Int -> Int
+
+data List a = Nil | Cons a (List a)
+
+addInt x y = case y of y -> case x of x -> primAddInt x y
+
+length xs
+  = let len n xs  = case xs of
+                      Nil -> n
+                      Cons x xx -> case addInt n 1 of
+                                     m -> len m xx
+    in len 0 xs
+
+main
+  = length (Cons 1 Nil)

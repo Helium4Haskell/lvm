@@ -1,0 +1,4 @@
+module Rec2 where
+-- undetectable? untypable infinite recursion
+fix  = \f x -> f f x
+main = fix fix 1

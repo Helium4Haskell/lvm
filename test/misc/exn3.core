@@ -1,0 +1,14 @@
+module Exn3 where
+
+import LvmLang
+
+data List a = Nil | Cons a (List a)
+
+head xs
+  = case xs of
+      Cons x xx -> x
+
+main
+  = case (+) (head Nil) 1 of
+      0 -> True
+      1 -> False

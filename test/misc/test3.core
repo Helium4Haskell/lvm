@@ -1,0 +1,4 @@
+module Test3 where
+
+-- test literal expression
+main    = 1

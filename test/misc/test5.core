@@ -1,0 +1,11 @@
+module Test5 where
+
+instruction primAdd "addint" :: Int! -> Int! -> Int!
+
+add x y = case x of x! -> case y of y! -> primAdd x! y!
+
+-- test recursive let bindings without arguments
+main  = let x = z
+            y = add 1 x
+            z = add 1 y
+        in 1

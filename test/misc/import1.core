@@ -1,0 +1,13 @@
+----------------------------------------------------------------
+-- Daan Leijen (c) 2001
+--
+-- $Revision$
+-- $Author$
+-- $Date$
+----------------------------------------------------------------
+module Import1 where
+
+import Prelude
+import Math
+
+main  = sum (map square (fromTo 1 100))

@@ -1,0 +1,81 @@
+------------------------------------------------------------
+Building the runtime system.
+------------------------------------------------------------
+1) goto the "src" subdirectory
+
+> cd src
+
+2) Run the configure script. This generates three files in
+the subdirectory "config", namely "makefile", "s.h" (system)
+and "m.h" (machine).
+
+> ./configure
+
+Trouble shooter:
+* Make sure that the shell program "sh" can be found. On cygwin
+  you sometimes need to copy "bash.exe" to "/bin/sh.exe" to make it work
+* Make sure that all the scripts are executable:
+  > chmod +x configure
+  > cd config/tests
+  > chmod +x config.guess config.sub runtest hasgot searchpath
+  > cd ../..
+
+Windows:
+  You can skip this step if you want to build it
+  using Microsoft Visual C. Otherwise, you need to install
+  the "cygwin" toolkit first. You should use the
+  option "-host i386-pc-windows" when running configure.
+
+3) Go to the "runtime" subdirectory and run make.
+
+> cd runtime
+> make depend
+> make
+
+Windows: If you are using VC++, you can click on the runtime
+workspace file "runtime.dsw" and build it with Visual Studio.
+
+4) This builds the LVM runtime, "lvmrun". You can test it on
+some test files in the "test" subdirectory.
+
+> cd ../../test/std
+> ../../src/runtime/lvmrun sieve
+
+5) You may want to set the environment variable "LVMPATH" to
+point to directories that contain ".lvm" files.
+
+> export LVMPATH=/users/daan/lvm/test/std
+
+or
+
+> setenv LVMPATH /home/daan/lvm/test/std
+
+
+------------------------------------------------------------
+Building the core assembler.
+------------------------------------------------------------
+
+1) You need the Parsec library available at:
+
+http://www.cs.uu.nl/~daan/parsec.html
+
+Make sure that it is on the Hugs path. If you use
+GHC you should edit the "src/coreasm/makefile" file such
+that GHC can find the parsec library.
+
+  ....
+  #Libraries
+  LIBPATH  = c:/parsec/src
+  LIBS     = Parsec
+  ...
+
+2) Make it with GHC:
+
+> cd src/coreasm
+> make depend
+> make
+
+or run it from Hugs:
+
+> cd src/coreasm
+> hugs Main.hs

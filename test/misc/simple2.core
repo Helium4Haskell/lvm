@@ -1,0 +1,6 @@
+module Simple2 where
+
+-- direct application in let binding
+-- example by Arjan van Yzendoorn, [i] is evaluated only once
+id   = \x -> x
+main = let i = id id in i i 1   -- = 1

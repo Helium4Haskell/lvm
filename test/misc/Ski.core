@@ -1,0 +1,19 @@
+----------------------------------------------------------------
+-- Daan Leijen (c) 2001
+--
+-- $Revision$
+-- $Author$
+-- $Date$
+----------------------------------------------------------------
+module Ski where
+
+import LvmLang
+
+s  f g x   = f x (g x)
+k  x y     = x
+i  x       = x
+
+map f xs
+ = case xs of
+    [] -> []
+    (:) x xx -> (:) (f x) (map f xx)

@@ -1,0 +1,20 @@
+module Test9 where
+
+
+instruction primAddInt "addint" :: Int -> Int -> Int
+instruction primLeInt "leint" :: Int! -> Int! -> Bool!
+
+data Bool = False | True
+data List a = Nil | Cons a (List a)
+
+addInt x y = case x of x -> case y of y -> primAddInt x y
+leInt x y = case x of x! -> case y of y! -> primLeInt x! y!
+
+-- test case expression on constructors
+fromTo i n
+  = case leInt i n of
+      False -> Nil
+      True  -> Cons i (fromTo (addInt i 1) n)
+
+main
+  = fromTo 1 3

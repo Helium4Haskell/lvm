@@ -1,0 +1,5 @@
+module Simple4 where
+
+-- let binding with no free vars && args
+argAndNoFree  = let const = \x y . x in
+                const 2 1;

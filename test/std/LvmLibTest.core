@@ -1,0 +1,37 @@
+----------------------------------------------------------------
+-- Daan Leijen (c) 2001
+--
+-- $Revision$
+-- $Author$
+-- $Date$
+----------------------------------------------------------------
+module LvmLibTest where
+
+import LvmLang
+import LvmException
+import LvmIO
+
+{----------------------------------------------------------
+  Test
+----------------------------------------------------------}
+hoi :: String
+hoi = (:) 'h' ((:) 'o' ((:) 'i' []))
+
+user :: String
+user = (:) 'u' ((:) 's' ((:) 'r' []))
+
+err :: String
+err = (:) 'e' ((:) 'r' ((:) 'r' []))
+
+unk :: String
+unk = (:) 'u' ((:) 'n' ((:) 'k' []))
+
+
+main :: IO ()
+main
+  = catch
+     (bindIO (outputString stdout hoi) (\_ -> error user))
+     (\exn -> case exn of
+                UserError usr -> outputPacked stdout usr
+                default       -> outputString stdout unk
+     )

@@ -1,0 +1,225 @@
+----------------------------------------------------------------
+-- Daan Leijen (c) 2001
+--
+-- $Revision$
+-- $Author$
+-- $Date$
+----------------------------------------------------------------
+module LvmLang where
+
+{----------------------------------------------------------
+  Instructions
+----------------------------------------------------------}
+instruction primAddInt  "addint" :: Int! -> Int! -> Int!
+instruction primSubInt  "subint" :: Int! -> Int! -> Int!
+instruction primMulInt  "mulint" :: Int! -> Int! -> Int!
+instruction primDivInt  "divint" :: Int! -> Int! -> Int!
+instruction primModInt  "modint" :: Int! -> Int! -> Int!
+instruction primQuotInt "quotint":: Int! -> Int! -> Int!
+instruction primRemInt  "remint" :: Int! -> Int! -> Int!
+instruction primAndInt  "andint" :: Int! -> Int! -> Int!
+instruction primXorInt  "xorint" :: Int! -> Int! -> Int!
+instruction primOrInt   "orint"  :: Int! -> Int! -> Int!
+instruction primShrInt  "shrint" :: Int! -> Int! -> Int!
+instruction primShlInt  "shlint" :: Int! -> Int! -> Int!
+instruction primShrNat  "shrnat" :: Int! -> Int! -> Int!
+instruction primNegInt  "negint" :: Int! -> Int!
+
+instruction primEqInt   "eqint"  :: Int! -> Int! -> Bool!
+instruction primNeInt   "neint"  :: Int! -> Int! -> Bool!
+instruction primLtInt   "ltint"  :: Int! -> Int! -> Bool!
+instruction primGtInt   "gtint"  :: Int! -> Int! -> Bool!
+instruction primLeInt   "leint"  :: Int! -> Int! -> Bool!
+instruction primGeInt   "geint"  :: Int! -> Int! -> Bool!
+
+extern prim_chars_of_string :: "aa"
+extern prim_string_of_chars :: "ala"
+extern prim_string_length   :: "la"
+
+{----------------------------------------------------------
+  Basic data types
+----------------------------------------------------------}
+data '':()''    = '':()''
+data PackedString
+data Int
+data Double
+data Bool       = False
+                | True
+
+data '':[]'' a  = [] | (:) a [a]
+
+data IORes a    = IORes a
+type IO a       = () -> IORes a
+
+{----------------------------------------------------------
+  Type definitions
+----------------------------------------------------------}
+type Bytes      = PackedString
+type Char       = Int
+type Float      = Double
+type String     = [Char]
+
+{----------------------------------------------------------
+  Strictness
+----------------------------------------------------------}
+($!) :: (a -> b) -> a -> b
+($!) f x   = case x of x -> f x
+
+seq :: a -> b -> b
+seq x y    = case x of x -> y
+
+{----------------------------------------------------------
+  Basic arithmetic on Int's
+----------------------------------------------------------}
+(+) :: Int -> Int -> Int!
+(+) x y    = case y of y -> case x of x -> primAddInt x y
+
+(-) :: Int -> Int -> Int!
+(-) x y    = case y of y -> case x of x -> primSubInt x y
+
+(*) :: Int -> Int -> Int!
+(*) x y    = case y of y -> case x of x -> primMulInt x y
+
+(/) :: Int -> Int -> Int!
+(/) x y    = case y of y -> case x of x -> primDivInt x y
+
+(%) :: Int -> Int -> Int!
+(%) x y    = case y of y -> case x of x -> primModInt x y
+
+quot :: Int -> Int -> Int!
+quot x y    = case y of y -> case x of x -> primQuotInt x y
+
+rem :: Int -> Int -> Int!
+rem x y    = case y of y -> case x of x -> primRemInt x y
+
+and :: Int -> Int -> Int!
+and x y    = case y of y -> case x of x -> primAndInt x y
+
+xor :: Int -> Int -> Int!
+xor x y    = case y of y -> case x of x -> primXorInt x y
+
+or :: Int -> Int -> Int!
+or x y    = case y of y -> case x of x -> primOrInt x y
+
+shr :: Int -> Int -> Int!
+shr x y    = case y of y -> case x of x -> primShrInt x y
+
+shl :: Int -> Int -> Int!
+shl x y    = case y of y -> case x of x -> primShlInt x y
+
+shrNat :: Int -> Int -> Int!
+shrNat x y    = case y of y -> case x of x -> primShrNat x y
+
+neg :: Int -> Int!
+neg x      = case x of x -> primNegInt x
+
+{----------------------------------------------------------
+  Comparisons on Int's
+----------------------------------------------------------}
+(==) :: Int -> Int -> Bool!
+(==) x y   = case y of y -> case x of x -> primEqInt x y
+
+(/=) :: Int -> Int -> Bool!
+(/=) x y   = case y of y -> case x of x -> primNeInt x y
+
+(<) :: Int -> Int -> Bool!
+(<) x y   = case y of y -> case x of x -> primLtInt x y
+
+(>) :: Int -> Int -> Bool!
+(>) x y   = case y of y -> case x of x -> primGtInt x y
+
+(<=) :: Int -> Int -> Bool!
+(<=) x y   = case y of y -> case x of x -> primLeInt x y
+
+(>=) :: Int -> Int -> Bool!
+(>=) x y   = case y of y -> case x of x -> primGeInt x y
+
+{----------------------------------------------------------
+  Boolean expressions
+----------------------------------------------------------}
+(&&) :: Bool -> Bool -> Bool
+(&&) x y
+  = case x of
+      False   -> False
+      True    -> y
+      default -> (&&) y x   -- error "just for analysis"
+
+
+(||) :: Bool -> Bool -> Bool
+(||) x y
+  = case x of
+      True  -> True
+      False -> y
+      default -> (||) y x   -- error "just for analysis"
+
+not :: Bool -> Bool
+not x
+  = case x of
+      True  -> False
+      False -> True
+
+{----------------------------------------------------------
+  Packed strings
+----------------------------------------------------------}
+stringFromPacked :: PackedString -> String
+stringFromPacked packed
+  = case packed of packed -> prim_chars_of_string packed
+
+packedFromString :: String -> PackedString
+packedFromString s
+  = let forceLength n xs = case xs of
+                             (:) x xx -> case x of
+                                           _ -> forceLength ((+) n 1) xx
+                             []       -> n in
+    case forceLength 0 s of
+      len -> case s of
+               s -> prim_string_of_chars len s
+
+packedLength :: PackedString -> Int
+packedLength s
+  = case s of s -> prim_string_length s
+
+{----------------------------------------------------------
+  List helpers
+----------------------------------------------------------}
+{-
+length :: [a] -> Int
+length xs
+  = foldlStrict (+) 0 xs
+
+foldlStrict :: (b -> a -> b) -> b -> [a] -> b
+foldlStrict f z xs
+  = case xs of
+      (:) x xx -> case f z x of
+                    z -> foldlStrict f z xx
+      []       -> z
+-}
+
+
+{----------------------------------------------------------
+  The IO monad
+----------------------------------------------------------}
+bindIO :: IO a -> (a -> IO b) -> IO b
+bindIO io f
+  = \_ -> case io () of
+            IORes x -> f x ()
+
+returnIO :: a -> IO a
+returnIO x
+  = \_ -> IORes x
+
+primIO :: (() -> a) -> IO a
+primIO f
+  = \_ -> case f () of
+            x -> IORes x
+
+unsafePerformIO :: IO a -> a
+unsafePerformIO io
+  = case io () of
+      IORes x -> x
+
+-- used to execute "main"
+unsafePerformStrictIO :: IO a -> a
+unsafePerformStrictIO io
+  = case unsafePerformIO io of
+      x -> x

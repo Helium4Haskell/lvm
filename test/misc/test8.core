@@ -1,0 +1,6 @@
+module Test8 where
+
+data List a  = Nil | Cons a (List a)
+
+-- test constructor expression as argument
+main  = (\x -> x) (Cons 0 Nil)

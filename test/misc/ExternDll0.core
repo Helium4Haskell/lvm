@@ -1,0 +1,5 @@
+module ExternDll0 where
+
+extern dynamic ccall putChar "WinDLL" "putChar" :: Int! -> Int!
+
+main = putChar 65

@@ -1,0 +1,713 @@
+-----------------------------------------------------------
+Nov 5 2002: Hugs benchmarks
+-----------------------------------------------------------
+C:\docs\cvs\lvm\src\test\nfib.hs
+Main> main
+running time: 32326 msecs.
+nfib number : 19662
+
+queens.hs
+Main> main
+running time: 15552 msecs.
+
+sieve.hs
+Main> main
+running time: 100505 msecs.
+
+-----------------------------------------------------------
+Nov 5 2002: GHC 5.02 benchmarks
+-----------------------------------------------------------
+C:\docs\cvs\lvm\src\test>nfib
+running time: 528 msecs.
+nfib number : 1203827
+
+C:\docs\cvs\lvm\src\test>queens
+running time: 768 msecs.
+
+C:\docs\cvs\lvm\src\test>sieve
+running time: 927 msecs.
+
+C:\docs\cvs\lvm\src\test>nfib-opt
+running time: 63 msecs.
+nfib number : 10089222
+
+C:\docs\cvs\lvm\src\test>queens-opt
+running time: 397 msecs.
+
+C:\docs\cvs\lvm\src\test>sieve-opt
+running time: 613 msecs.
+
+-----------------------------------------------------------
+Nov 5 2002: added NEWCONX and RETURNCON0 instructions: tiny improvement
+-----------------------------------------------------------
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         2.082s   (user:   2.062s  system:   0.020s)
+  evaluator:            2.052s   (user:   2.042s  system:   0.010s)
+  garbage collector:    0.030s   (user:   0.020s  system:   0.010s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       98%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         1.131s   (user:   1.131s  system:   0.000s)
+  evaluator:            1.101s   (user:   1.101s  system:   0.000s)
+  garbage collector:    0.030s   (user:   0.030s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       97%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         3.014s   (user:   3.004s  system:   0.010s)
+  evaluator:            2.163s   (user:   2.163s  system:   0.000s)
+  garbage collector:    0.831s   (user:   0.831s  system:   0.000s)
+  runtime manager:      0.020s   (user:   0.010s  system:   0.010s)
+ effective time:       71%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfibstrict
+final value: [int 635621]
+
+timings:
+ process total:         0.420s   (user:   0.420s  system:   0.000s)
+  evaluator:            0.420s   (user:   0.420s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queensstrict
+final value: [int 352]
+
+timings:
+ process total:         0.380s   (user:   0.380s  system:   0.000s)
+  evaluator:            0.360s   (user:   0.360s  system:   0.000s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       94%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sievestrict
+final value: [int 7927]
+
+timings:
+ process total:         2.082s   (user:   2.072s  system:   0.010s)
+  evaluator:            1.442s   (user:   1.441s  system:   0.000s)
+  garbage collector:    0.630s   (user:   0.631s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.000s  system:   0.010s)
+ effective time:       69%
+
+-----------------------------------------------------------
+Nov 5 2002: added NEWAPX and NEWNAPX instruction, tiny improvement
+-----------------------------------------------------------
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         2.093s   (user:   2.093s  system:   0.000s)
+  evaluator:            2.043s   (user:   2.043s  system:   0.000s)
+  garbage collector:    0.050s   (user:   0.050s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       97%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         1.141s   (user:   1.131s  system:   0.010s)
+  evaluator:            1.111s   (user:   1.111s  system:   0.000s)
+  garbage collector:    0.030s   (user:   0.020s  system:   0.010s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       97%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         3.024s   (user:   3.014s  system:   0.010s)
+  evaluator:            2.143s   (user:   2.144s  system:   0.000s)
+  garbage collector:    0.871s   (user:   0.860s  system:   0.010s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       70%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queensstrict
+final value: [int 352]
+
+timings:
+ process total:         0.390s   (user:   0.390s  system:   0.000s)
+  evaluator:            0.380s   (user:   0.380s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       97%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfibstrict
+final value: [int 635621]
+
+timings:
+ process total:         0.420s   (user:   0.420s  system:   0.000s)
+  evaluator:            0.420s   (user:   0.420s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sievestrict
+final value: [int 7927]
+
+timings:
+ process total:         2.153s   (user:   2.143s  system:   0.010s)
+  evaluator:            1.552s   (user:   1.551s  system:   0.000s)
+  garbage collector:    0.591s   (user:   0.582s  system:   0.010s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       72%
+
+-----------------------------------------------------------
+Nov 5 2002: added PUSHVARS2 instruction, tiny improvement
+-----------------------------------------------------------
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         2.062s   (user:   2.052s  system:   0.010s)
+  evaluator:            2.052s   (user:   2.052s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.000s  system:   0.010s)
+ effective time:       99%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         1.141s   (user:   1.131s  system:   0.010s)
+  evaluator:            1.101s   (user:   1.101s  system:   0.000s)
+  garbage collector:    0.030s   (user:   0.030s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.000s  system:   0.010s)
+ effective time:       96%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         3.044s   (user:   3.034s  system:   0.010s)
+  evaluator:            2.172s   (user:   2.163s  system:   0.010s)
+  garbage collector:    0.862s   (user:   0.861s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       71%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfibstrict
+final value: [int 635621]
+
+timings:
+ process total:         0.420s   (user:   0.420s  system:   0.000s)
+  evaluator:            0.420s   (user:   0.420s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queensstrict
+final value: [int 352]
+
+timings:
+ process total:         0.360s   (user:   0.360s  system:   0.000s)
+  evaluator:            0.350s   (user:   0.350s  system:   0.000s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       97%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sievestrict
+final value: [int 7927]
+
+timings:
+ process total:         2.123s   (user:   2.123s  system:   0.000s)
+  evaluator:            1.471s   (user:   1.471s  system:   0.000s)
+  garbage collector:    0.632s   (user:   0.632s  system:   0.000s)
+  runtime manager:      0.020s   (user:   0.020s  system:   0.000s)
+ effective time:       69%
+
+-----------------------------------------------------------
+Nov 5 2002: added PUSHVARX instruction, tiny improvement
+-----------------------------------------------------------
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         2.072s   (user:   2.032s  system:   0.040s)
+  evaluator:            2.012s   (user:   1.992s  system:   0.020s)
+  garbage collector:    0.060s   (user:   0.040s  system:   0.020s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       97%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         1.161s   (user:   1.161s  system:   0.000s)
+  evaluator:            1.161s   (user:   1.161s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         3.094s   (user:   3.084s  system:   0.010s)
+  evaluator:            2.182s   (user:   2.174s  system:   0.010s)
+  garbage collector:    0.902s   (user:   0.900s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       70%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfibstrict
+final value: [int 635621]
+
+timings:
+ process total:         0.430s   (user:   0.430s  system:   0.000s)
+  evaluator:            0.430s   (user:   0.430s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queensstrict
+final value: [int 352]
+
+timings:
+ process total:         0.430s   (user:   0.430s  system:   0.000s)
+  evaluator:            0.410s   (user:   0.410s  system:   0.000s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       95%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sievestrict
+final value: [int 7927]
+
+timings:
+ process total:         2.163s   (user:   2.143s  system:   0.020s)
+  evaluator:            1.483s   (user:   1.462s  system:   0.020s)
+  garbage collector:    0.670s   (user:   0.671s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       68%
+
+-----------------------------------------------------------
+Nov 5 2002: new compilation algorithm
+-----------------------------------------------------------
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         2.093s   (user:   2.093s  system:   0.000s)
+  evaluator:            2.083s   (user:   2.083s  system:   0.000s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       99%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         1.201s   (user:   1.191s  system:   0.010s)
+  evaluator:            1.191s   (user:   1.191s  system:   0.000s)
+  garbage collector:    0.010s   (user:   0.000s  system:   0.010s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       99%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         3.114s   (user:   3.104s  system:   0.010s)
+  evaluator:            2.294s   (user:   2.282s  system:   0.010s)
+  garbage collector:    0.810s   (user:   0.812s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       73%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfibstrict
+final value: [int 635621]
+
+timings:
+ process total:         0.490s   (user:   0.480s  system:   0.010s)
+  evaluator:            0.490s   (user:   0.480s  system:   0.010s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queensstrict
+final value: [int 352]
+
+timings:
+ process total:         0.440s   (user:   0.440s  system:   0.000s)
+  evaluator:            0.430s   (user:   0.430s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       97%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sievestrict
+final value: [int 7927]
+
+timings:
+ process total:         2.193s   (user:   2.183s  system:   0.010s)
+  evaluator:            1.532s   (user:   1.521s  system:   0.010s)
+  garbage collector:    0.651s   (user:   0.652s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       69%
+
+ -----------
+Aug 8 2001: PUSHEAGER instruction + better peephole
+
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         1.261s   (user:   1.251s  system:   0.010s)
+  evaluator:            1.261s   (user:   1.251s  system:   0.010s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         0.690s   (user:   0.690s  system:   0.000s)
+  evaluator:            0.680s   (user:   0.680s  system:   0.000s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       98%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         2.082s   (user:   2.072s  system:   0.010s)
+  evaluator:            1.471s   (user:   1.461s  system:   0.010s)
+  garbage collector:    0.601s   (user:   0.601s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       70%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfibstrict
+final value: [int 635621]
+
+timings:
+ process total:         0.330s   (user:   0.330s  system:   0.000s)
+  evaluator:            0.330s   (user:   0.330s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queensstrict
+final value: [int 352]
+
+timings:
+ process total:         0.380s   (user:   0.370s  system:   0.010s)
+  evaluator:            0.360s   (user:   0.350s  system:   0.010s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       94%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sievestrict
+final value: [int 7927]
+
+timings:
+ process total:         2.032s   (user:   2.032s  system:   0.000s)
+  evaluator:            1.431s   (user:   1.431s  system:   0.000s)
+  garbage collector:    0.591s   (user:   0.591s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       70%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t length
+final value: [int 100000]
+
+timings:
+ process total:         0.500s   (user:   0.490s  system:   0.010s)
+  evaluator:            0.320s   (user:   0.320s  system:   0.000s)
+  garbage collector:    0.170s   (user:   0.160s  system:   0.010s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       64%
+
+-----------
+Aug 8 2001: PUSHEAGER instruction, yahoo!
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         1.261s   (user:   1.251s  system:   0.010s)
+  evaluator:            1.261s   (user:   1.251s  system:   0.010s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         0.781s   (user:   0.781s  system:   0.000s)
+  evaluator:            0.761s   (user:   0.761s  system:   0.000s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       97%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         2.243s   (user:   2.233s  system:   0.010s)
+  evaluator:            1.663s   (user:   1.653s  system:   0.010s)
+  garbage collector:    0.570s   (user:   0.570s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       74%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t nfibstrict
+final value: [int 635621]
+
+timings:
+ process total:         0.510s   (user:   0.500s  system:   0.010s)
+  evaluator:            0.500s   (user:   0.500s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.000s  system:   0.010s)
+ effective time:       98%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t queensstrict
+final value: [int 352]
+
+timings:
+ process total:         0.450s   (user:   0.440s  system:   0.010s)
+  evaluator:            0.440s   (user:   0.430s  system:   0.010s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       97%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t sievestrict
+final value: [int 7927]
+
+timings:
+ process total:         2.153s   (user:   2.153s  system:   0.000s)
+  evaluator:            1.552s   (user:   1.552s  system:   0.000s)
+  garbage collector:    0.591s   (user:   0.591s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       72%
+
+C:\docs\cvs\lvm\src\runtime>lvmrun -t length
+final value: [int 100000]
+
+timings:
+ process total:         0.550s   (user:   0.550s  system:   0.000s)
+  evaluator:            0.360s   (user:   0.360s  system:   0.000s)
+  garbage collector:    0.180s   (user:   0.180s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       65%
+
+-----------
+Aug 8 2001: GHC 5.01 benchmarks: we still have some work to do!
+C:\docs\cvs\lvm\src\test>nfib
+running time: 571 msecs.
+nfib number : 1113171
+
+C:\docs\cvs\lvm\src\test>queens
+running time: 772 msecs.
+
+C:\docs\cvs\lvm\src\test>sieve
+running time: 1169 msecs.
+
+C:\docs\cvs\lvm\src\test>nfib-opt
+running time: 76 msecs.
+nfib number : 8363434
+
+C:\docs\cvs\lvm\src\test>queens-opt
+running time: 422 msecs.
+
+C:\docs\cvs\lvm\src\test>sieve-opt
+running time: 638 msecs.
+
+
+-----------
+Aug 4 2001: +RETURNINT and ENTER without SLIDE on whnf values
+E:\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         1.732s   (user:   1.732s  system:   0.000s)
+  evaluator:            1.732s   (user:   1.732s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+E:\cvs\lvm\src\runtime>lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         2.042s   (user:   2.032s  system:   0.010s)
+  evaluator:            1.992s   (user:   1.982s  system:   0.010s)
+  garbage collector:    0.050s   (user:   0.050s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       97%
+
+E:\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         2.563s   (user:   2.553s  system:   0.010s)
+  evaluator:            1.642s   (user:   1.641s  system:   0.000s)
+  garbage collector:    0.901s   (user:   0.902s  system:   0.000s)
+  runtime manager:      0.020s   (user:   0.010s  system:   0.010s)
+ effective time:       64%
+
+E:\cvs\lvm\src\runtime>lvmrun -t nfibstrict
+final value: [int 635621]
+
+timings:
+ process total:         0.530s   (user:   0.530s  system:   0.000s)
+  evaluator:            0.520s   (user:   0.520s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       98%
+
+E:\cvs\lvm\src\runtime>lvmrun -t queensstrict
+final value: [int 352]
+
+timings:
+ process total:         0.460s   (user:   0.440s  system:   0.020s)
+  evaluator:            0.440s   (user:   0.420s  system:   0.020s)
+  garbage collector:    0.010s   (user:   0.010s  system:   0.000s)
+  runtime manager:      0.010s   (user:   0.010s  system:   0.000s)
+ effective time:       95%
+
+------------------
+Aug 4 2001: MATCHCON/SWITCHCON/RETURN, accu in enter
+E:\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         1.822s   (user:   1.822s  system:   0.000s)
+  evaluator:            1.802s   (user:   1.802s  system:   0.000s)
+  garbage collector:    0.020s   (user:   0.020s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       98%
+
+E:\cvs\lvm\src\runtime>lvmrun -t queens
+final value: [int 352]
+
+timings:
+ process total:         2.082s   (user:   2.082s  system:   0.000s)
+  evaluator:            2.052s   (user:   2.052s  system:   0.000s)
+  garbage collector:    0.030s   (user:   0.030s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       98%
+
+E:\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         2.693s   (user:   2.683s  system:   0.010s)
+  evaluator:            2.042s   (user:   2.042s  system:   0.000s)
+  garbage collector:    0.631s   (user:   0.621s  system:   0.010s)
+  runtime manager:      0.020s   (user:   0.020s  system:   0.000s)
+ effective time:       75%
+
+---------------
+Aug 4 2001: MATCHCON/SWITCHCON/RETURN, no accu in enter
+E:\cvs\lvm\src\runtime>lvmrun -t nfib
+final value: [int 635621]
+
+timings:
+ process total:         1.902s   (user:   1.902s  system:   0.000s)
+  evaluator:            1.902s   (user:   1.902s  system:   0.000s)
+  garbage collector:    0.000s   (user:   0.000s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:      100%
+
+E:\cvs\lvm\src\runtime>lvmrun -t queens
+timings:
+ process total:         2.123s   (user:   2.113s  system:   0.010s)
+  evaluator:            2.093s   (user:   2.083s  system:   0.010s)
+  garbage collector:    0.030s   (user:   0.030s  system:   0.000s)
+  runtime manager:      0.000s   (user:   0.000s  system:   0.000s)
+ effective time:       98%
+
+E:\cvs\lvm\src\runtime>lvmrun -t sieve
+final value: [int 7927]
+
+timings:
+ process total:         2.713s   (user:   2.713s  system:   0.000s)
+  evaluator:            1.873s   (user:   1.873s  system:   0.000s)
+  garbage collector:    0.820s   (user:   0.820s  system:   0.000s)
+  runtime manager:      0.020s   (user:   0.020s  system:   0.000s)
+ effective time:       69%
+
+
+---------------
+LVM with frame links as offsets:
+
+[daan@//e/cvs/lvm/src/runtime]$./lvmrun nfib
+module NFib
+
+running time: 2.304 sec.
+final value : [int 635621]
+
+[daan@//e/cvs/lvm/src/runtime]$./lvmrun queens
+module Queens
+
+running time: 2.994 sec.
+final value : [int 352]
+
+[daan@//e/cvs/lvm/src/runtime]$./lvmrun sieve
+module Sieve
+
+running time: 3.144 sec.
+final value : [int 7927]
+
+[daan@//e/cvs/lvm/src/runtime]$./lvmrun length
+module Length
+
+running time: 0.751 sec.
+final value : [int 100000]
+
+---------------
+LVM with frame links as offsets:
+
+E:\cvs\lvm\src\runtime>lvmrun nfib
+module NFib
+
+running time: 2.253 sec.
+final value : [int 635621]
+
+
+E:\cvs\lvm\src\runtime>lvmrun queens
+module Queens
+
+running time: 2.874 sec.
+final value : [int 352]
+
+
+E:\cvs\lvm\src\runtime>lvmrun sieve
+module Sieve
+
+running time: 3.034 sec.
+final value : [int 7927]
+
+
+E:\cvs\lvm\src\runtime>lvmrun length
+module Length
+
+running time: 0.711 sec.
+final value : [int 100000]
+
+
+-----------------
+unbounded speculative exec.
+nfib
+queens
+sieve
+length
+
+-----------------
+Tests with speculative eagerness, LVM with normal
+frame links
+
+                    LVM          SPEC    SPEC20
+
+module NFib        2.143         1.142     1.291
+module Queens      2.814         3.756     3.926
+module Length      0.711         1.392     0.401

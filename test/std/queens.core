@@ -1,0 +1,88 @@
+----------------------------------------------------------------
+-- Daan Leijen (c) 2001
+--
+-- $Revision$
+-- $Author$
+-- $Date$
+----------------------------------------------------------------
+module Queens where
+
+import LvmLang
+
+instruction primAdd "addint" :: Int -> Int -> Int
+instruction primSub "subint" :: Int -> Int -> Int
+instruction primNeq "neint"  :: Int -> Int -> Bool
+
+data List a = Nil
+            | Cons a (List a)
+
+data Bool   = False
+            | True
+
+add x y  = case x of x -> case y of y -> primAdd x y
+sub x y  = case x of x -> case y of y -> primSub x y
+neq x y  = case y of y -> case x of x -> primNeq x y
+
+and x y  = case x of
+             False -> False
+             True  -> y
+
+length xs
+  = let len n xs  = case xs of
+                      Nil -> n
+                      Cons x xx -> len (add n 1) xx
+    in len 0 xs
+
+
+{-
+safe x d []     = True
+safe x d (y:ys) = x /= y && x+d /= y && x-d /= y && safe x (d+1) ys
+-}
+
+safe x d ys
+  = case ys of
+      Nil        -> True
+      Cons y yy  -> case neq x y of
+                      False -> False
+                      True  -> case neq (add x d) y of
+                                 False -> False
+                                 True  -> case neq (sub x d) y of
+                                            False -> False
+                                            True  -> safe x (add d 1) yy
+{-
+                    let b1 = neq x y
+                        b2 = neq (add x d) y
+                        b3 = neq (sub x d) y
+                        b4 = safe x (add d 1) yy
+                    in and b1 (and b2 (and b3 b4))
+-}
+
+{-
+queens k 0  = [[]]
+queens k n  = [ (x:xs) | xs <- queens k (n-1), x <- [1..k], safe x 1 xs ]
+
+==
+queens k n  = let xss = queens k (n-1)
+                  walk []       = []
+                  walk (xs:xss) = let walkx 0  = walk xss
+                                      walkx x  | safe x 1 xs  = (x:xs):walkx (x-1)
+                                               | otherwise    = walkx (x-1)
+                                  in  walkx k
+              in  walk xss
+-}
+queens k n
+  = case n of
+      0  -> Cons Nil Nil  -- [[]]
+      n  -> let xss  = queens k (sub n 1)
+                walk xss  = case xss of
+                             Nil -> Nil
+                             Cons xs xss ->
+                                let walkx x  = case x of
+                                                 0  -> walk xss
+                                                 x  -> case safe x 1 xs of
+                                                         False -> walkx (sub x 1)
+                                                         True  -> Cons (Cons x xs) (walkx (sub x 1))
+                                in walkx k
+            in walk xss;
+
+main  = length (queens 9 9)

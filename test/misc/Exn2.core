@@ -1,0 +1,5 @@
+module Exn2 where
+
+import LvmLang
+
+main  = (*) 12345678 12345678

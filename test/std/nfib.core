@@ -1,0 +1,19 @@
+module NFib where
+
+import LvmLang
+
+data List a = Nil | Cons a (List a)
+
+map f xs
+  = case xs of
+      Nil -> Nil
+      Cons x xx -> Cons (f x) (map f xx)
+
+
+main  = nfib 27
+
+-- normal nfib
+nfib n = case n of
+          0  -> 1
+          1  -> 1
+          n  -> (+) 1 ((+) (nfib ((-) n 1)) (nfib ((-) n 2)))

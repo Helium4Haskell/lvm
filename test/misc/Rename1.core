@@ -1,0 +1,4 @@
+module Rename1 where
+
+f x   = x
+g x   = let f f y = f x in f g x

@@ -1,0 +1,8 @@
+{- naar aanleiding van een bug van Arjan van IJzendoorn -}
+module FreeVar0 where
+
+data List a = Nil | Cons a (List a)
+
+main    = let x = (Cons 65 (Cons 98 Nil)) in
+          let f = \_ -> x in
+          f 3

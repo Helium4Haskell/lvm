@@ -1,0 +1,22 @@
+----------------------------------------------------------------
+-- Daan Leijen (c) 2001
+--
+-- $Revision$
+-- $Author$
+-- $Date$
+----------------------------------------------------------------
+module Math where
+
+import LvmLang
+import Prelude
+
+main
+  = sum (map square (fromTo 1 100))
+
+square :: Int -> Int
+square x
+  = (*) x x
+
+sum :: [Int] -> Int
+sum xs
+  = foldlStrict (+) 0 xs

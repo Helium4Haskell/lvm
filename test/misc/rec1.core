@@ -1,0 +1,3 @@
+module Rec1 where
+-- infinite recursion on caf
+main = main;

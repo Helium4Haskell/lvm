@@ -1,0 +1,8 @@
+module Simple3 where
+
+const   = \x y -> x
+
+-- test partial application
+main    = let ap2 = \f -> f 2 in
+          let ap1 = \f -> let f1 = f 1 in ap2 f1 in
+          ap1 const  --== 1
