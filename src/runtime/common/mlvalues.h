@@ -64,7 +64,7 @@ typedef unsigned long nat;
 
 typedef long   value;
 typedef long   con_tag_t;
-typedef double float_t;
+typedef double floating_t;
 
 typedef word wsize_t;
 typedef word header_t;

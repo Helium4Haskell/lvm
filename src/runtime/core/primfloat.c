@@ -19,11 +19,7 @@
 #include "math.h"
 
 #ifdef HAS_FLOAT_H
-#ifdef __MINGW32__
-#include <../mingw/float.h>
-#else
 #include <float.h>
-#endif
 #endif
 
 #ifdef HAS_IEEEFP_H
@@ -70,17 +66,17 @@ value copy_double(double d)
   return res;
 }
 
-float_t float_of_int( long i )
+floating_t float_of_int( long i )
 {
-  return (float_t)i;
+  return (floating_t)i;
 }
 
-float_t float_of_string( const char* s )
+floating_t float_of_string( const char* s )
 {
   return atof(s);
 }
 
-value string_of_float( float_t f, int prec, char type )
+value string_of_float( floating_t f, int prec, char type )
 {
   char buffer[144];
   if (prec>128) prec = 128;

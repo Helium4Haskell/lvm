@@ -71,7 +71,7 @@ value call_extern( value* sp, long arg_count, void* fun
   const char* type;
   const char* name;
   long    args[MAX_ARG];
-  float_t float_args[MAX_ARG];
+  floating_t float_args[MAX_ARG];
   long i;
 
   Assert( Is_heap_val(vtype) && Tag_val(vtype) == String_tag );
@@ -276,7 +276,7 @@ static long long_val( char type, value v, const char* name )
   }
 }
 
-static float_t double_val( char type, value v, const char* name )
+static floating_t double_val( char type, value v, const char* name )
 {
   /* first check the type */
   switch (type) {

@@ -13,7 +13,7 @@
 
 #include "fail.h" /* just for [exn_arithmetic] */
 
-float_t float_of_string( const char* s );
+floating_t float_of_string( const char* s );
 
 /*----------------------------------------------------------------------
 -- IEEE floating point interface

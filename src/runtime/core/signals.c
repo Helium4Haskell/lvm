@@ -30,11 +30,7 @@
 #endif
 
 #ifdef HAS_FLOAT_H
-#ifdef __MINGW32__
-#include <../mingw/float.h>
-#else
 #include <float.h>
-#endif
 #endif
 
 #include "alloc.h"
