@@ -51,6 +51,16 @@ ppExprEx pars expr
       Con id []       -> ppId id
       Con id args     -> pars $ ppId id <+> hsep (map ppArg args)
       Lit lit         -> ppLit lit
+      Note note e     -> pars $ align $ ppNote note </> ppExpr e
+
+ppNote (Occur occ)
+  = angles (ppOccur occ)
+
+ppOccur occ
+  = case occ of
+      Never -> text "never"
+      Once  -> text "once"
+      Many  -> text "many"
 
 
 ppBind (id,atom)
@@ -83,3 +93,6 @@ ppId id
 
 commaBraces doc
   = encloseSep lbrace rbrace comma doc
+
+angles d
+  = char '<' <> d <> char '>'

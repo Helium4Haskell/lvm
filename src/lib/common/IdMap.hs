@@ -14,11 +14,11 @@ module IdMap( module Id
 
             -- essential: used by "Asm" and "Lvm"
             , emptyMap, singleMap, elemMap, mapMap
-            , insertMap, extendMap
+            , insertMap, extendMap, insertMapWith
             , lookupMap, findMap
             , filterMap
             , listFromMap
-            , mapMapWithId, unionMap
+            , mapMapWithId, unionMap, unionMapWith
             , updateMap
 
             -- exotic: used by core compiler
@@ -73,6 +73,10 @@ insertMap id x (IdMap map)
   where
     fail _ _ = error ("IdMap.insertMap: duplicate id " ++ show id)
 
+insertMapWith :: Id -> a -> (a -> a) -> IdMap a -> IdMap a
+insertMapWith id x f (IdMap map)
+  = IdMap (IntMap.insertWith (\i x -> f x) (intFromId id) x map)
+
 updateMap :: Id -> a -> IdMap a -> IdMap a
 updateMap id x (IdMap map)
   = IdMap (IntMap.insertWith const (intFromId id) x map)
@@ -120,6 +124,11 @@ unionMap (IdMap map1) (IdMap map2)
   = IdMap (IntMap.unionWith err map1 map2)
   where
     err a b   = error "IdMap.unionMap: duplicate identifiers"
+
+unionMapWith :: (a->a->a) -> IdMap a -> IdMap a -> IdMap a
+unionMapWith f (IdMap map1) (IdMap map2)
+  = IdMap (IntMap.unionWith (\x y -> f x y) map1 map2)
+
 
 unionlMap :: IdMap a -> IdMap a -> IdMap a
 unionlMap (IdMap map1) (IdMap map2)

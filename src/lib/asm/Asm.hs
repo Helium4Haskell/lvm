@@ -36,6 +36,10 @@ data Expr   = Eval   !Id Expr Expr
             | Ap     !Id ![Atom]
             | Con    !Id ![Atom]
             | Lit    !Lit
+            | Note   !Note !Expr
+
+data Note   = Occur  !Occur
+data Occur  = Never | Once | Many
 
 data Lit    = LitInt   !Int
             | LitFloat !Double

@@ -25,6 +25,7 @@ import qualified Instr
 import InstrResolve   ( instrResolve )
 import InstrRewrite   ( instrRewrite )
 
+import AsmOccur(asmOccur)
 
 {---------------------------------------------------------------
   asmToLvm: generate instructions from Asm expressions
@@ -55,13 +56,22 @@ cgParams env params
 cgExpr :: Env -> Expr -> [Instr]
 cgExpr env expr
   = case expr of
+      -- optimized schemes
+      Eval id0 e0 (Match id1 alts)  | id0 == id1 && once e0
+                        -> [EVAL [ATOM (cgExpr env e0),ENTER]] ++ cgMatch env alts
+        
+      -- basic cases
       LetRec binds expr -> cgLetRec env binds ++ cgExpr env expr
       Let id atom expr  -> cgLet env id atom ++ cgExpr env expr
       Eval id expr expr'-> [EVAL [ATOM (cgExpr env expr),ENTER]] ++ [VAR id] ++ cgExpr env expr'
       Match id alts     -> cgVar env id ++ cgMatch env alts
       Prim id args      -> cgPrim env id args
+      Note note expr    -> cgExpr env expr
       atom              -> (cgAtom env atom)
 --      other             -> error "AsmToCode.cgExpr: undefined case"
+
+once (Note (Occur Once) e)  = True
+once other                  = False
 
 {---------------------------------------------------------------
  let bindings
@@ -81,6 +91,7 @@ cgAlloc' env atom
       Asm.Con x args   -> [ALLOCCON (conFromId x (length args) env)]
       Asm.Let id e1 e2 -> cgAlloc' env e2
       Asm.LetRec bs e2 -> cgAlloc' env e2
+      Asm.Note note e  -> cgAlloc' env e
       Asm.Lit lit      -> error "AsmToCode.cgAlloc': literal in recursive binding."
       other            -> error "AsmToCode.cgAlloc': non-atomic expression encountered."
 
@@ -93,6 +104,7 @@ cgInit' env id atom
       Asm.Con x args   -> cgArgs env args ++ [PACKCON (conFromId x (length args) env) (varFromId id)]
       Asm.Let id e1 e2 -> cgLet env id e1 ++ cgInit' env id e2
       Asm.LetRec bs e2 -> cgLetRec env bs ++ cgInit' env id e2
+      Asm.Note note e  -> cgInit' env id e
       Asm.Lit lit      -> error "AsmToCode.cgInit: literal in recursive binding."
       other            -> error "AsmToCode.cgInit: non-atomic expression encountered."
 
@@ -165,6 +177,7 @@ cgAtom' env atom
       Lit lit     -> cgLit lit
       Let id e1 e2-> cgLet env id e1 ++ cgAtom' env e2
       LetRec bs e2-> cgLetRec env bs ++ cgAtom' env e2
+      Note note e -> cgAtom' env e
       other       -> error ("AsmToCode.cgAtom: non-atomic expression encountered")
 
 cgArgs env args

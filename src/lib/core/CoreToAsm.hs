@@ -24,7 +24,6 @@ import CoreFreeVar    ( coreFreeVar )     -- attach free variable information at
 import CoreLetSort    ( coreLetSort )     -- find smallest recursive let binding groups
 import CoreLift       ( coreLift )        -- lambda-lift, ie. make free variables arguments
 
-
 {---------------------------------------------------------------
   coreToAsm: translate Core expressions into Asm expressions
 ---------------------------------------------------------------}
