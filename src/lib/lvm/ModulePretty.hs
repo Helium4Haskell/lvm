@@ -24,14 +24,15 @@ modulePretty ppValue mod
   = ppModule ppValue mod
 
 ppModule ::  (v -> Doc) -> Module v -> Doc
-ppModule ppValue (Module moduleName major minor values imports constructors externs customs)
+ppModule ppValue (Module moduleName major minor values abstracts constructors externs customs imports)
   =  text "module" <+> ppId moduleName <+> text "where"
  <$> vcat (concat
-     [map ppDCustom (listFromMap customs)
+     [map ppDImport imports
+     ,map ppDCustom (listFromMap customs)
      ,map ppDExtern (listFromMap externs)
-     ,map ppDImport (listFromMap imports)
+     ,map ppDAbstract (listFromMap abstracts)
      ,map ppDCon    (listFromMap constructors)
-     ,map (ppDValue ppValue) values
+     ,map (ppDValue ppValue) values     
      ])
  <$> empty
 
@@ -43,7 +44,7 @@ ppDecls pp decls
 ppDValue ppValue (id,DValue{ valueValue = value })
   = nest 2 (ppId  id <+> text "=" <$> ppValue value)
 
-ppDImport (id,DImport{ importArity=arity})
+ppDAbstract (id,DAbstract{ abstractArity=arity})
   = nest 2 (ppId  id <+> text "= <abstract arity=" <+> pretty arity <> text ">")
 
 
@@ -57,6 +58,8 @@ ppDExtern (id,DExtern{})
 ppDCustom (id,DCustom{})
   = text "custom" <+> ppId id
 
+ppDImport (id,DImport (Import public modid impid major minor) kind)
+  = text "import" <+> ppId id <+> text "=" <+> ppId modid <> text "." <> ppId impid
 
 ppId :: Id -> Doc
 ppId id

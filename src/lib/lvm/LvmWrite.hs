@@ -71,7 +71,7 @@ emitLvmModule mod
   = do{ idxName <- emitName (moduleName mod)
       ; mapM_ emitDCon     (listFromMap (constructors mod))
       ; mapM_ emitDExtern  (listFromMap (externs mod))
-      ; mapM_ emitDImport  (listFromMap (imports mod))
+      ; mapM_ emitDAbstract (listFromMap (abstracts mod))
       ; mapM_ emitDValue   (values mod)
       ; mapM_ emitDCustom  (listFromMap (customs mod))
       ; return idxName
@@ -125,9 +125,9 @@ emitDExtern (id,DExtern access arity tp linkconv callconv libname externname cus
                         Ordinal i  -> return (2,i)
 
 
-emitDImport (id,DImport access arity)
+emitDAbstract (id,DAbstract access arity)
   | isImport access = emitImport id recImport access
-  | otherwise       = error ("LvmWrite.emitImport: should be imported: " ++ show id)
+  | otherwise       = error ("LvmWrite.emitDAbstract: abstract values should be imported: " ++ show id)
 
 
 emitImport id recKind (Import public moduleName importName majorVer minorVer)

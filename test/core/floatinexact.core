@@ -25,10 +25,10 @@ data ArithmeticException
   | FloatStackOverflow                -- float hardware stack has overflowed
   | FloatStackUnderflow               -- float hardware stack has underflowed
 
-main = case float "1.0" of 
-        x -> case float "0.1" of
-               y -> case add x y of
-                      _ -> case fpstickymask FloatInexact of
-                             mask -> case fpgetsticky of
-                                       sw -> case and mask sw of
-                                               status -> neq status 0
+main = let! x      = float "1.0" 
+            y      = float "0.1" 
+            _      = add x y 
+            mask   = fpstickymask FloatInexact 
+            sw     = fpgetsticky 
+            status = and mask sw 
+       in neq status 0

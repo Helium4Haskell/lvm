@@ -197,7 +197,7 @@ initialEnv mod
   where
     globals         = unionMaps [declared,imported,external]
     declared        = mapMap arityFromValue  (mapFromList (values mod))
-    imported        = mapMap importArity (imports mod)
+    imported        = mapMap abstractArity (abstracts mod)
     external        = mapMap externArity (externs mod)
 
     instrs          = mapMap instrFromEx (filterMap isInstr (externs mod))

@@ -1,0 +1,32 @@
+{- import/export -}
+module Export( fromTo, foldr, foldl, foldlStrict ) where
+
+instruction primadd "addint" :: Int! -> Int! -> Int!
+instruction primlt  "ltint" :: Int! -> Int! -> Bool!
+
+data Bool   = False | True
+data List a = Nil | Cons a (List a)
+
+
+ltint  x y = let! x = x in let! y = y in primlt x y
+addint x y = let! x = x in let! y = y in primadd x y
+
+fromTo n m
+  = case ltint n m of
+      True  -> let! n1 = addint n m in Cons n (fromTo n1 m)
+      False -> Nil
+
+foldr f z xs
+  = case xs of
+      Nil       -> z
+      Cons x xx -> f x (foldr f z xx)
+
+foldl f z xs
+  = case xs of
+      Nil       -> z
+      Cons x xx -> foldl f (f z x) xx
+
+foldlStrict f z xs
+  = case xs of
+      Nil       -> z
+      Cons x xx -> let! y = f z x in foldlStrict f y xx

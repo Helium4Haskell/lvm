@@ -31,8 +31,8 @@ import LvmWrite   ( lvmWriteFile )
 --
 ----------------------------------------------------------------
 message s
-  = return () 
-  -- = putStr s
+  -- = return () 
+  = putStr s
 
 main
   = do{ [arg] <- getArgs
@@ -40,18 +40,18 @@ main
       }
 
 compile src
-  = do{ path              <- getLvmPath
+  = do{ path        <- getLvmPath
       ; messageLn ("search path: " ++ show (map showFile path))
-      ; source            <- searchPath path ".core" src
+      ; source      <- searchPath path ".core" src
       ; messageLn ("compiling  : " ++ showFile source)
 
-      ; (coremod,imports) <- coreParse source
-      ; nameSupply        <- newNameSupply
+      ; coremod     <- coreParse source
+      ; nameSupply  <- newNameSupply
 
       ; messageLn ("generating code")
-      ; let asmmod        = coreToAsm nameSupply coremod
-            lvmmod        = asmToLvm  asmmod
-            target        = (reverse (drop 5 (reverse source)) ++ ".lvm")
+      ; let asmmod  = coreToAsm nameSupply coremod
+            lvmmod  = asmToLvm  asmmod
+            target  = (reverse (drop 5 (reverse source)) ++ ".lvm")
 
       ; messageDoc "core"         (corePretty coremod)
       ; messageDoc "assembler"    (asmPretty asmmod)

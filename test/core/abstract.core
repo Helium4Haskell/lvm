@@ -1,0 +1,10 @@
+{- import/export -}
+module Abstract where
+
+abstract foldl  = Export.foldl  :: (a -> b -> a) -> a -> List b -> a
+abstract add    = Export.addint :: Int -> Int -> Int
+abstract fromTo = Export.fromTo :: Int -> Int -> List Int
+
+main  = sum  (fromTo 1 100)
+
+sum   = foldl add 0

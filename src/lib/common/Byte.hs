@@ -21,11 +21,15 @@ module Byte( Byte
            , bytesFromString, stringFromBytes
            , bytesFromInt32
            , byteFromInt8
+
+           , readByteList
+           , int32FromByteList
+           , stringFromByteList, bytesFromByteList
            ) where
 
 import IO       ( IOMode(..) )
-import Special  ( openBinary, writeBinaryChar, closeBinary )
-import Standard ( strict )
+import Special  ( openBinary, writeBinaryChar, readBinary, closeBinary )
+import Standard ( strict, foldlStrict )
 
 {----------------------------------------------------------------
   types
@@ -44,7 +48,9 @@ byteFromInt8 :: Int -> Byte
 byteFromInt8 i
   = toEnum (mod i 256)
   
-
+intFromByte :: Byte -> Int
+intFromByte b
+  = fromEnum b
 
 bytesFromString :: String -> Bytes
 bytesFromString s
@@ -68,8 +74,6 @@ max32
   = 2^32-1
 
 
-
-
 {----------------------------------------------------------------
   Byte lists
 ----------------------------------------------------------------}
@@ -86,9 +90,7 @@ cat bs cs   = case cs of
                 Nil   -> bs
                 other -> case bs of
                            Nil   -> cs
-                           other -> Cat bs cs
-
-
+                           other -> Cat bs cs               
 
 listFromBytes bs
   = loop [] bs
@@ -101,6 +103,7 @@ listFromBytes bs
 
 bytesFromList bs
   = foldr Cons Nil bs
+
 
 bytesLength :: Bytes -> Int
 bytesLength bs
@@ -124,3 +127,33 @@ writeBytes path bs
           Nil       -> return ()
           Cons b bs -> do{ writeBinaryChar h b; write h bs }
           Cat bs cs -> do{ write h bs; write h cs }
+
+
+{----------------------------------------------------------------
+  Byte lists
+----------------------------------------------------------------}
+int32FromByteList :: [Byte] -> (Int,[Byte])
+int32FromByteList bs
+  = case bs of
+      (n3:n2:n1:n0:cs) -> let i = int32FromByte4 n3 n2 n1 n0 in seq i (i,cs)
+      other            -> error "Byte.int32FromBytes: invalid byte stream"
+                    
+int32FromByte4 n0 n1 n2 n3
+  = (intFromByte n0*16777216) + (intFromByte n1*65536) + (intFromByte n2*256) + intFromByte n3
+
+
+stringFromByteList :: [Byte] -> String
+stringFromByteList bs
+  = bs
+
+bytesFromByteList :: [Byte] -> Bytes
+bytesFromByteList bs
+  = bytesFromList bs
+
+readByteList :: FilePath -> IO [Byte]
+readByteList path 
+  = do{ h <- openBinary path ReadMode
+      ; xs <- readBinary h
+      ; closeBinary h
+      ; return xs
+      }

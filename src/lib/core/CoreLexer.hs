@@ -99,6 +99,7 @@ addLay (l,c) (t@(pos,lexeme):ts)
               (ln,col)   = pos
               rest       = case lexeme of
                                      LexLET    -> newlay CtxLet
+                                     LexLETSTRICT -> newlay CtxLet
                                      LexWHERE  -> newlay CtxLay
                                      LexOF     -> newlay CtxLay
                                      LexDO     -> newlay CtxLay
@@ -126,8 +127,10 @@ data Lexeme     = LexUnknown Char
                 | LexInt Integer
                 | LexFloat Double
                 | LexId String
+                | LexQualId String String
                 | LexOp String
                 | LexCon String
+                | LexQualCon String String
                 | LexConOp String
 
                 | LexCOMMA      -- ,
@@ -170,6 +173,9 @@ data Lexeme     = LexUnknown Char
                 | LexEOF
 
                 -- not standard
+                | LexLETSTRICT
+                | LexPUBLIC
+                | LexABSTRACT
                 | LexDEFAULT
                 | LexINSTR
                 | LexEXTERN
@@ -191,6 +197,7 @@ lexer (ln,col) []               = [((ln+1,0),LexEOF)]
 lexer pos ('-':'-':cs)          = nextinc lexeol pos 2 cs
 lexer pos ('{':'-':cs)          = nextinc (lexComment 0) pos 2 cs
 
+lexer pos ('l':'e':'t':'!':cs)      | nonId cs    = (pos,LexLETSTRICT)  : nextinc lexer pos 4 cs
 lexer pos ('l':'e':'t':cs)          | nonId cs    = (pos,LexLET)  : nextinc lexer pos 3 cs
 lexer pos ('i':'n':cs)              | nonId cs    = (pos,LexIN)   : nextinc lexer pos 2 cs
 lexer pos ('d':'o':cs)              | nonId cs    = (pos,LexDO)   : nextinc lexer pos 2 cs
@@ -206,6 +213,7 @@ lexer pos ('m':'o':'d':'u':'l':'e':cs)      | nonId cs = (pos,LexMODULE) : nexti
 lexer pos ('i':'m':'p':'o':'r':'t':cs)      | nonId cs = (pos,LexIMPORT) : nextinc lexer pos 6 cs
 -- not standard
 lexer pos ('c':'c':'a':'l':'l':cs)          | nonId cs = (pos,LexCCALL)   : nextinc lexer pos 5 cs
+lexer pos ('p':'u':'b':'l':'i':'c':cs)      | nonId cs = (pos,LexPUBLIC)   : nextinc lexer pos 6 cs
 lexer pos ('e':'x':'t':'e':'r':'n':cs)      | nonId cs = (pos,LexEXTERN)  : nextinc lexer pos 6 cs
 lexer pos ('s':'t':'a':'t':'i':'c':cs)      | nonId cs = (pos,LexSTATIC)  : nextinc lexer pos 6 cs
 lexer pos ('d':'e':'f':'a':'u':'l':'t':cs)  | nonId cs = (pos,LexDEFAULT) : nextinc lexer pos 7 cs
@@ -214,6 +222,7 @@ lexer pos ('r':'u':'n':'t':'i':'m':'e':cs)  | nonId cs = (pos,LexRUNTIME) : next
 lexer pos ('s':'t':'d':'c':'a':'l':'l':cs)  | nonId cs = (pos,LexSTDCALL) : nextinc lexer pos 7 cs
 lexer pos ('o':'r':'d':'i':'n':'a':'l':cs)  | nonId cs = (pos,LexORDINAL) : nextinc lexer pos 7 cs
 lexer pos ('d':'e':'c':'o':'r':'a':'t':'e':cs) | nonId cs = (pos,LexDECORATE) : nextinc lexer pos 8 cs
+lexer pos ('a':'b':'s':'t':'r':'a':'c':'t':cs) | nonId cs = (pos,LexABSTRACT) : nextinc lexer pos 8 cs
 lexer pos ('i':'n':'s':'t':'r':'c':'a':'l':'l':cs)  | nonId cs = (pos,LexINSTRCALL) : nextinc lexer pos 9 cs
 lexer pos ('i':'n':'s':'t':'r':'u':'c':'t':'i':'o':'n':cs) | nonId cs = (pos,LexINSTR) : nextinc lexer pos 11 cs
 
@@ -249,13 +258,13 @@ lexer pos ('"':cs)              = lexString (incpos pos 1) (pos,"") cs
 
 lexer pos ('0':cs)              = lexZero pos cs
 
-lexer pos xs@(':':cs)           = lexWhile isSymbol LexConOp pos xs
-lexer pos xs@(c:cs)             | isLower c || c == '_'  = lexWhile isLetter LexId pos xs
-                                | isUpper c     = lexWhile isLetter LexCon pos xs
-                                | isSpace c     = next lexer pos c cs
-                                | isSymbol c    = lexWhile isSymbol LexOp pos xs
-                                | isDigit c     = lexIntFloat pos xs
-                                | otherwise     = (pos,LexUnknown c) : next lexer pos c cs
+lexer pos xs@(':':cs)           = lexWhile isSymbol LexConOp pos pos xs
+lexer pos xs@(c:cs)             | isLower c || c == '_'  = lexWhile isLetter LexId pos pos xs
+                                | isUpper c              = lexConOrQual pos xs
+                                | isSpace c              = next lexer pos c cs
+                                | isSymbol c             = lexWhile isSymbol LexOp pos pos xs
+                                | isDigit c              = lexIntFloat pos xs
+                                | otherwise              = (pos,LexUnknown c) : next lexer pos c cs
 
 
 next f pos c cs                 = let pos' = newpos pos c  in seq pos' (f pos' cs)
@@ -263,9 +272,20 @@ nextinc f pos i cs              = let pos' = incpos pos i  in seq pos' (f pos' c
 
 
 
-lexWhile ctype con pos cs       = let (ident,rest)  = span ctype cs
-                                      pos'          = foldlStrict newpos pos ident
-                                  in  (pos,con ident) : seq pos' (lexer pos' rest)
+
+lexConOrQual pos cs
+  = let (ident,rest) = span isLetter cs
+        pos'         = foldlStrict newpos pos ident
+    in case rest of
+        ('.':ds@(d:dd))  | isLower d || d == '_'  
+                                      -> lexWhile isLetter (LexQualId ident) pos (incpos pos' 1) ds
+                         | isUpper d  -> lexWhile isLetter (LexQualCon ident) pos (incpos pos' 1) ds
+        other            -> (pos,LexCon ident) : seq pos' (lexer pos' rest)
+
+lexWhile ctype con pos0 pos cs       = let (ident,rest)  = span ctype cs
+                                           pos'          = foldlStrict newpos pos ident
+                                       in  (pos0,con ident) : seq pos' (lexer pos' rest)
+
 
 lexSpecialId pos cs
   = let (ident,rest) = span (\c -> (not (isSpace c) && c /= '\'')) cs in

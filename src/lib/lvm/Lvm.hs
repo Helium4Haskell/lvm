@@ -40,11 +40,11 @@ recImport,recModule,recExtern,recExternType,recHeader,recFooter :: Int
 recName       = 0
 recBytes      = 1
 recCode       = 2
-recValue      = 3
-recCon        = 4
-recImport     = 5
+recValue      = declValue
+recCon        = declCon
+recImport     = declImport
 recModule     = 6
-recExtern     = 7
+recExtern     = declExtern
 recExternType = 8
 
 recHeader     = 0x4c564d58

@@ -11,9 +11,11 @@
 
 module Module( Module(..)
              , Arity, Tag, DeclKind, Access(..)
-             , DValue(..), DImport(..), DCon(..), DExtern(..), DCustom(..)
+             , DValue(..), DAbstract(..), DCon(..), DExtern(..)
+             , DCustom(..), DImport(..)
              , Customs, Custom(..)
              , ExternName(..), CallConv(..), LinkConv(..)
+             , declValue,declCon,declImport,declExtern
 
              , isImport, globals, mapValues, mapDValues
              ) where
@@ -28,15 +30,16 @@ import Instr   ( Arity, Tag )
   A general LVM module structure parameterised by the
   type of values (Core expression, Asm expression or [Instr])
 ---------------------------------------------------------------}
-data Module v   = Module{ moduleName   :: !Id
+data Module v   = Module{ moduleName   :: Id
                         , versionMajor :: !Int
                         , versionMinor :: !Int
 
                         , values       :: [(Id,DValue v)]
-                        , imports      :: IdMap DImport
+                        , abstracts    :: IdMap DAbstract
                         , constructors :: IdMap DCon
                         , externs      :: IdMap DExtern
                         , customs      :: IdMap DCustom
+                        , imports      :: [(Id,DImport)]
                         }
 
 type DeclKind   = Int
@@ -47,14 +50,15 @@ data Access     = Private
                          , importVerMajor :: !Int, importVerMinor :: !Int }
 
 
-data DValue v   = DValue  { valueAccess  :: !Access, valueEnc :: !(Maybe Id), valueValue :: v, valueCustoms :: !Customs }
-data DImport    = DImport { importAccess :: !Access, importArity :: !Arity }
-data DCon       = DCon    { conAccess    :: !Access, conArity    :: !Arity, conTag :: !Tag, conCustoms :: !Customs }
-data DExtern    = DExtern { externAccess :: !Access, externArity :: !Arity
-                          , externType   :: !String
-                          , externLink   :: !LinkConv, externCall :: !CallConv
-                          , externLib    :: !String, externName :: !ExternName, externCustoms :: !Customs }
-data DCustom    = DCustom { customAccess :: !Access, customKind :: !DeclKind, customCustoms :: !Customs }
+data DValue v   = DValue    { valueAccess  :: !Access, valueEnc :: !(Maybe Id), valueValue :: v, valueCustoms :: !Customs }
+data DAbstract  = DAbstract { abstractAccess :: !Access, abstractArity :: !Arity }
+data DCon       = DCon      { conAccess    :: !Access, conArity    :: !Arity, conTag :: !Tag, conCustoms :: !Customs }
+data DExtern    = DExtern   { externAccess :: !Access, externArity :: !Arity
+                            , externType   :: !String
+                            , externLink   :: !LinkConv, externCall :: !CallConv
+                            , externLib    :: !String, externName :: !ExternName, externCustoms :: !Customs }
+data DCustom    = DCustom   { customAccess :: !Access, customKind :: !DeclKind, customCustoms :: !Customs }
+data DImport    = DImport   { importAccess :: !Access, importKind :: !DeclKind }
 
 type Customs    = [Custom]
 data Custom     = CtmInt   !Int
@@ -74,6 +78,11 @@ data CallConv   = CallC | CallStd | CallInstr
 data LinkConv   = LinkStatic | LinkDynamic | LinkRuntime
                 deriving (Eq, Enum)
 
+declValue,declCon,declImport,declExtern :: Int
+declValue      = 3
+declCon        = 4
+declImport     = 5
+declExtern     = 7
 
 {---------------------------------------------------------------
   Utility functions
@@ -86,7 +95,7 @@ globals :: Module v -> IdSet
 globals mod
   = unionSets
   [ setFromList (map fst (values mod))
-  , setFromMap (imports mod)
+  , setFromMap (abstracts mod)
   , setFromMap (externs mod)
   ]
 

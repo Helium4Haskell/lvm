@@ -23,7 +23,7 @@ import CoreLexer
 ----------------------------------------------------------------
 -- Parse a Core source file
 ----------------------------------------------------------------
-coreParse :: FilePath -> IO (CoreModule,IdSet)
+coreParse :: FilePath -> IO (CoreModule)
 coreParse fname
   = do{ input  <- readFile fname
       ; case runParser parseModule () fname (layout (lexer (1,1) input)) of
@@ -81,35 +81,75 @@ arityFromKind kind
 ----------------------------------------------------------------
 -- Program
 ----------------------------------------------------------------
-parseModule :: TokenParser (CoreModule, IdSet)
+parseModule :: TokenParser (CoreModule)
 parseModule
   = do{ lexeme LexMODULE
-      ; moduleId <- conid <?> "module name"
+      ; moduleId  <- conid <?> "module name"
+      ; exports   <- commaParens pexport <|> return []
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
-      ; imports  <- semiTerm pimport
-      ; externs  <- semiTerm pextern
-      ; conDs    <- semiTerm pdata
-      ; types    <- semiTerm ptypeTopDecl
-      ; ds       <- semiList ptopDecl
+      ; abstracts <- semiTerm pabstract
+      ; imports   <- semiTerm pimport
+      ; externs   <- semiTerm pextern
+      ; conDs     <- semiTerm pdata
+      ; types     <- semiTerm ptypeTopDecl
+      ; ds        <- semiList ptopDecl
       ; lexeme LexRBRACE
       ; lexeme LexEOF
 
       ; let externDecls           = mapFromList (externs)
             conDecls              = mapFromList (concat conDs)
-            importDecls           = setFromList imports
-      ; return (Module moduleId 0 0 ds emptyMap conDecls externDecls emptyMap, importDecls)
+            abstractDecls         = mapFromList (abstracts)
+      ; return (Module moduleId 0 0 ds abstractDecls conDecls externDecls emptyMap imports)
       }
+----------------------------------------------------------------
+-- export list
+----------------------------------------------------------------
+pexport :: TokenParser Id
+pexport
+  = variable
 
+----------------------------------------------------------------
+-- abstract declarations
+----------------------------------------------------------------
+pabstract :: TokenParser (Id,DAbstract)
+pabstract
+  = do{ lexeme LexABSTRACT
+      ; public <- pPublic
+      ; id <- variable
+      ; lexeme LexASG
+      ; (modid,impid) <- qualifiedVar
+      ; (tp,arity) <- ptypeDecl
+      ; return (id,DAbstract (Import public modid impid 0 0) arity)
+      }
 
 ----------------------------------------------------------------
 -- import declarations
 ----------------------------------------------------------------
-pimport :: TokenParser Id
+pimport :: TokenParser (Id,DImport)
 pimport
   = do{ lexeme LexIMPORT
-      ; conid
+      ; public <- pPublic
+      ; pimportValue public 
       }
+
+pimportValue public
+  = do{ id <- variable
+      ; lexeme LexASG
+      ; (modid,impid) <- qualifiedVar
+      ; return (id, DImport (Import public modid impid 0  0) declValue)
+      }
+
+pAccess
+  = do{ public <- pPublic
+      ; if (public) then return Public else return Public
+      }
+
+pPublic 
+  = do{ lexeme LexPUBLIC
+      ; return True
+      }
+  <|> return False
 
 ----------------------------------------------------------------
 -- value declarations
@@ -128,12 +168,12 @@ ptopDeclType id
          then fail "identifier for type signature doesn't match the definition"
          else return ()
       ; expr <- pbindRhs
-      ; return (id, DValue Public Nothing expr [])
+      ; return (id, DValue Private Nothing expr [])
       }
 
 ptopDeclDirect id
   = do{ expr <- pbindRhs
-      ; return (id,DValue Public Nothing expr [])
+      ; return (id,DValue Private Nothing expr [])
       }
   where
     typeFromExpr expr
@@ -219,6 +259,13 @@ pexpr
       ; lexeme LexOF
       ; (id,alts) <- palts
       ; return (Case expr id alts)
+      }
+  <|> 
+    do{ lexeme LexLETSTRICT
+      ; binds <- semiBraces pbind
+      ; lexeme LexIN
+      ; expr <- pexpr
+      ; return (foldr (\(Bind id rexpr) expr -> Case rexpr id [Alt PatDefault expr]) expr binds)
       }
   <|> pexprAp
   <?> "expression"
@@ -485,6 +532,8 @@ pStar
 -- helpers
 ----------------------------------------------------------------
 semiBraces p  = braces (semiList p)
+commaParens p = parens (sepBy p (lexeme LexCOMMA))
+
 braces p      = between (lexeme LexLBRACE) (lexeme LexRBRACE) p
 parens p      = between (lexeme LexLPAREN) (lexeme LexRPAREN) p
 
@@ -517,6 +566,11 @@ opid
 varid
   =   identifier lexId
   <?> "variable"
+
+qualifiedVar 
+  = do{ (mod,name) <- lexQualifiedId
+      ; return (idFromString mod, idFromString name)
+      }
 
 bindid :: TokenParser Id
 bindid
@@ -586,6 +640,9 @@ lexInt
 lexId :: TokenParser String
 lexId
   = satisfy (\lex -> case lex of { LexId s -> Just s; other -> Nothing })
+
+lexQualifiedId
+  = satisfy (\lex -> case lex of { LexQualId mod id -> Just (mod,id); other -> Nothing })
 
 lexOp :: TokenParser String
 lexOp
