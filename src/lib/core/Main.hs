@@ -38,8 +38,8 @@ import LvmRead    ( lvmReadFile )       -- read a Lvm file
 --
 ----------------------------------------------------------------
 message s
-  -- = return () 
-   = putStr s
+   = return () 
+   -- = putStr s
 
 main
   = do{ [arg] <- getArgs
