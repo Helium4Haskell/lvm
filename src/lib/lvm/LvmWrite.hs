@@ -22,7 +22,7 @@ import Lvm
   Magic numbers
 --------------------------------------------------------------}
 lvmMajorVersion,lvmMinorVersion,magic :: Int
-lvmMajorVersion  = 5
+lvmMajorVersion  = 6
 lvmMinorVersion  = 0
 magic            = 0x4C564D58
 
@@ -213,7 +213,12 @@ emit instr
       -- constructors
       ALLOCCON    con         -> [opcode, indexFromCon con, arityFromCon con]
       PACKCON     con var     -> [opcode, offsetFromVar var, arityFromCon con] --TODO: constant instead of arity
-      NEWCON      con         -> [opcode, indexFromCon con, arityFromCon con]
+
+      NEWCON      con         -> [opcode, indexFromCon con, arityFromCon con]                                 
+
+      NEW         arity       -> [opcode, arity]
+      PACK        arity       -> [opcode, arity]
+      UNPACK      arity       -> [opcode, arity]
 
       -- optimized instructions
       PUSHVARS2   v w         -> [opcode, offsetFromVar v, offsetFromVar w]

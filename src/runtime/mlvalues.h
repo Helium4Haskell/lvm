@@ -208,8 +208,8 @@ typedef opcode_t * code_t;
 
 #define Con_max_tag 239
 
-#define Con_tag_val(t,v)  { (t) = Tag_val(v); if ((t) == Con_max_tag) { (t) = Field(v,Wosize_val(v)-1); }}
-#define Con_size_val(n,v) { (n) = Wosize_val(v); if (Tag_val(v) == Con_max_tag) { (n) += 1; }}
+#define Con_tag_val(t,v)  { (t) = Tag_val(v); if ((t) == Con_max_tag) { (t) = Long_val(Field(v,Wosize_val(v)-1)); }}
+#define Con_size_val(n,v) { (n) = Wosize_val(v); if (Tag_val(v) == Con_max_tag) { (n) -= 1; }}
 
 /* Another special case: variants */
 extern value hash_variant(char * tag);

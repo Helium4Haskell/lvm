@@ -49,6 +49,7 @@ extern unsigned long max_eager_heap;
   sp          the stack pointer  -- cached from thread->stack_sp
   fp          the frame pointer  -- cached from thread->stack_fp
   instr_base  the address of the first instruction label -- cached instr_first
+              (this is used to fit 64bit instruction adresses into a 32bit instruction offset)
 ----------------------------------------------------------------------*/
 
 /* stack macros */
@@ -77,7 +78,9 @@ extern unsigned long max_eager_heap;
                               }
 
 
-/* save registers: sp, fp (instr_base) */
+/*----------------------------------------------------------------------
+  Save registers
+----------------------------------------------------------------------*/
 #define Setup_for_exn()       { thread->stack_sp = sp;  \
                                 thread->stack_fp = fp;  \
                                 thread->code     = Val_code(pc);  \
@@ -103,7 +106,9 @@ extern unsigned long max_eager_heap;
 #define Restore_after_gc      { Restore_after_exn(); }
 
 
-/* checks, only done at "safe" points */
+/*----------------------------------------------------------------------
+  safe points
+----------------------------------------------------------------------*/
 #define Safe_check_()         Safe_checkx(sp[0] = sp[0] /* nothing */)
 #define Safe_check(v)         Safe_checkx((*--sp = (v) ) /* == Push(v) */ )
 
@@ -156,7 +161,9 @@ extern unsigned long max_eager_heap;
 
 
 
-/* machine actions */
+/*----------------------------------------------------------------------
+  machine actions
+----------------------------------------------------------------------*/
 #define Return(r)         { Setup_for_gc; \
                             Restore_exception_handler(exn_frame,thread); \
                             thread->result = (r); \
@@ -165,19 +172,23 @@ extern unsigned long max_eager_heap;
 #define Raise_runtime_exn(exn)    { Setup_for_exn(); raise_runtime_exn_1( exn, copy_string(find_name_of_code( thread->module, thread->code )) ); }
 #define Raise_arithmetic_exn(exn) { Setup_for_exn(); raise_arithmetic_exn( exn ); }
 
-#define Allocate(v,sz,t)  { if (sz >= Max_young_wosize) { \
-                                Setup_for_gc; \
-                                (v) = alloc_shr(sz,t); \
-                                Restore_after_gc; \
-                            } else { \
-                                Alloc_small(v,sz,t); \
-                            } \
+#define Allocate(v,sz,t)  { if (sz == 0) { (v) = Atom(t); } \
+                            else if (sz < Max_young_wosize) { Alloc_small(v,sz,t); } \
+                            else { Alloc_large(v,sz,t); } \
                           }
 
 #define Alloc_large(v,sz,t)  { Setup_for_gc; \
                                (v) = alloc_shr(sz,t); \
                                Restore_after_gc; \
                              }
+
+#define Alloc_con(v,sz,t) { if (t >= Con_max_tag) {\
+                               Allocate(v,sz+1,Con_max_tag); \
+                               Field(v,sz) = Val_long(t); \
+                            } else { \
+                               Allocate(v,sz,t); \
+                            } \
+                          }
 
 #ifdef DEBUG
 #define Debug_pcstart(pc)  pcstart = pc;
@@ -443,7 +454,6 @@ void evaluate( struct thread_state* thread )
       pc = Code_fixup(*pc);
       Debug_pcstart(pc);
       Safe_check(Val_code(pc));
-
       Trace_enter( "direct code", Val_code(pc) );
       Require( Is_block(Val_code(pc)) && Tag_val(Val_code(pc)) == Code_tag );
       pc += 2;      /* skip ARGCHK */
@@ -1130,6 +1140,9 @@ returncon:
     }
 
 
+/*----------------------------------------------------------------------
+  Matching
+----------------------------------------------------------------------*/
     Instr(SWITCHCON): {
       nat tag = Tag_val(sp[0]);
       nat count = pc[0];
@@ -1510,14 +1523,95 @@ returncon:
 /*----------------------------------------------------------------------
   General sums and products
 ----------------------------------------------------------------------*/
+    Instr(GETFIELD): {
+      value v  = sp[0];
+      long  i  = Long_val(sp[1]);
+      Require( Is_block(v) && Is_long(sp[1]) );
+      if (Wosize_val(v) <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      sp[1] = Field(v,i);
+      Pop();
+      Next;
+    }
 
-    todoInstr(ALLOC)
-    todoInstr(NEW)
-    todoInstr(GETFIELD)
-    todoInstr(SETFIELD)
-    todoInstr(GETTAG)
-    todoInstr(PACK)
-    todoInstr(UNPACK)
+    Instr(SETFIELD): {
+      value v  = sp[0];
+      long  i  = Long_val(sp[1]);
+      value x  = sp[2];
+      long sz;
+      Require( Is_block(v) && Is_long(sp[1]) );
+      Con_size_val(sz,v);
+      if (sz <= i) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      Store_field(v,i,x);
+      Pop_n(3);
+      Next;
+    }
+         
+    Instr(ALLOC): {
+      long tag  = Long_val(sp[0]);
+      long size = Long_val(sp[1]);
+      long i;
+      value con;
+      Alloc_con(con,size,tag);
+      for( i = 0; i < size; i++ ) { Field(con,i) = 0; }
+      sp[1] = con;
+      Pop();
+      Next;
+    }
+
+    Instr(NEW): {
+      long size = *pc++;
+      long tag  = Long_val(sp[0]);
+      long i;
+      value con;
+      Pop();
+      Alloc_con(con,size,tag);
+      for( i = 0; i < size; i++ ) { Field(con,i) = sp[i]; }
+      Pop_n(size);
+      Push(con);
+      Next;
+    }
+
+    Instr(GETTAG): {
+      Require( Is_block(sp[0]) );
+      sp[0] = Val_long( Tag_val(sp[0]) );
+      Next;
+    }
+
+    Instr(GETSIZE): {
+      long sz;
+      Require( Is_block(sp[0]) );
+      Con_size_val(sz,sp[0]);
+      sp[0] = Val_long( sz );
+      Next;
+    }
+
+    Instr(PACK): {
+      long  n = *pc++;
+      value v = sp[0];
+      long  sz;
+      long  i;
+      Require( Is_block(v) );
+      Con_size_val(sz,v);
+      if (n >= sz) { Raise_runtime_exn( Exn_out_of_bounds ); }
+      Pop();
+      for( i = 0; i < n; i++) { Field(v,i) = sp[i]; }
+      Pop_n(n);
+      Next;
+    }
+
+    Instr(UNPACK): {
+      long  n  = *pc++;
+      value v  = sp[0];
+      long  sz;
+      long  i;
+      Require( Is_block(v) );
+      Con_size_val(sz,v);
+      if (n > sz) { Raise_runtime_exn( Exn_out_of_bounds ); }      
+      Pop();
+      Push_n(n);               
+      for( i = 0; i < n; i++) { sp[i] = Field(v,i); }
+      Next;
+    }
 
 /*----------------------------------------------------------------------
   Constructors

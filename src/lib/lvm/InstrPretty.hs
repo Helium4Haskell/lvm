@@ -87,6 +87,10 @@ ppInstr instr
       ALLOCCON    con         -> text name <+> ppCon con
       PACKCON     con var     -> text name  <+> ppVar var <+> ppCon con
       NEWCON      con         -> text name   <+> ppCon con
+      
+      NEW arity               -> text name <+> pretty arity
+      PACK arity              -> text name <+> pretty arity
+      UNPACK arity            -> text name <+> pretty arity
 
     -- optimized instructions
       PUSHVARS2  v w          -> text name <+> ppVar v <+> ppVar w

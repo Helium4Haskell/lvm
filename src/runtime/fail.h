@@ -101,6 +101,7 @@ enum exn_tag {
 enum exn_runtime {
   Exn_failed_pattern,
   Exn_blackhole,
+  Exn_out_of_bounds,
   Exn_exit,
   Exn_invalid_opcode,
   Exn_load_error,

@@ -66,12 +66,13 @@
   Ins( GEINT, 0 ),      \
   \
   Ins( ALLOC, 0 ),      \
-  Ins( NEW, 0 ),        \
+  Ins( NEW, 1 ),        \
   Ins( GETFIELD, 0 ),   \
   Ins( SETFIELD, 0 ),   \
   Ins( GETTAG, 0 ),     \
-  Ins( PACK, 0 ),       \
-  Ins( UNPACK, 0 ),     \
+  Ins( GETSIZE, 0 ),    \
+  Ins( PACK, 1 ),       \
+  Ins( UNPACK, 1 ),     \
   \
   Ins( PUSHVAR0, 0 ),   \
   Ins( PUSHVAR1, 0 ),   \

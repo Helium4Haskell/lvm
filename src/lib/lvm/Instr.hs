@@ -116,6 +116,15 @@ data Instr    =
               | PACKCON     !Con !Var
               | NEWCON      !Con
 
+              | ALLOC
+              | NEW         !Arity
+              | PACK        !Arity
+              | UNPACK      !Arity
+              | GETFIELD
+              | SETFIELD
+              | GETTAG
+              | GETSIZE
+
               -- INT operations
               | ADDINT
               | SUBINT
@@ -217,6 +226,12 @@ instrFromName name
         , ("GTINT", GTINT)
         , ("LEINT", LEINT)
         , ("GEINT", GEINT)
+
+        , ("ALLOC",   ALLOC)
+        , ("GETFIELD",GETFIELD)
+        , ("SETFIELD",SETFIELD)
+        , ("GETTAG",  GETTAG)
+        , ("GETSIZE", GETSIZE)
         ]
 
 
@@ -283,8 +298,7 @@ instrTable =
     , ADDINT, SUBINT, MULINT, DIVINT, MODINT, QUOTINT, REMINT
     , ANDINT, XORINT, ORINT, SHRINT, SHLINT, SHRNAT, NEGINT
     , EQINT, NEINT, LTINT, GTINT, LEINT, GEINT
-    -- , ALLOC, NEW, GETFIELD, SETFIELD, GETTAG, PACK, UNPACK
-    , NOP, NOP, NOP, NOP, NOP, NOP, NOP
+    , ALLOC, NEW 0, GETFIELD, SETFIELD, GETTAG, GETSIZE, PACK 0, UNPACK 0
     , PUSHVAR0, PUSHVAR1, PUSHVAR2, PUSHVAR3, PUSHVAR4
     -- , PUSHVARS2 id 0 id 0, PUSHVARS3 id 0 id 0 id 0, PUSHVARS4 id 0 id 0 id 0 id 0
     , PUSHVARS2 var var, NOP, NOP
@@ -362,9 +376,18 @@ enumFromInstr instr
       NEWNAP      arity       -> 44
 
     -- constructors
-      ALLOCCON    con         -> 50
-      PACKCON     con var     -> 51
-      NEWCON      con         -> 52
+      ALLOCCON    con         -> 47
+      PACKCON     con var     -> 48
+      NEWCON      con         -> 49
+
+      ALLOC                   -> 50
+      NEW arity               -> 51
+      PACK arity              -> 52
+      UNPACK arity            -> 53
+      GETFIELD                -> 54 
+      SETFIELD                -> 55
+      GETTAG                  -> 56
+      GETSIZE                 -> 57
 
     -- INT operations
       ADDINT                  -> 60
@@ -480,6 +503,15 @@ nameFromInstr instr
       ALLOCCON    con         -> "ALLOCCON"
       PACKCON     con var     -> "PACKCON"
       NEWCON      con         -> "NEWCON"
+
+      ALLOC                   -> "ALLOC"
+      NEW arity               -> "NEW"
+      PACK arity              -> "PACK"
+      UNPACK arity            -> "UNPACK"
+      GETFIELD                -> "GETFIELD" 
+      SETFIELD                -> "SETFIELD"
+      GETTAG                  -> "GETTAG"
+      GETSIZE                 -> "GETSIZE"
 
     -- INT operations
       ADDINT                  -> "ADDINT"

@@ -197,6 +197,16 @@ effect instr
       ALLOCCON con     -> push 1
       NEWCON con       -> do{ pop (arityFromCon con); push 1 }
 
+      NEW arity        -> do{ pop 1; pop arity; push 1 }
+      PACK arity       -> do{ pop 1; pop arity; push 1 }
+      UNPACK arity     -> do{ pop 1; push arity }
+
+      ALLOC            -> do{ pop 2; push 1 }
+      GETFIELD         -> do{ pop 2; push 1 }
+      SETFIELD         -> pop 3
+      GETTAG           -> do{ pop 1; push 1 }
+      GETSIZE          -> do{ pop 1; push 1 }
+
       RETURNCON con    -> do{ pop (arityFromCon con) }          -- it is the last instruction!
 
       PUSHCODE global  -> push 1

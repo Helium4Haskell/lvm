@@ -57,7 +57,7 @@ OBJS = $(SRCS:.hs=.o)
 # The main target
 $(MAIN)$(EXE): $(OBJS)
 	  $(HC)	-o $@ $(HC_OPTS) $(OBJS)
-	  $(STRIP) $@.$(EXE)
+	  $(STRIP) $@
 
 
 # Standard suffix rules
