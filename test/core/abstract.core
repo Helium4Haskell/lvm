@@ -4,7 +4,8 @@ module Abstract( sum, fromTo ) where
 abstract foldl  = Export.foldl  :: (a -> b -> a) -> a -> List b -> a
 abstract add    = Export.addint :: Int -> Int -> Int
 abstract fromTo = Export.fromTo :: Int -> Int -> List Int
+abstract Cons   = Export.Cons :: a -> List a -> List a = 1
 
-main  = sum  (fromTo 1 100)
+main  = sum  (Cons 1 (fromTo 2 100))
 
 sum   = foldl add 0

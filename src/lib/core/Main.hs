@@ -15,7 +15,7 @@ import System     ( getArgs )
 import PPrint     ( putDoc )
 
 import Standard   ( getLvmPath, searchPath )
-import Id         ( newNameSupply )
+import Id         ( newNameSupply, stringFromId )
 
 import CorePretty ( corePretty )        -- pretty print core
 import CoreParse  ( coreParse )         -- parse text into core
@@ -26,18 +26,23 @@ import AsmToLvm   ( asmToLvm )          -- translate Asm to instructions
 
 import LvmPretty  ( lvmPretty )
 import LvmWrite   ( lvmWriteFile )
+import LvmImport  ( lvmImport )
 
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
 message s
-   = return () 
- --  = putStr s
+   -- = return () 
+   = putStr s
 
 main
   = do{ [arg] <- getArgs
       ; compile arg
       }
+
+findModule paths id
+  = searchPath paths ".lvm" (stringFromId id)
+
 
 compile src
   = do{ path        <- getLvmPath
@@ -45,9 +50,10 @@ compile src
       ; source      <- searchPath path ".core" src
       ; messageLn ("compiling  : " ++ showFile source)
 
-      ; coremod     <- coreParse source
-      ; nameSupply  <- newNameSupply
+      ; mod         <- coreParse source
+      ; coremod     <- lvmImport (findModule path) mod
 
+      ; nameSupply  <- newNameSupply
       ; messageLn ("generating code")
       ; let asmmod  = coreToAsm nameSupply coremod
             lvmmod  = asmToLvm  asmmod

@@ -19,6 +19,7 @@ module IdMap( module Id
             , filterMap
             , listFromMap
             , mapMapWithId, unionMap
+            , updateMap
 
             -- exotic: used by core compiler
             , foldMap, deleteMap
@@ -71,6 +72,10 @@ insertMap id x (IdMap map)
   = IdMap (IntMap.insertWith fail (intFromId id) x map)
   where
     fail _ _ = error ("IdMap.insertMap: duplicate id " ++ show id)
+
+updateMap :: Id -> a -> IdMap a -> IdMap a
+updateMap id x (IdMap map)
+  = IdMap (IntMap.insertWith const (intFromId id) x map)
 
 deleteMap :: Id -> IdMap a -> IdMap a
 deleteMap id (IdMap map)

@@ -11,6 +11,7 @@
 
 module CoreParse( coreParse ) where
 
+import Standard( foldlStrict )
 import Parsec hiding (satisfy)
 import Byte   ( bytesFromString )
 import Id     ( Id, stringFromId, idFromString )
@@ -85,31 +86,35 @@ parseModule :: TokenParser (CoreModule)
 parseModule
   = do{ lexeme LexMODULE
       ; moduleId  <- conid <?> "module name"
-      ; exports   <- commaParens pexport <|> return []
+      ; (exports,exportCons,exportData) <- pexports 
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
-      ; abstracts <- semiTerm pabstract
+      ; (abstracts,absConDecls) <- pabstracts
       ; imports   <- semiTerm pimport
       ; externs   <- semiTerm pextern
-      ; conDs     <- semiTerm pdata
+      ; datas     <- semiTerm pdata
       ; types     <- semiTerm ptypeTopDecl
       ; ds        <- semiList ptopDecl
       ; lexeme LexRBRACE
       ; lexeme LexEOF
 
-      ; let externDecls           = mapFromList (externs)
-            conDecls              = mapFromList (concat conDs)
-            abstractDecls         = mapFromList (abstracts)
-            mod0  = Module moduleId 0 0 ds abstractDecls conDecls externDecls emptyMap imports
-            mod1  = modulePublic (setFromList exports) mod0
+      ; let externDecls    = mapFromList (externs)
+            conDecls       = unionMap (mapFromList (concatMap snd datas)) absConDecls
+
+            exportConDecls = setFromList (concatMap (map fst . snd) (filter (\x -> elemSet (fst x) exportData) datas))
+                             `unionSet` exportCons
+
+            mod0  = Module moduleId 0 0 ds abstracts conDecls externDecls emptyMap imports
+            mod1  = modulePublic exports exportConDecls mod0
       ; return mod1
       }
 
 
-modulePublic :: IdSet -> Module v -> Module v
-modulePublic exports mod
-  = mod{ values     = map valuePublic (values mod)
-       , abstracts  = mapMapWithId abstractPublic (abstracts mod)
+modulePublic :: IdSet -> IdSet -> Module v -> Module v
+modulePublic exports exportCons mod
+  = mod{ values       = map valuePublic (values mod)
+       , abstracts    = mapMapWithId abstractPublic (abstracts mod)
+       , constructors = mapMapWithId conPublic (constructors mod)
        }
   where
     valuePublic x@(id,value)  
@@ -120,6 +125,10 @@ modulePublic exports mod
       | elemSet id exports = abstract{ abstractAccess = setPublic (abstractAccess abstract) }
       | otherwise          = abstract
 
+    conPublic id con
+      | elemSet id exportCons = con{ conAccess = setPublic (conAccess con) }
+      | otherwise             = con
+
     setPublic Private      = Public
     setPublic Public       = Public
     setPublic imp          = imp{ importPublic = True } 
@@ -127,22 +136,84 @@ modulePublic exports mod
 ----------------------------------------------------------------
 -- export list
 ----------------------------------------------------------------
-pexport :: TokenParser Id
+data Export  = ExportValue Id
+             | ExportCon   Id
+             | ExportData  Id
+
+pexports :: TokenParser (IdSet,IdSet,IdSet)
+pexports
+  = do{ exports <- commaParens pexport <|> return []
+      ; return (foldlStrict split (emptySet,emptySet,emptySet) (concat exports))
+      }
+  where
+    split (values,cons,datas) exp
+      = case exp of
+          ExportValue id  -> (insertSet id values,cons,datas)
+          ExportCon   id  -> (values,insertSet id cons,datas)
+          ExportData  id  -> (values,cons,insertSet id datas)
+
+pexport :: TokenParser [Export]
 pexport
-  = variable
+  = do{ id <- variable
+      ; return [ExportValue id]
+      }
+  <|>
+    do{ id <- typeid
+      ; lexeme LexLPAREN
+      ; do{ lexeme LexDOTDOT
+          ; lexeme LexRPAREN
+          ; return [ExportData id]
+          }
+        <|>
+        do{ ids <- sepBy conid (lexeme LexCOMMA)
+          ; lexeme LexRPAREN
+          ; return (map ExportCon ids)
+          }
+      }
 
 ----------------------------------------------------------------
 -- abstract declarations
 ----------------------------------------------------------------
-pabstract :: TokenParser (Id,DAbstract)
+data Abstract = AbstractValue Id DAbstract
+              | AbstractCon   Id DCon
+
+pabstracts :: TokenParser (IdMap DAbstract,IdMap DCon)
+pabstracts
+  = do{ abstracts <- semiTerm pabstract
+      ; return (foldlStrict split (emptyMap,emptyMap) abstracts)
+      }
+  where
+    split (values,cons) abs
+      = case abs of
+          AbstractValue id x  -> (insertMap id x values,cons)
+          AbstractCon id x    -> (values,insertMap id x cons)
+
+
+pabstract :: TokenParser Abstract
 pabstract
   = do{ lexeme LexABSTRACT
-      ; id <- variable
+      ; pabstractValue <|> pabstractCon
+      }
+
+pabstractValue
+  = do{ id <- variable
       ; lexeme LexASG
       ; (modid,impid) <- qualifiedVar
-      ; (tp,arity) <- ptypeDecl
-      ; return (id,DAbstract (Import False modid impid 0 0) arity)
+      ; (tp,tparity) <- ptypeDecl
+      ; arity <- do{ lexeme LexASG; i <- lexInt; return (fromInteger i) } <|> return tparity
+      ; return (AbstractValue id (DAbstract (Import False modid impid 0 0) arity))
       }
+
+pabstractCon
+  = do{ id <- conid
+      ; lexeme LexASG
+      ; (modid,impid) <- qualifiedCon
+      ; (tp,arity) <- ptypeDecl
+      ; lexeme LexASG
+      ; tag <- lexInt
+      ; return (AbstractCon id (DCon (Import False modid impid 0 0) arity (fromInteger tag) []))
+      }
+
 
 ----------------------------------------------------------------
 -- import declarations
@@ -150,7 +221,7 @@ pabstract
 pimport :: TokenParser (Id,DImport)
 pimport
   = do{ lexeme LexIMPORT
-      ; pimportValue 
+      ; pimportValue <|> pimportCon
       }
 
 pimportValue 
@@ -158,6 +229,13 @@ pimportValue
       ; lexeme LexASG
       ; (modid,impid) <- qualifiedVar
       ; return (id, DImport (Import False modid impid 0  0) declValue)
+      }
+
+pimportCon
+  = do{ id <- conid
+      ; lexeme LexASG
+      ; (modid,impid) <- qualifiedCon
+      ; return (id, DImport (Import False modid impid 0 0) declCon)
       }
 
 ----------------------------------------------------------------
@@ -208,7 +286,7 @@ pbindRhs
 ----------------------------------------------------------------
 -- data declarations
 ----------------------------------------------------------------
-pdata :: TokenParser [(Id,DCon)]
+pdata :: TokenParser (Id,[(Id,DCon)])
 pdata
   = do{ lexeme LexDATA
       ; id   <- typeid
@@ -218,10 +296,10 @@ pdata
           ; let tp  = foldl TAp (TCon id) (map TVar args)
           ; cons <- sepBy1 (pconDecl tp) (lexeme LexBAR)
           ; let con tag (id,tp) = (id,DCon Public (arityFromType tp) tag [])
-          ; return (zipWith con [0..] cons)
+          ; return (id,zipWith con [0..] cons)
           }
       <|> {- empty data types -}
-        do{ return ([]) }
+        do{ return (id,[]) }
       }
 
 pconDecl :: Type -> TokenParser (Id,Type)
@@ -605,6 +683,11 @@ conid
         }
   <?> "constructor"
 
+qualifiedCon
+  = do{ (mod,name) <- lexQualifiedCon
+      ; return (idFromString mod, idFromString name)
+      }
+
 
 typeid
   = do{ id <- identifier lexCon
@@ -660,6 +743,9 @@ lexOp
 lexCon :: TokenParser String
 lexCon
   = satisfy (\lex -> case lex of { LexCon s -> Just s; other -> Nothing })
+
+lexQualifiedCon
+  = satisfy (\lex -> case lex of { LexQualCon mod id -> Just (mod,id); other -> Nothing })
 
 lexConOp :: TokenParser String
 lexConOp

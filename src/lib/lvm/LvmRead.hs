@@ -57,14 +57,14 @@ test src
       ; putDoc (modulePretty instrPretty mod)
       }
 
-lvmReadFile :: FilePath -> IO LvmModule
+lvmReadFile :: FilePath -> IO (Module v)
 lvmReadFile fname
   = do{ bs <- Byte.readByteList fname
       ; ns <- newNameSupply
       ; return (lvmRead ns fname bs)
       }
 
-lvmRead :: NameSupply -> FilePath -> [Byte] -> LvmModule
+lvmRead :: NameSupply -> FilePath -> [Byte] -> (Module v)
 lvmRead ns fname bs
   = runRead readModule ns fname bs
 
