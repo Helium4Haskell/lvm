@@ -33,9 +33,11 @@ coreLetSort mod
 lsExpr :: Expr -> Expr
 lsExpr expr
   = case expr of
+      Let (Strict (Bind id rhs)) expr
+        -> Let (Strict (Bind id (lsExpr rhs))) (lsExpr expr)
       Let binds expr
         -> let bindss = sortBinds binds
-           in foldr Let expr bindss
+           in foldr Let (lsExpr expr) bindss
       Match id alts
         -> Match id (lsAlts alts)
       Lam id expr

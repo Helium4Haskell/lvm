@@ -1,0 +1,4 @@
+{- naar aanleiding van een bug in Helium -}
+module Shadow6 where
+
+main = let x = 41 in let x = 42 in x
