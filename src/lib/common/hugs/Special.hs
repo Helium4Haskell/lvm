@@ -22,7 +22,7 @@ module Special( doesFileExist
 
 import IO           ( IOMode(..), openFile, ReadMode, hClose )
 import IOExtensions ( readBinaryFile, writeBinaryFile )
-import IOExts       ( IORef, newIORef, writeIORef, readIORef )
+import Data.IORef   ( IORef, newIORef, writeIORef, readIORef )
 import LazyST       ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray )
 
 primitive unsafeCoerce "primUnsafeCoerce" :: a -> b

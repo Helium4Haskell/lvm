@@ -26,7 +26,6 @@ import InstrPretty
 import PPrint
 
 import System
-import IOExts
 
 -- Helium
 import Byte hiding (cat)

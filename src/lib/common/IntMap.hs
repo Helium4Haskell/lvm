@@ -33,8 +33,8 @@ module IntMap ( IntMap,
 --
 ----------------------------------------------------------------
 import Prelude hiding (null,map,lookup,filter)
-import Int
-import Bits
+import Data.Int
+import Data.Bits
 
 
 data IntMap a =

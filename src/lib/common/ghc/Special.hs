@@ -20,13 +20,14 @@ module Special( doesFileExist
               , unsafeCoerce
               ) where
 
-import Directory( doesFileExist )
-import IO       ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
-import IOExts   ( openFileEx, IOModeEx(..))
+import Directory  ( doesFileExist )
+import IO         ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
+import GHC.Handle ( openFileEx, IOModeEx(..))
 
 #if (__GLASGOW_HASKELL__ >= 503)
-import GHC.Base ( unsafeCoerce# )
-import ST       ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray)
+import GHC.Base         ( unsafeCoerce# )
+import GHC.Arr          ( STArray, newSTArray, readSTArray, writeSTArray)
+import Control.Monad.ST ( runST, ST ) 
 #else
 import GlaExts  ( unsafeCoerce# )
 import LazyST   ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray)

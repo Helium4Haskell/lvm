@@ -21,11 +21,11 @@ module Standard( trace, warning, assert
                , raiseIO, raiseErr
                ) where
 
-import IOExts  (unsafePerformIO)
-import List    (isPrefixOf)
+import GHC.IOBase (unsafePerformIO)
+import List       (isPrefixOf)
 import IO
-import System  (getEnv)
-import Special (doesFileExist,unsafeCoerce)
+import System     (getEnv)
+import Special    (doesFileExist,unsafeCoerce)
 
 ----------------------------------------------------------------
 -- three tuples
