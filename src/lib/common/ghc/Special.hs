@@ -23,7 +23,7 @@ import Directory( doesFileExist )
 import IO       ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
 import IOExts   ( openFileEx, IOModeEx(..) )
 
-#if (__GLASGOW_HASKELL__ == 503)
+#if (__GLASGOW_HASKELL__ >= 503)
 import ST       ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray)
 #else
 import LazyST   ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray)

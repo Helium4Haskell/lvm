@@ -136,7 +136,7 @@ data Lexeme     = LexUnknown Char
                 | LexCOMMA      -- ,
                 | LexQUOTE      -- `
                 | LexSEMI       -- ;
-                | LexBSLASH     -- \
+                | LexBSLASH     -- \ (niet meteen een enter hierachter vanwege -cpp)
                 | LexASG        -- =
                 | LexCOLCOL     -- ::
                 | LexDOT        -- .
