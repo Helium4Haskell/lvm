@@ -15,7 +15,7 @@ module Standard( trace, warning, assert
                , strict, seqList
                , foldlStrict, foldrStrict
                , Force, force
-               , searchPath, searchPathMaybe, getLvmPath
+               , searchPath, searchPathMaybe, getLvmPath, splitPath
                , fst3, snd3, thd3
                , unsafeCoerce
                , raiseIO, raiseErr
@@ -112,7 +112,7 @@ searchPath path ext name =
         
 searchPathMaybe :: [String] -> String -> String -> IO (Maybe String)
 searchPathMaybe  path ext name
-  = walk (map makeFName ("":path))
+  = walk (map makeFName path) -- was ("":path), but we don't want to look in the current directory by default
   where
     walk []         = return Nothing
     walk (fname:xs) = do{ exist <- doesFileExist fname
