@@ -34,7 +34,7 @@ import LvmImport  ( lvmImport )         -- resolve import declarations
 --
 ----------------------------------------------------------------
 message s
-  --   = return () 
+  -- = return () 
   = putStr s
 
 main

@@ -48,7 +48,7 @@ inlineExpr env expr
                     -> let e1' = inlineExpr env e1  -- de-annotate
                        in  inlineExpr (extendMap id e1' env) e2
 
-      -- trivial
+      -- trivial, inline everywhere
       Let id e1 e2  | trivial e1
                     -> let e1' = inlineExpr env (deAnnotate e1)
                        in inlineExpr (extendMap id e1' env) e2
@@ -57,7 +57,7 @@ inlineExpr env expr
                     -> let e1' = inlineExpr env (deAnnotate e1)
                        in inlineExpr (extendMap id e1' env) e2
 
-      -- inline-able let! binding
+      -- inline-able let! binding?
       Eval id (Note (Occur Once) e1) e2  
                     -> let e1' = inlineExpr env e1 -- de-annotate
                        in if (firstuse id e2)
@@ -82,8 +82,11 @@ inlineExpr env expr
       LetRec bs e   -> let (bs',env') = inlineBinds env bs 
                        in LetRec bs' (inlineExpr env' e)
 
-      Match id alts -> assert (not (elemMap id env)) "AsmInline.inlineExpr: invalid inlined identifier"  $
-                       Match id (inlineAlts env alts)
+      Match id alts -> case lookupMap id env of
+                         Just e  -> -- trivial inlining of a let! binding leads to this configuration.
+                                    -- a case-of-known transformation would actually remove this match.
+                                    Eval id (Note (Occur Once) e) (Match id (inlineAlts env alts))
+                         Nothing -> Match id (inlineAlts env alts)
 
       Ap id []      -> case lookupMap id env of
                          Just e   -> e

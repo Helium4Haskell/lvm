@@ -57,8 +57,10 @@ cgExpr :: Env -> Expr -> [Instr]
 cgExpr env expr
   = case expr of
       -- optimized schemes
-      Eval id0 (Note (Occur Once) e0) (Match id1 alts)  | id0 == id1 
-                        -> [EVAL 0 [ATOM (cgExpr env e0),ENTER]] ++ cgMatch env alts
+      Eval id1 (Note (Occur Once) e1) (Match id2 alts)  | id1 == id2 && whnf env e1
+                        -> [ATOM (cgExpr env e1)] ++ cgMatch env alts
+      Eval id1 (Note (Occur Once) e1) (Match id2 alts)  | id1 == id2 
+                        -> [EVAL 0 [ATOM (cgExpr env e1),ENTER]] ++ cgMatch env alts
       Eval id e1 e2     | whnf env e1
                         -> [ATOM (cgExpr env e1),VAR id] ++ cgExpr env e2
       Eval id1 e1 (Ap id2 []) | id1 == id2

@@ -58,9 +58,10 @@ occTop (Top id expr)
 occExpr :: Expr -> (Expr,Occ)
 occExpr expr
   = case expr of
-      -- TODO: if we determine that a variable is never used, we can
-      -- delete its occurrences *if* an inliner remove dead variables.
-      -- this would make the occurrence analysis more precise
+      -- TODO: if we determine that a let bound variable is never used, 
+      -- we can delete occurrences in its definition *if* an inliner 
+      -- removes all dead let bindings. This would make the occurrence 
+      -- analysis more precise
       Eval id e1 e2 -> let (e1',occ1)  = occExpr e1
                            (e2',occ2)  = occExpr e2
                            occ         = unionOcc occ1 occ2
