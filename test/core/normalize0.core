@@ -1,0 +1,6 @@
+-- test direct call in argument position
+module Normalize0 where
+
+instruction primDiv "divint" :: Int! -> Int! -> Int!
+
+main    = (\x -> x) (primDiv 42 2)

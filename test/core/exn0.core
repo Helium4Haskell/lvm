@@ -1,0 +1,8 @@
+module Exn0 where
+
+instruction primdiv "divint" :: Int! -> Int! -> Int!
+
+(/) x y  = case y of y -> case x of x -> primdiv x y
+
+-- test on divide by zero error
+main   = (/) 1 0

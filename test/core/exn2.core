@@ -1,0 +1,8 @@
+-- overflow
+module Exn2 where
+
+instruction primmul "mulint" :: Int! -> Int! -> Int!
+
+(*) x y  = case y of y -> case x of x -> primmul x y
+
+main  = (*) 12345678 12345678
