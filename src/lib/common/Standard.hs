@@ -91,7 +91,10 @@ instance (Force a,Force b) => Force (a,b) where
 searchPath path ext name
   = walk (map makeFName ("":path))
   where
-    walk []         = fail ("could not find " ++ show name)
+    walk []         = fail ("could not find " ++ show nameext ++
+                            "; compile " ++ show name ++ " first" ++
+                            " (if that fails, you might have a circular import)"
+                            )
     walk (fname:xs) = do{ exist <- doesFileExist fname
                         ; if exist
                            then return fname

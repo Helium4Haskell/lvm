@@ -25,6 +25,9 @@ import ModulePretty
 import InstrPretty
 import PPrint
 
+import System
+import IOExts
+
 {--------------------------------------------------------------
   lvmImport: replace all import declarations with
   abstract declarations or constructors/externs/customs
@@ -79,12 +82,14 @@ expandModule loaded mod
 
 expandDecl loaded modname DeclImport{declAccess = access@(Imported{importModule = imodname,importKind = DeclKindModule})}
   = case lookupMap imodname loaded of
-      Nothing   -> error ("LvmImport.expandDecl: import module is not loaded: " ++ stringFromId modname)
+      Nothing   -> notLoadedError (stringFromId modname) :: a
+                   --error ("LvmImport.expandDecl: import module is not loaded: " ++ stringFromId modname)
       Just imod | moduleName imod == modname 
-                -> error ("LvmImport.expandDecl: module imports itself: " ++ stringFromId modname)
+                -> selfImportError (stringFromId modname) :: a
+                   --error ("LvmImport.expandDecl: module imports itself: " ++ stringFromId modname)
       Just imod -> map importDecl (moduleDecls imod)
   where
-    importDecl decl   
+    importDecl decl
       = decl{ declAccess = access{importName = declName decl, importKind = declKindFromDecl decl} }
 
 expandDecl loaded modname decl
@@ -106,11 +111,13 @@ resolveImports loaded (modid,mod)
 
 resolveImport :: [Id] -> Id -> IdMap (Module v) -> Decl v -> IdMap (Module v)
 resolveImport visited modid loaded x@(DeclImport id access@(Imported public imodid impid kind major minor) customs)
-  | elem modid visited = error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
+  | elem modid visited = circularImportError (stringFromId imodid) (stringFromId impid) (map stringFromId visited)
+                         --error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
   | otherwise = 
     let mod = findMap modid loaded in 
     case lookupMap imodid loaded of
-      Nothing   -> error ("LvmImport.resolveImport: import module is not loaded: " ++ stringFromId imodid)
+      Nothing   -> notLoadedError (stringFromId imodid)
+                   --error ("LvmImport.resolveImport: import module is not loaded: " ++ stringFromId imodid)
       Just imod -> case lookupDecl impid kind (moduleDecls imod) of
                      []   -> notfound imodid impid
                      ds   -> case filter (not . isDeclImport) ds of
@@ -129,7 +136,25 @@ resolveImport visited modid loaded x@(DeclImport id access@(Imported public imod
       = updateMap modid mod' loaded
         
     notfound imodid impid
-      = error ("LvmImport.resolveImport: unresolved identifier: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
+      = notFoundError (stringFromId imodid) (stringFromId impid)
+        --error ("LvmImport.resolveImport: unresolved identifier: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
 
     ambigious imodid impid
-      = error ("LvmImport.resolveImport: ambigious import record: " ++ stringFromId imodid ++ "." ++ stringFromId impid)      
+      = ambigiousError (stringFromId imodid) (stringFromId impid)
+        --error ("LvmImport.resolveImport: ambigious import record: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
+
+ambigiousError       imodid impid = heliumError $
+    "Ambigious import: " ++ imodid ++ "." ++ impid
+notFoundError        imodid impid = heliumError $
+    imodid ++ "." ++ impid ++ " doesn't exist"
+notLoadedError       imodid       = heliumError $
+    "notLoaded:"++imodid
+circularImportError  imodid impid visited = heliumError $
+    "circularImport:" ++ imodid ++ "." ++ impid ++ " " ++ show visited
+selfImportError      modid        = heliumError $
+    modid ++ " imports itself"
+heliumError :: String -> a
+heliumError str =
+    unsafePerformIO $
+        do  putStrLn ("Import error: " ++ str)
+            exitWith (ExitFailure 1)
