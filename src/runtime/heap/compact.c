@@ -410,6 +410,8 @@ void compact_heap_maybe (void)
   double fw;
   Assert (gc_phase == Phase_idle);
 
+  check_heap_size(); /* check for heap overflow */
+
   /* LVM: we compact if FW > (percent_max/100) * stat_heap_size */
   fw = 1.5 * fl_cur_size;
   if (fw > (percent_max * 0.01) * Wsize_bsize(stat_heap_size))

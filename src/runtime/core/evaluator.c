@@ -31,7 +31,7 @@
 #ifdef DEBUG
 #define TRACE_TRACE
 #define TRACE_INSTR
-#undef TRACE_STACK
+#define TRACE_STACK
 #undef GC_AT_EACH_INSTR
 #endif
 
