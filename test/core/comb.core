@@ -3,7 +3,7 @@ module Comb where
 
 id x       = x
 const x y  = x
-comp f g x = f x (g x)
+comp f g x = let z = g x in f x z
 swap f x y = f y x
 
 main  = comp (swap const) id 42

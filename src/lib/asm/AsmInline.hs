@@ -16,7 +16,7 @@ import IdMap    ( IdMap, emptyMap, extendMap, deleteMap, elemMap, lookupMap )
 import Module   ( mapValues )
 
 import Asm
-import AsmOccur (asmOccur)
+import AsmOccur ( asmOccur )
 
 {---------------------------------------------------------------
   Inline environment maps identifiers to their definition
@@ -45,13 +45,28 @@ inlineExpr env expr
                     -> inlineExpr env e2
       -- once
       Let id (Note (Occur Once) e1) e2
-                    -> let e1' = inlineExpr env e1
+                    -> let e1' = inlineExpr env e1  -- de-annotate
                        in  inlineExpr (extendMap id e1' env) e2
 
-      -- many
+      -- inline-able let! binding
+      Eval id (Note (Occur Once) e1) e2  
+                    -> let e1' = inlineExpr env e1 -- de-annotate
+                       in if (firstuse id e2)
+                           -- firstuse is true, we can inline immediately
+                           then let env' = extendMap id (Eval id e1' (Ap id [])) env  -- NOTE: should we use a fresh id?
+                                in inlineExpr env' e2
+                           else let e2'  = inlineExpr env e2
+                                in if (firstuse id e2')
+                                    -- firstuse became true after inlining! re-inline this definition again (is this too expensive?)
+                                    then let env' = extendMap id (Eval id e1' (Ap id [])) emptyMap  -- NOTE: should we use a fresh id?
+                                         in inlineExpr env' e2'
+                                    -- otherwise, don't inline this definition
+                                    else Eval id (Note (Occur Once) e1') e2'
+      
+      -- basic cases
       Let id e1 e2  -> let env' = deleteMap id env
                        in Let id (inlineExpr env e1) (inlineExpr env' e2)
-
+      
       Eval id e1 e2 -> let env' = deleteMap id env 
                        in Eval id (inlineExpr env e1) (inlineExpr env' e2)
 
@@ -75,7 +90,7 @@ inlineExpr env expr
       Con id args   -> Con id  (inlineExprs env args)
       Prim id args  -> Prim id (inlineExprs env args)
       Lit lit       -> expr
-      Note note e   -> inlineExpr env e   -- de-annotate
+      Note note e   -> Note note (inlineExpr env e)
 
 inlineExprs :: Env -> [Expr] -> [Expr]
 inlineExprs env exprs
@@ -96,3 +111,26 @@ inlineAlt env (Alt pat expr)
     patIds (PatVar id)     = [id]
     patIds (PatCon id ids) = (id:ids)
     patIds (PatLit lit)    = []
+
+
+{---------------------------------------------------------------
+  firstuse
+---------------------------------------------------------------}
+firstuse x expr
+  = first x False expr
+
+firsts x c exprs
+  = foldl (first x) c exprs
+
+first x c expr
+  = case expr of
+      LetRec bs e   -> firsts x c (map snd bs ++ [e])
+      Let id e1 e2  -> firsts x c [e1,e2]
+      Eval id e1 e2 -> first x False e1
+      Match id alts -> False
+      Prim id args  -> firsts x False args
+      Ap id args    | null args && id == x -> True
+                    | not (null args)      -> firsts x c ([Ap id []] ++ args)
+      Con id args   -> firsts x c args
+      Note note e   -> first x c e
+      other         -> c
