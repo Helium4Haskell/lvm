@@ -152,12 +152,10 @@
 # define Trace(msg)             { print(msg); print("\n"); }
 # define Trace_value(msg,x)     { print( msg ); print( " -- " ); print_value(thread->module,x); print("\n"); }
 # define Trace_value2(msg,x,y)  { print( msg ); print( " -- " ); print_value(thread->module,x); print(" -- "); print_value(thread->module,y); print("\n"); }
-# define Trace_i_i(msg, i, j)   { print( msg ); print(" %i %i\n", i, j); }
 #else
 # define Trace(msg)
 # define Trace_value(msg,x)
 # define Trace_value2(msg,x,y)
-# define Trace_i_i(msg, i, j)
 #endif
 
 #define Trace_enter(msg,x)      Trace_value("enter: " msg,x)
@@ -975,7 +973,6 @@ returncon:
       wsize_t n   = pc[0];
       long    ofs = pc[1];
       wsize_t i;
-      Trace ("MATCHINT");
 
       for( i = 1; i <= n; i++) {
         if ((long)pc[i*2] == x) { ofs = pc[i*2+1]; Pop(); break; }
@@ -992,60 +989,51 @@ returncon:
 ----------------------------------------------------------------------*/
     Instr(PUSHCODE): {
       Push_code_fixup(*pc); pc++; Next;
-      Trace_stack ("PUSHCODE");
     }
 
     Instr(PUSHCAF): {
       Push_caf_fixup(*pc); pc++; Next;
-      Trace_stack ("PUSHCAF");
     }
 
     Instr(PUSHCONT): {
       long ofs = *pc++;
       Push_frame_val( frame_cont, Val_code(pc + ofs) );
-      Trace_stack ("PUSHCONT");
       Next;
     }
 
     Instr(PUSHVAR): {
       Require( sp + *pc < Frame_limit(fp) );
       Push(sp[*pc++]);
-      Trace_stack ("PUSHVAR");
       Next;
     }
 
     Instr(PUSHVAR0): {
       Require( sp < Frame_limit(fp) );
       Push(sp[0]);
-      Trace_stack ("PUSHVAR0");
       Next;
     }
 
     Instr(PUSHVAR1): {
       Require( sp + 1 < Frame_limit(fp) );
       Push(sp[1]);
-      Trace_stack ("PUSHVAR1");
       Next;
     }
 
     Instr(PUSHVAR2): {
       Require( sp + 2 < Frame_limit(fp) );
       Push(sp[2]);
-      Trace_stack ("PUSHVAR2");
       Next;
     }
 
     Instr(PUSHVAR3): {
       Require( sp + 3 < Frame_limit(fp)  );
       Push(sp[3]);
-      Trace_stack ("PUSHVAR3");
       Next;
     }
 
     Instr(PUSHVAR4): {
       Require( sp + 4 < Frame_limit(fp) );
       Push(sp[4]);
-      Trace_stack ("PUSHVAR4");
       Next;
     }
 
@@ -1054,7 +1042,6 @@ returncon:
       Push(sp[*pc++]);
       Require( sp + *pc < Frame_limit(fp) );
       Push(sp[*pc++]);
-      Trace_stack ("PUSHVARS2");
       Next;
     }
 
@@ -1063,7 +1050,6 @@ returncon:
 
     Instr(PUSHINT): {
       Push(Val_long(*pc++));
-      Trace_stack ("PUSHINT");
       Next;
     }
 
@@ -1073,7 +1059,6 @@ returncon:
       value decl = *(Valptr_fixup(*pc++));
       Require(Is_block(decl) && Tag_val(decl) == Rec_bytes);
       Push(Field(decl,Field_bytes_string));
-      Trace_stack ("PUSHBYTES");
       Next;
     }
 
@@ -1083,8 +1068,6 @@ returncon:
       Require( m >= 0 );
       while (n > 0) { sp[n+m-1] = sp[n-1]; n--; };
       Pop_n(m);
-      Trace_i_i ("SLIDE", n, m)
-      Trace_stack ("SLIDE");
       Next;
     }
 
@@ -1093,7 +1076,6 @@ returncon:
       long n = *pc++;
       Require( sp + n <= fp );
       sp[n] = 0;
-      Trace_stack ("STUB");
       Next;
     }
 
@@ -1103,7 +1085,6 @@ returncon:
     Instr(ALLOCAP): {
       value   ap;
       wsize_t size = *pc++;
-      Trace ("ALLOCAP");
       Require( size > 0 );
       Allocate(ap,size,Inv_tag);
       while (size > 0) { size--; Field(ap, size) = 0; }
@@ -1116,7 +1097,6 @@ returncon:
       wsize_t n   = *pc++;
       wsize_t i;
       value ap;
-      Trace ("PACKAP");
       Require( sp + ofs <= fp );
       ap = sp[ofs];
       Require( Wosize_val(ap) == n && Tag_val(ap) == Inv_tag );
@@ -1168,7 +1148,6 @@ returncon:
 
     Instr(NEWAP1): {
       value ap;
-      Trace ("NEWAP1");
       Require( sp + 1 <= fp );
       Alloc_small(ap,1,Ap_tag);
       Field(ap,0) = sp[0];
@@ -1178,7 +1157,6 @@ returncon:
 
     Instr(NEWAP2): {
       value ap;
-      Trace ("NEWAP2");
       Require( sp + 2 <= fp );
       Alloc_small(ap,2,Ap_tag);
       Field(ap,0) = sp[0];
@@ -1190,7 +1168,6 @@ returncon:
 
     Instr(NEWAP3): {
       value ap;
-      Trace ("NEWAP3");
       Require( sp + 3 <= fp );
       Alloc_small(ap,3,Ap_tag);
       Field(ap,0) = sp[0];
@@ -1203,7 +1180,6 @@ returncon:
 
     Instr(NEWAP4): {
       value ap;
-      Trace ("NEWAP4");
       Require( sp + 4 <= fp );
       Alloc_small(ap,4,Ap_tag);
       Field(ap,0) = sp[0];
@@ -1218,7 +1194,6 @@ returncon:
 
     Instr(NEWNAP1): {
       value nap;
-      Trace ("NEWNAP1");
       Require( sp + 1 <= fp );
       Alloc_small(nap,1,Nap_tag);
       Field(nap,0) = sp[0];
@@ -1228,7 +1203,6 @@ returncon:
 
     Instr(NEWNAP2): {
       value nap;
-      Trace ("NEWNAP2");
       Require( sp + 2 <= fp );
       Alloc_small(nap,2,Nap_tag);
       Field(nap,0) = sp[0];
@@ -1240,7 +1214,6 @@ returncon:
 
     Instr(NEWNAP3): {
       value nap;
-      Trace ("NEWNAP3");
       Require( sp + 3 <= fp );
       Alloc_small(nap,3,Nap_tag);
       Field(nap,0) = sp[0];
@@ -1253,7 +1226,6 @@ returncon:
 
     Instr(NEWNAP4): {
       value nap;
-      Trace ("NEWNAP4");
       Require( sp + 4 <= fp );
       Alloc_small(nap,4,Nap_tag);
       Field(nap,0) = sp[0];
@@ -1491,7 +1463,6 @@ returncon:
     Instr(TESTINT): {
       long i   = *pc++;
       long ofs = *pc++;
-      Trace ("TESTINT");
       if (sp[0] != Val_long(i)) pc += ofs;
       Next;
     }
@@ -1500,7 +1471,6 @@ returncon:
     #if defined(LVM_CHECK_BOUNDS)
       long i;
     #endif
-      Trace ("ADDINT");
       Require( Is_long(sp[0]) && Is_long(sp[1]) );
     #if defined(LVM_CHECK_BOUNDS)
       i = Long_val(sp[0]) + Long_val(sp[1]);
@@ -1519,13 +1489,11 @@ returncon:
     Instr(SUBINT): {
     #if defined(LVM_CHECK_BOUNDS)
       long i = Long_val(sp[0]) - Long_val(sp[1]);
-      Trace ("SUBINT");
       Pop();
       if (i > Max_long) Raise_arithmetic_exn( Int_overflow );
       if (i < Min_long) Raise_arithmetic_exn( Int_underflow );
       sp[0] = Val_long(i);
     #else
-      Trace ("SUBINT");
       sp[1] = (value)( (long)sp[0] - (long)sp[1] + 1 );
       Pop();
     #endif
