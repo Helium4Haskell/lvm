@@ -1,0 +1,25 @@
+-- map
+module Map where
+
+instruction primadd "addint" :: Int! -> Int! -> Int!
+instruction primmul "mulint" :: Int! -> Int! -> Int!
+
+data List a   = Nil | Cons a (List a)
+
+add x y = let! x = x in let! y = y in primadd y x
+mul x y = let! x = x in let! y = y in primmul y x
+
+
+
+map f xs  = case xs of
+              Cons x xx -> Cons (f x) (map f xx)
+              Nil       -> Nil
+
+foldr f z xs  = case xs of
+                  Cons x xx -> f x (foldr f z xx)
+                  Nil       -> z
+
+sum xs    = foldr add 0 xs
+square x  = mul x x
+
+main = sum (map square (Cons 1 (Cons 2 (Cons 3 (Cons 4 Nil)))))
