@@ -265,6 +265,13 @@ core/CoreParse.o : common/PPrint.hi
 core/CoreLexer.o : core/CoreLexer.hs
 core/CoreLexer.o : common/Id.hi
 core/CoreLexer.o : common/Standard.hi
+core/CoreParser.o : core/CoreParser.hs
+core/CoreParser.o : core/Core.hi
+core/CoreParser.o : common/Id.hi
+core/CoreParser.o : common/Byte.hi
+core/CoreParser.o : core/CoreLex.hi
+core/CoreParser.o : parsec/Parsec.hi
+core/CoreParser.o : common/IdSet.hi
 core/CoreLex.o : core/CoreLex.hs
 core/CoreLex.o : parsec/Parsec.hi
 core/CoreLex.o : common/Id.hi
