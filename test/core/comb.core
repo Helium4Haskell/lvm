@@ -1,0 +1,9 @@
+-- basic combinators
+module Comb where
+
+id x       = x
+const x y  = x
+comp f g x = f x (g x)
+swap f x y = f y x
+
+main  = comp (swap const) id 42
