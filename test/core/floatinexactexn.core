@@ -19,6 +19,7 @@ data ArithmeticException
   | InvalidOperation                  -- general arithmetic error
   | UnEmulated                        -- cannot emulate float instruction
   | NegativeSquareRoot                -- square root of negative number
+  | NegativeLogarithm                 -- logarithm of a negative number
   | FloatStackOverflow                -- float hardware stack has overflowed
   | FloatStackUnderflow               -- float hardware stack has underflowed
 

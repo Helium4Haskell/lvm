@@ -106,6 +106,7 @@ double fp_pow( double x, double y )
 
 double fp_sqrt( double x )
 {
+  if (x<0.0) raise_arithmetic_exn( Fpe_sqrtneg );
   return sqrt(x);
 }
 
@@ -116,6 +117,7 @@ double fp_exp( double x )
 
 double fp_log( double x )
 {
+  if (x<0.0) raise_arithmetic_exn( Fpe_logneg );
   return log(x);
 }
 

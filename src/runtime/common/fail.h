@@ -81,6 +81,7 @@ enum exn_arithmetic {
   Fpe_error,
   Fpe_unemulated,
   Fpe_sqrtneg,
+  Fpe_logneg,
   Fpe_stackoverflow,
   Fpe_stackunderflow,
 
