@@ -9,7 +9,7 @@
 
 -- $Id$
 
-module CoreParse( coreParse ) where
+module CoreParse( coreParse, coreParseExpr ) where
 
 import Standard( foldlStrict )
 import Parsec hiding (satisfy)
@@ -19,7 +19,7 @@ import IdMap
 import IdSet
 import Core
 import CoreLexer
-
+import CorePretty
 
 ----------------------------------------------------------------
 -- Parse a Core source file
@@ -27,12 +27,23 @@ import CoreLexer
 coreParse :: FilePath -> IO (CoreModule)
 coreParse fname
   = do{ input  <- readFile fname
-      ; case runParser parseModule () fname (layout (lexer (1,1) input)) of
+      ; res <- case runParser parseModule () fname (layout (lexer (1,1) input)) of
           Left err
             -> ioError (userError ("parse error: " ++ show err))
           Right res
             -> return res
+      --; (putStrLn.show) res
+      ; return res
       }
+
+coreParseAny :: TokenParser a -> String -> String -> a
+coreParseAny parser fname input =
+    case runParser parser () fname (lexer (1,1) input) of {
+        Left  err -> error ("\n" ++ fname ++ ": " ++ show err);
+        Right res -> res;
+    }
+
+coreParseExpr exprName input = coreParseAny pexpr exprName input
 
 ----------------------------------------------------------------
 -- Basic parsers
@@ -86,7 +97,7 @@ parseModule :: TokenParser (CoreModule)
 parseModule
   = do{ lexeme LexMODULE
       ; moduleId  <- conid <?> "module name"
-      ; (exports,exportCons,exportData) <- pexports 
+      ; (exports, exportCons, exportData) <- pexports
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
       ; (abstracts,absConDecls) <- pabstracts
