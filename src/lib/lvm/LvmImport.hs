@@ -29,7 +29,7 @@ import System
 import IOExts
 
 -- Helium
-import Byte
+import Byte hiding (cat)
 import Id
 
 {--------------------------------------------------------------
