@@ -24,10 +24,11 @@ import Instr    ( Instr(..), Alt(..), Pat(..), Var(..)
 ---------------------------------------------------------------}
 instrRewrite :: [Instr] -> [Instr]
 instrRewrite instrs
-  = peepholes  (rewrites (rewrites instrs))
+  = peepholes (rewrites (rewrites instrs))
 
 rewrites instrs
   = case instrs of
+  {-
       PUSHVAR (Var id 0 depth) : is
         | not (useds [id] is)
         -> rewrites (squeeze depth 1 is ++ [USE id])
@@ -39,7 +40,7 @@ rewrites instrs
       PUSHVAR (Var id0 2 d0) : PUSHVAR (Var id1 2 d1) : PUSHVAR (Var id2 2 d2) : is
         | not (useds [id0,id1,id2] is)
         -> rewrites (squeeze d2 3 is ++ [USE id0, USE id1, USE id2])
-
+   -}
       PUSHCODE f : is
         -> rewritePushCode f (rewrites is)
 
@@ -69,23 +70,29 @@ rewrites instrs
         -> rewriteEval (rewrites is') is
 
       MATCHCON alts : is
-        -> rewriteMatch MATCHCON alts : rewrites is
+        -> [rewriteMatch MATCHCON alts is]
 
       SWITCHCON alts : is
-        -> rewriteMatch SWITCHCON alts : rewrites is
+        -> [rewriteMatch SWITCHCON alts is]
 
       MATCHINT alts : is
-        -> rewriteMatch MATCHINT alts  : rewrites is
+        -> [rewriteMatch MATCHINT alts is]
+
+      SLIDE n0 m0 d0 : SLIDE n1 m1 d1 : is
+        | n1 <= n0  -> SLIDE n1 (m0+m1-(n0-n1)) d1 : rewrites is
 
       instr:instrs  -> instr:rewrites instrs
       []            -> []
 
 
-rewriteMatch match alts
-  = match (map rewriteAlt alts)
+rewriteMatch match alts instrs
+  = match (map (rewriteAlt instrs) alts)
 
-rewriteAlt (Alt pat is)
-  = Alt pat (rewrites is)
+rewriteAlt instrs (Alt pat [])
+  = Alt pat []
+
+rewriteAlt instrs (Alt pat is)
+  = Alt pat (rewrites (is++instrs))
 
 
 -- rewrite PUSHCODE
@@ -107,12 +114,16 @@ rewritePushCode f instrs
 
 -- rewrite EVAL
 rewriteEval evalis is
-  = case span isUSE (reverse evalis) of
+  = {- case span isUSE (reverse evalis) of
       (uses, RETURN : SLIDE 1 0 depth : instr : rest)
         -> squeeze depth 3 (reverse rest ++ [instr]) ++ rewrites (is ++ uses)
       other
-        -> case evalis of
+        -> -}
+           case evalis of
              (PUSHVAR (Var id ofs d) : SLIDE 1 m e : ENTER : uses)
+                | all isUSE uses
+                -> rewrites ([EVALVAR (Var id (ofs-3) d)] ++ is ++ uses)
+             (PUSHVAR (Var id ofs d) : ENTER : uses)
                 | all isUSE uses
                 -> rewrites ([EVALVAR (Var id (ofs-3) d)] ++ is ++ uses)
              other

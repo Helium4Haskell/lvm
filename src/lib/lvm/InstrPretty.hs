@@ -39,7 +39,9 @@ ppInstr instr
       PARAM       id          -> text name <+> ppId id
       USE         id          -> text name <+> ppId id
       NOP                     -> text name
-
+      
+      ATOM        is          -> nest 2 (text name <$> ppInstrs is)
+      INIT        is          -> nest 2 (text name <$> ppInstrs is)
 
     -- structured instructions
       CATCH instrs            -> nest 2 (text name <$> ppInstrs instrs)

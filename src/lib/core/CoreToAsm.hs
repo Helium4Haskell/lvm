@@ -30,15 +30,15 @@ import CoreLift       ( coreLift )        -- lambda-lift, ie. make free variable
 ---------------------------------------------------------------}
 coreToAsm :: NameSupply -> CoreModule -> Asm.AsmModule
 coreToAsm supply mod
-  = exprToTop
-  $ coreLift
-  $ coreLetSort
-  $ coreFreeVar
-  $ coreNormalize supply2
-  $ coreSaturate supply1
-  $ coreRename supply0
-  $ mod
-  where
+  = exprToTop 
+          $ coreLift
+          $ coreLetSort
+          $ coreFreeVar
+          $ coreNormalize supply2
+          $ coreSaturate supply1
+          $ coreRename supply0
+          $ mod
+  where        
     (supply0:supply1:supply2:supplies) = splitNameSupplies supply
 
 exprToTop :: CoreModule -> Asm.AsmModule
@@ -130,7 +130,16 @@ asmAtom atom args
       Var id    -> Asm.Ap id args
       Con id    -> Asm.Con id args
       Lit lit   | null args -> Asm.Lit (asmLit lit)
+      Let binds expr
+                -> asmAtomBinds binds (asmAtom expr args)
       other     -> error "CoreToAsm.asmAtom: non atomic expression (do 'coreNormalise' first?)"
+
+asmAtomBinds binds atom
+  = case binds of
+      NonRec (Bind id expr) -> Asm.Let id (asmAtom expr []) atom
+      Rec binds             -> Asm.LetRec [(id,asmAtom expr []) | Bind id expr <- binds] atom
+      other                 -> error "CoreToAsm.asmAtomBinds: strict binding as atomic expression (do 'coreNormalise first?)"
+
 
 asmLit lit
   = case lit of
@@ -148,4 +157,11 @@ isAtomic prim expr
       Var id    -> not (elemSet id prim)
       Con id    -> True
       Lit lit   -> True
+      Let binds expr
+                -> isAtomicBinds prim binds && isAtomic prim expr
       other     -> False
+
+isAtomicBinds prim binds
+  = case binds of
+      Strict bind  -> False
+      other        -> all (isAtomic prim) (snd (unzipBinds (listFromBinds binds)))

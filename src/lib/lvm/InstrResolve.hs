@@ -66,7 +66,8 @@ resolveVar (Var id _ _)
 
 alternative depth (R r)
   = R (\(base,env,_) -> let (x,depth') = r (base,env,depth)
-                        in assert (depth'==base) ("InstrResolve.alternative: still elements on the stack " ++ show depth' ++ ", " ++ show base) $
+                        in --- assert (depth'==base) ("InstrResolve.alternative: still elements on the stack " ++ show depth' ++ ", " ++ show base) $
+                           assert (depth'==depth+1) ("InstrResolve.alternative: invalid elements on the stack " ++ show depth' ++ ", " ++ show depth) $
                            (x,depth'))
 
 runResolve (R r)
@@ -84,13 +85,13 @@ instrResolve instrs
 resolves :: [Instr] -> Resolve [Instr]
 resolves instrs
   = case instrs of
-      (PARAM id : instrs)     -> do{ push 1; bind id (resolves instrs) }
-      (VAR id : instrs)       -> bind id (resolves instrs)
-      (instr : instrs)        -> do{ is <- resolve instr
-                                   ; iss <- resolves instrs
-                                   ; return (is ++ iss)
-                                   }
-      []                      -> return []
+      (PARAM id : instrs)       -> do{ push 1; bind id (resolves instrs) }
+      (VAR id : instrs)         -> bind id (resolves instrs)
+      (instr : instrs)          -> do{ is <- resolve instr
+                                     ; iss <- resolves instrs
+                                     ; return (is ++ iss)
+                                     }
+      []                        -> return []
 
 resolve :: Instr -> Resolve [Instr]
 resolve (PUSHVAR v)
@@ -131,6 +132,13 @@ resolve (EVAL is)
       }
 
 resolve (CATCH is)
+  = do{ pop 1
+      ; push 3
+      ; is' <- resolves is
+      ; return (PUSHCATCH : is')
+      }
+
+{-
   = do{ b   <- base
       ; pop 1
       ; push 3
@@ -139,7 +147,8 @@ resolve (CATCH is)
       ; pop (d-b)
       ; return (PUSHCATCH : is')
       }
-
+-}
+{-
 resolve (RESULT is)
   = do{ b   <- base
       ; d   <- depth
@@ -150,6 +159,12 @@ resolve (RESULT is)
          then return (is' ++ [SLIDE 1 (d'-b-1) (d'-1), ENTER])
          else return (is' ++ [SLIDE (d'-d) (d-b) d,ENTER])
       }
+-}
+resolve (ATOM is)
+  = resolveSlide 1 is
+
+resolve (INIT is)
+  = resolveSlide 0 is
 
 resolve (MATCHCON alts)
   = resolveAlts MATCHCON alts
@@ -163,6 +178,14 @@ resolve (MATCHINT alts)
 resolve instr
   = do{ effect instr; return [instr] }
 
+resolveSlide n is
+  = do{ d0  <- depth
+      ; is' <- resolves is
+      ; d1  <- depth
+      ; let m = d1-d0-n
+      ; pop m
+      ; return (is' ++ [SLIDE n m (d1-n)])
+      }
 
 resolveAlts match alts
   = do{ pop 1
@@ -171,21 +194,29 @@ resolveAlts match alts
       ; return [match alts']
       }
 
+{-
 resolveAlt (Alt pat [])
   = do{ b <- base
       ; d <- depth
       ; pop (d-b)
       ; return (Alt pat [])
       }
+-}
+
+resolveAlt (Alt pat [])
+  = do{ push 1
+      ; return (Alt pat [])
+      }
 
 resolveAlt (Alt pat is)
   = do{ is' <- resolves is
-      ; return (Alt pat is')
+      ; return (Alt pat (is'))
       }
 
 
 effect instr
   = case instr of
+      ENTER            -> pop 1
       RAISE            -> pop 1
 
       CALL global      -> do{ pop (arityFromGlobal global); push 1 }

@@ -72,6 +72,8 @@ data Instr    =
               | PARAM       !Id
               | USE         !Id
               | NOP
+              | ATOM        ![Instr]
+              | INIT        ![Instr]
 
 
               -- structured instructions
@@ -368,6 +370,8 @@ enumFromInstr instr
       PARAM       id          -> -2
       USE         id          -> -3
       NOP                     -> -4
+      ATOM        instrs      -> -5
+      INIT        instrs      -> -6
 
 
     -- structured instructions
@@ -503,6 +507,8 @@ nameFromInstr instr
       PARAM       id          -> "PARAM"
       USE         id          -> "USE"
       NOP                     -> "NOP"
+      ATOM        is          -> "ATOM"
+      INIT        is          -> "INIT"
 
 
     -- structured instructions

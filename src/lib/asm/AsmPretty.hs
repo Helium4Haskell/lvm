@@ -40,11 +40,11 @@ ppArg expr
 
 ppExprEx pars expr
   = case expr of
-      Let id atom e   -> pars $ (text "let" <+> ppBind (id,atom)) <$> nest 3 (text "in" <+> ppExpr e)
-      LetRec binds e  -> pars $ nest 7 (text "letrec" <+> vcat (map ppBind binds)) <$> nest 3 (text "in" <+> ppExpr e)
+      Let id atom e   -> pars $ align $ hang 3 (text "let" <+> ppBind (id,atom)) <$> (text "in" <+> ppExpr e)
+      LetRec binds e  -> pars $ align $ hang 7 (text "letrec" <+> vcat (map ppBind binds)) <$> nest 3 (text "in" <+> ppExpr e)
       Eval id e e'    -> pars $ align $ hang 7 (text "let!" <+> ppId id <+> text "=" </> ppExpr e) 
                                         <$> nest 3 (text "in" <+> ppExpr e')
-      Match id alts   -> pars $ nest 2 (text "match" <+> ppId id <+> text "with" <$> vcat (map ppAlt alts))
+      Match id alts   -> pars $ align $ hang 2 (text "match" <+> ppId id <+> text "with" <$> vcat (map ppAlt alts))
       Prim id args    -> pars $ text "prim" <> char '[' <> (ppId id) <+> hsep (map ppArg args) <> char ']'
       Ap id []        -> ppId id
       Ap id args      -> pars $ ppId id <+> hsep (map ppArg args)

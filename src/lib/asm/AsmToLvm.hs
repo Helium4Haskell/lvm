@@ -44,7 +44,7 @@ codegen env top
 ---------------------------------------------------------------}
 cgTop :: Env -> Top -> [Instr]
 cgTop env (Top params expr)
-  = [ARGCHK (length params)] ++ cgParams env params ++ cgExpr env expr
+  = [ARGCHK (length params)] ++ [ATOM (cgParams env params ++ cgExpr env expr)] ++ [ENTER]
 
 cgParams env params
   = map PARAM (reverse params)
@@ -55,31 +55,48 @@ cgParams env params
 cgExpr :: Env -> Expr -> [Instr]
 cgExpr env expr
   = case expr of
-      LetRec binds expr -> cgRec env binds ++ cgExpr env expr
-      Let id atom expr  -> cgAtom env atom ++ [VAR id] ++ cgExpr env expr
-      Eval id expr expr'-> [EVAL (cgExpr env expr)] ++ [VAR id] ++ cgExpr env expr'
+      LetRec binds expr -> cgLetRec env binds ++ cgExpr env expr
+      Let id atom expr  -> cgLet env id atom ++ cgExpr env expr
+      Eval id expr expr'-> [EVAL [ATOM (cgExpr env expr),ENTER]] ++ [VAR id] ++ cgExpr env expr'
       Match id alts     -> cgVar env id ++ cgMatch env alts
       Prim id args      -> cgPrim env id args
-      atom              -> [RESULT (cgAtom env atom)]
+      atom              -> (cgAtom env atom)
 --      other             -> error "AsmToCode.cgExpr: undefined case"
 
 {---------------------------------------------------------------
- recursive bindings
+ let bindings
 ---------------------------------------------------------------}
-cgRec env binds
+cgLet env id atom
+  = cgAtom env atom ++ [VAR id]
+
+cgLetRec env binds
   = concat (map (cgAlloc env) binds ++ map (cgInit env) binds)
 
 cgAlloc env (id,atom)
+  = [ATOM (cgAlloc' env atom),VAR id]
+
+cgAlloc' env atom
   = case atom of
-      Asm.Ap x args   -> [ALLOCAP (length args + 1),VAR id]
-      Asm.Con x args  -> [ALLOCCON (conFromId x (length args) env),VAR id]
-      Asm.Lit lit     -> error "AsmToCode.cgAlloc: literal in recursive binding."
+      Asm.Ap x args    -> [ALLOCAP (length args + 1)]
+      Asm.Con x args   -> [ALLOCCON (conFromId x (length args) env)]
+      Asm.Let id e1 e2 -> cgAlloc' env e2
+      Asm.LetRec bs e2 -> cgAlloc' env e2
+      Asm.Lit lit      -> error "AsmToCode.cgAlloc': literal in recursive binding."
+      other            -> error "AsmToCode.cgAlloc': non-atomic expression encountered."
 
 cgInit env (id,atom)
+  = [INIT (cgInit' env id atom)]
+
+cgInit' env id atom
   = case atom of
-      Asm.Ap x args   -> cgArgs env args ++ cgVar env x ++ [PACKAP (varFromId id) (length args + 1)]
-      Asm.Con x args  -> cgArgs env args ++ [PACKCON (conFromId x (length args) env) (varFromId id)]
-      Asm.Lit lit     -> error "AsmToCode.cgInit: literal in recursive binding."
+      Asm.Ap x args    -> cgArgs env args ++ cgVar env x ++ [PACKAP (varFromId id) (length args + 1)]
+      Asm.Con x args   -> cgArgs env args ++ [PACKCON (conFromId x (length args) env) (varFromId id)]
+      Asm.Let id e1 e2 -> cgLet env id e1 ++ cgInit' env id e2
+      Asm.LetRec bs e2 -> cgLetRec env bs ++ cgInit' env id e2
+      Asm.Lit lit      -> error "AsmToCode.cgInit: literal in recursive binding."
+      other            -> error "AsmToCode.cgInit: non-atomic expression encountered."
+
+
 
 {---------------------------------------------------------------
   alternatives
@@ -110,9 +127,9 @@ cgAlts env def alts
 cgAlt env (Alt pat expr)
   = case pat of
       PatCon id params  -> Instr.Alt (Instr.PatCon (conFromId id (length params) env))
-                                    (map PARAM (reverse params) ++ cgExpr env expr)
-      PatLit (LitInt i) -> Instr.Alt (Instr.PatInt i) (cgExpr env expr)
-      PatVar id         -> Instr.Alt (Instr.PatDefault) ([PARAM id] ++ cgExpr env expr)
+                                    [ATOM (map PARAM (reverse params) ++ cgExpr env expr)]
+      PatLit (LitInt i) -> Instr.Alt (Instr.PatInt i) [ATOM (cgExpr env expr)]
+      PatVar id         -> Instr.Alt (Instr.PatDefault) [ATOM ([PARAM id] ++ cgExpr env expr)]
       other             -> error "AsmToCode.cgAlt: unknown pattern"
 
 
@@ -128,21 +145,27 @@ cgPrim env id args
                                      else result (CALL (Global id 0 arity))
       Just instr -> if (isCATCH instr)
                      then case args of
-                            [handler,atom] -> cgAtom env handler ++ [CATCH [RESULT (cgAtom env atom)]]
+                            [handler,atom] -> cgAtom env handler ++ [CATCH (cgAtom env atom)]
                             other          -> error ("AsmToCode.cgPrim: CATCH expects 2 arguments")
                      else result instr
   where
-    result instr  = [RESULT (cgArgs env args ++ [instr])]
+    result instr  = [ATOM (cgArgs env args ++ [instr])]
 
 {---------------------------------------------------------------
   atomic expressions
 ---------------------------------------------------------------}
 cgAtom env atom
+  = [ATOM (cgAtom' env atom)]
+
+cgAtom' env atom
   = case atom of
       Ap id args  -> cgArgs env args ++ cgVar env id ++
                       (if null args then [] else [NEWAP (length args + 1)])
       Con id args -> cgArgs env args ++ [NEWCON (conFromId id (length args) env) ]
       Lit lit     -> cgLit lit
+      Let id e1 e2-> cgLet env id e1 ++ cgAtom' env e2
+      LetRec bs e2-> cgLetRec env bs ++ cgAtom' env e2
+      other       -> error ("AsmToCode.cgAtom: non-atomic expression encountered")
 
 cgArgs env args
   = concatMap (cgAtom env) (reverse args)

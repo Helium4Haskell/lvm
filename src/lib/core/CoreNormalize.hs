@@ -20,6 +20,7 @@
 -- * a Lit
 -- * a Con
 -- * a normalised Ap
+-- * a normalised Let(Rec) expression 
 --
 -- pre: [coreNoShadow, coreSaturate]
 ----------------------------------------------------------------
@@ -71,6 +72,7 @@ normExpr env expr
          other    -> expr'
 
 -- can return lambda's on top
+normBind :: Env -> Expr -> Expr
 normBind env expr
   = case expr of
       Let binds expr    -> let (env1,env2) = splitEnv env
@@ -98,7 +100,9 @@ normAtom env expr
       Lam _ _           -> freshBinding
       Let binds expr    -> let (env1,env2) = splitEnv env
                                (atom,f)    = normAtom env1 expr
-                           in  (atom, Let (normBinds env2 binds) . f)
+                               (abinds,g)  = normAtomBinds env2 binds
+                           in  -- (atom, Let (normBinds env2 binds) . f)
+                               (abinds atom, f . g)
       Ap expr1 expr2    -> let (env1,env2) = splitEnv env
                                (atom,f)    = normAtom env1 expr1
                                (arg,g)     = normArg  env2 expr2
@@ -110,6 +114,15 @@ normAtom env expr
                                expr'       = normBind env1 expr
                                id          = uniqueId env2
                            in  (Var id, Let (NonRec (Bind id expr')))
+
+normAtomBinds :: Env -> Binds -> (Expr -> Expr, Expr -> Expr)
+normAtomBinds env binds
+  = let (binds',(env',f)) = mapAccumBinds norm (env,id) binds 
+    in (Let binds', f)
+  where
+    norm (env,f) id expr    = let (env1,env2) = splitEnv env
+                                  (atom,g)    = normAtom env1 expr
+                              in (Bind id atom, (env2, f . g))
 
 -- just as an atomic expression but binds 'direct' applications (ie. externs & instructions)
 normArg env expr

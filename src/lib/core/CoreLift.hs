@@ -174,7 +174,15 @@ isAtomExpr env expr
       Var id    -> not (isPrimitive env id)
       Con id    -> True
       Lit lit   -> True
+      Let binds expr  
+                -> isAtomBinds env binds && isAtomExpr env expr
       other     -> False
+
+isAtomBinds env binds
+  = case binds of
+      Strict bind           -> False
+      NonRec (Bind id expr) -> isAtomExpr env expr
+      Rec bindings          -> all (isAtomExpr env) (snd (unzipBinds bindings))
 
 isValueExpr expr
   = case expr of
