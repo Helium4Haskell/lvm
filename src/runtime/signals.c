@@ -1,4 +1,4 @@
-/**----------------------------------------------------------------------
+\/**----------------------------------------------------------------------
   The Lazy Virtual Machine.
 
   Daan Leijen.
@@ -453,8 +453,8 @@ static void init_fpe_handler( void )
 {
   struct sigaction sigact, oldsigact;
 
-  sigact.sa_handler   = act;
-  sigact.sa_sigaction = act;
+  sigact.sa_handler   = handle_signal_fpe;
+  sigact.sa_sigaction = handle_signal_fpe;
   sigact.sa_flags     = SA_SIGINFO;
   sigemptyset(&sigact.sa_mask);
   if (sigaction(SIGFPE, &sigact, &oldsigact) == -1) raise_user("signal: couldn't install signal handler for signal %i", signo );
