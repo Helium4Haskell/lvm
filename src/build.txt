@@ -55,27 +55,16 @@ or
 Building the core assembler.
 ------------------------------------------------------------
 
-1) You need the Parsec library available at:
+1) Make it with GHC:
 
-http://www.cs.uu.nl/~daan/parsec.html
-
-Make sure that it is on the Hugs path. If you use
-GHC you should edit the "src/coreasm/makefile" file such
-that GHC can find the parsec library.
-
-  ....
-  #Libraries
-  LIBPATH  = c:/parsec/src
-  LIBS     = Parsec
-  ...
-
-2) Make it with GHC:
-
-> cd src/coreasm
+> cd src/lib
 > make depend
 > make
 
 or run it from Hugs:
 
-> cd src/coreasm
+> cd src/lib/core
 > hugs Main.hs
+
+For Hugs you need to set the path to all
+subdirectories of src/lib
