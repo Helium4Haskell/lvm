@@ -34,10 +34,10 @@
 /* Version string */
 static const char* version(void)
 {
-  static const char* _version = "$Name$";
-  static char version_buf[80];
+  const char* _version = "$Revision$";
+  static char version_buf[40];
 
-  strncpy( version_buf, _version + 6, 100 );
+  strncpy( version_buf, _version + 2 + strlen("Revision"), 100 );
   version_buf[strlen(version_buf)-1] = 0;
   return version_buf;
 }
