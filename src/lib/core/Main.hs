@@ -42,8 +42,11 @@ message s
    -- = putStr s
 
 main
-  = do{ [arg] <- getArgs
-      ; compile arg
+  = do{ args <- getArgs
+      ; if length args == 1 then 
+           compile (head args)
+         else
+           putStrLn "Usage: coreasm <module>" 
       }
 
 findModule paths id
@@ -82,7 +85,8 @@ parse path src
       }                       
 
 compile src
-  = do{ path        <- getLvmPath
+  = do{ lvmPath        <- getLvmPath
+      ; let path = "." : lvmPath
       ; messageLn ("search path: " ++ show (map showFile path))
       
       ; (mod,source) <- parse path src
