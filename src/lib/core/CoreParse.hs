@@ -198,8 +198,8 @@ parseModule
       ; return (modulePublic exports (Module moduleId 0 0 (concat declss)))
       }
 
-modulePublic :: (IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
-modulePublic (exports,exportCons,exportData,exportDataCon) mod
+modulePublic :: (IdSet,IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
+modulePublic (exports,exportCons,exportData,exportDataCon,exportMods) mod
   = mod{ moduleDecls = map setPublic (moduleDecls mod) }
   where
     setPublic decl  | declPublic decl = decl{ declAccess = (declAccess decl){ accessPublic = True } }
@@ -213,9 +213,10 @@ modulePublic (exports,exportCons,exportData,exportDataCon) mod
           DeclCon{}       -> elemSet (declName decl) exportCons || elemSet (conTypeName decl) exportDataCon
           DeclCustom{}    -> declKind decl == customData && elemSet (declName decl) exportData
           DeclImport{}    -> case importKind (declAccess decl) of
-                               DeclKindValue  -> elemSet (declName decl ) exports
-                               DeclKindExtern -> elemSet (declName decl ) exports
-                               DeclKindCon    -> elemSet (declName decl ) exportCons 
+                               DeclKindValue  -> elemSet (declName decl) exports
+                               DeclKindExtern -> elemSet (declName decl) exports
+                               DeclKindCon    -> elemSet (declName decl) exportCons 
+                               DeclKindModule -> elemSet (declName decl) exportMods
                                DeclKindCustom id -> id==idFromString "data" && elemSet (declName decl) exportData
                                other          -> False
           other           -> False
@@ -230,19 +231,21 @@ data Export  = ExportValue Id
              | ExportCon   Id
              | ExportData  Id 
              | ExportDataCon Id
+             | ExportModule Id
 
-pexports :: TokenParser (IdSet,IdSet,IdSet,IdSet)
+pexports :: TokenParser (IdSet,IdSet,IdSet,IdSet,IdSet)
 pexports
   = do{ exports <- commaParens pexport <|> return []
-      ; return (foldlStrict split (emptySet,emptySet,emptySet,emptySet) (concat exports))
+      ; return (foldlStrict split (emptySet,emptySet,emptySet,emptySet,emptySet) (concat exports))
       }
   where
-    split (values,cons,datas,datacons) exp
+    split (values,cons,datas,datacons,mods) exp
       = case exp of
-          ExportValue id  -> (insertSet id values,cons,datas,datacons)
-          ExportCon   id  -> (values,insertSet id cons,datas,datacons)
-          ExportData  id  -> (values,cons,insertSet id datas,datacons)
-          ExportDataCon id -> (values,cons,datas,insertSet id datacons)
+          ExportValue id  -> (insertSet id values,cons,datas,datacons,mods)
+          ExportCon   id  -> (values,insertSet id cons,datas,datacons,mods)
+          ExportData  id  -> (values,cons,insertSet id datas,datacons,mods)
+          ExportDataCon id -> (values,cons,datas,insertSet id datacons,mods)
+          ExportModule id  -> (values,cons,datas,datacons,insertSet id mods)
 
 pexport :: TokenParser [Export]
 pexport
@@ -261,6 +264,11 @@ pexport
           ; lexeme LexRPAREN
           ; return (ExportData id:map ExportCon ids)
           }
+      }
+  <|>
+    do{ lexeme LexMODULE
+      ; id <- conid
+      ; return [ExportModule id]
       }
 
 ----------------------------------------------------------------
@@ -299,8 +307,8 @@ pimport :: TokenParser [CoreDecl]
 pimport
   = do{ lexeme LexIMPORT
       ; id <- conid
-      ; imports <- commaParens (pimportValue id <|> pimportCon id)
-      ; return imports
+      ; commaParens (pimportValue id <|> pimportCon id)
+        <|> return [DeclImport id (Imported False id dummyId DeclKindModule 0 0) []]
       }
 
 pimportValue modid

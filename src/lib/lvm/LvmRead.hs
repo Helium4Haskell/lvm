@@ -34,7 +34,6 @@ lvmMajor, lvmMinor :: Int
 lvmMajor  = 14
 lvmMinor  = 0
 
-
 data Record v   = RecDecl       (Decl v)
                 
                 | RecName       Id
@@ -77,10 +76,10 @@ readModule
       ; readGuard (lvmmajor == lvmMajor && lvmminor >= lvmMinor) "readHeader" "incompatible lvm version"
       ; count  <- readint
       ; bcount <- readint
-      ; (id,major,minor)  <- readModuleIdx 
+      ; ~(id,major,minor)  <- readModuleIdx 
       ; recs   <- readRecords total [] 
       ; readGuard (count == length recs) "readModule" "incorrect record count"
-      ; return (Module id major minor [d | RecDecl d <- filter isRecDecl recs, accessPublic (declAccess d)],recs)
+      ; return (Module id major minor [d | RecDecl d <- filter isRecDecl recs],recs)
       }
   where
     isRecDecl (RecDecl d) = True
@@ -151,9 +150,19 @@ readImport len
       ; flags <- readint
       ; ~(modid,major,minor) <- readModuleIdx
       ; impid <- readNameIdx "imported"
-      ; kind  <- readint
+      ; kind  <- readKindIdx
       ; customs <- readCustoms (len - 20)
-      ; return (RecDecl (DeclImport id (Imported (odd flags) modid impid (toEnum kind) major minor) customs))
+      ; return (RecDecl (DeclImport id (Imported (odd flags) modid impid kind major minor) customs))
+      }
+
+readKindIdx :: Read v DeclKind
+readKindIdx
+  = do{ xkind <- readRaw
+      ; if (isInt xkind)
+         then return (toEnum (decodeInt xkind))
+         else do{ kindid <- resolveKindIdx (decodeIdx xkind)
+                ; return (DeclKindCustom kindid)
+                }
       }
 
 readModuleRec len
@@ -292,9 +301,11 @@ readCustomNameIdx
   = do{ idx <- readIdx "custom name"
       ; if (idx==0)
          then return Nothing
-         else resolve idx (\rec -> case rec of 
-                              RecName id  -> Just id
-                              other       -> error "LvmRead.readCustomNameIdx: invalid name index")
+         else do{ id <- resolve idx (\rec -> case rec of 
+                                               RecName id  -> id
+                                               other       -> error "LvmRead.readCustomNameIdx: invalid name index")
+                ; return (Just id)
+                }
       }
 
 resolveKindIdx :: Index -> Read v Id

@@ -80,7 +80,7 @@ III)
 
 ----------------------------------------------------------------------*/
 static value* load_symbol( value module, const char* modname, long major_version
-                         , const char* name, enum rec_kind rec );
+                         , const char* name, value kind );
 
 
 static void resolve_instrs( const char* name, wsize_t code_len, opcode_t* code
@@ -222,6 +222,11 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
       Trace_i( "Rec_custom", i );
       Alloc_record(Rec_custom_size);
       Store_read(Field_name);
+      if (Field(rec,Field_name)!=0) {
+        Store_read(Field_flags);
+      } else {
+        Store_zero(Field_flags);
+      }
       Store_field(rec,Field_custom_kind,Val_long(kindidx));
     }
     else {
@@ -275,13 +280,22 @@ static void read_records( const char* fname, int handle, int is_rev_endian,
         }
 
         case Rec_import: {
+          word_t impkind;
           Trace_i ("Rec_import", i);
           Alloc_record(Rec_import_size);
           Store_read( Field_name );
           Store_read( Field_flags );
           Store_read( Field_import_module );
           Store_read( Field_import_name );
-          Store_read( Field_import_kind );
+          Raw_read(impkind);
+          if (Is_long(impkind)) {
+            Store_field( rec, Field_import_iscustom, Val_long(0) );
+            Store_field( rec, Field_import_kind, impkind );
+          }
+          else {
+            Store_field( rec, Field_import_iscustom, Val_long(1) );
+            Store_field( rec, Field_import_kind, Val_long(Decode(impkind)) );
+          }
           Store_zero( Field_import_fixup );
           Trace_i ("name", Long_val(Field(rec,Field_import_name)));
           break;
@@ -441,12 +455,15 @@ static void resolve_internal_records( value module )
         Resolve_field(rec,Field_name,Rec_name);
         Resolve_field(rec,Field_import_module,Rec_module);
         Resolve_field(rec,Field_import_name,Rec_name);
+        if (Long_val(Field(rec,Field_import_iscustom))==1) {
+          Resolve_field(rec,Field_import_kind,Rec_kind);
+        }
         break;
       }
 
       case Rec_custom: {
         long idx = Long_val(Field(rec,Field_name));
-        if (idx != 0) Resolve_index(rec,Field_name,Rec_name,idx);  
+        if (idx!=0) Resolve_index(rec,Field_name,Rec_name,idx);  
         Resolve_field(rec,Field_custom_kind,Rec_kind);
         break;
       }
@@ -513,7 +530,7 @@ static void resolve_external_records( value module )
                                    , Name_module_field(rec,Field_import_module)
                                    , Long_val(Field(Field(rec,Field_import_module),Field_module_major))
                                    , Name_field(rec,Field_import_name)
-                                   , Long_val(Field( rec, Field_import_kind ))
+                                   , Field( rec, Field_import_kind )
                                    );
         Store_field(rec,Field_import_fixup,Val_ptr(fixup));
         break;
@@ -687,27 +704,58 @@ static value find_module( value module, const char* modname, long major_version 
 /*----------------------------------------------------------------------
  find_symbol
 ----------------------------------------------------------------------*/
-static value* find_symbol( value module, const char* name, enum rec_kind kind )
+static int match_kind( value kind1, value kind2 )
 {
-  CAMLparam1(module);
+  CAMLparam2(kind1,kind2);
+  if (Is_long(kind1) && Is_long(kind2)) {
+    CAMLreturn( kind1==kind2 );
+  }
+  else if (Is_block(kind1) && Tag_val(kind1)==Rec_kind &&
+           Is_block(kind2) && Tag_val(kind2)==Rec_kind) {
+    CAMLreturn( strcmp(String_val(Field(kind1,Field_name))
+                      ,String_val(Field(kind2,Field_name)))==0 );    
+  }
+  else {
+   CAMLreturn(false);
+  }
+}
+
+
+static int match_kind_rec( value kind, value rec )
+{
+  CAMLparam2(kind,rec);
+  if (Tag_val(rec)==Rec_import) {
+    CAMLreturn(match_kind(kind,Field(rec,Field_import_kind)));
+  }
+  else if (Tag_val(rec)==Rec_custom) {
+    CAMLreturn(match_kind(kind,Field(rec,Field_custom_kind)));
+  }
+  else if (Is_long(kind)) {
+    CAMLreturn(match_kind(kind,Val_long(Tag_val(rec))));
+  }
+  else {
+    CAMLreturn(false);
+  }
+}
+
+static value* find_symbol( value module, const char* name, value kind )
+{
+  CAMLparam2(module,kind);
   CAMLlocal2(records,rec);
   wsize_t i;
 
-  if (kind == Rec_value || kind == Rec_con || kind == Rec_extern)
+  records = Field(module,Module_records);
+  for( i = 1; i <= Count_records(records); i++)
   {
-    records = Field(module,Module_records);
-    for( i = 1; i <= Count_records(records); i++)
+    rec = Record(records,i);
+    if (   (Long_val(Field(rec,Field_flags)) & Flag_public) == Flag_public
+        && match_kind_rec( kind, rec )
+        && strcmp(name,Name_field(rec,Field_name)) == 0)
     {
-      rec = Record(records,i);
-      if (   ((Tag_val(rec) == kind) ||
-              (Tag_val(rec) == Rec_import && Long_val(Field( rec, Field_import_kind )) == kind))
-          && (Long_val(Field(rec,Field_flags)) & Flag_public) == Flag_public
-          && strcmp(name,Name_field(rec,Field_name)) == 0)
-      {
-          CAMLreturn(&Record(records,i));
-      }
+        CAMLreturn(&Record(records,i));
     }
   }
+
 
   raise_module( Name_field(Field(module,Module_info),Field_module_name), "module doesn't export symbol \"%s\"", name );
   CAMLreturn(0);
@@ -717,9 +765,9 @@ static value* find_symbol( value module, const char* name, enum rec_kind kind )
  load_symbol
 ----------------------------------------------------------------------*/
 static value* load_symbol( value module, const char* modname, long major_version
-                         , const char* name, enum rec_kind kind )
+                         , const char* name, value kind )
 {
-  CAMLparam1(module);
+  CAMLparam2(module,kind);
   value* result = find_symbol(find_module(module,modname,major_version),name, kind);
   CAMLreturn(result);
 }

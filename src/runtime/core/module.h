@@ -120,7 +120,8 @@ enum rec_fields {
 
   Field_import_module = Field_flags+1,
   Field_import_name,
-  Field_import_kind,
+  Field_import_iscustom,
+  Field_import_kind,      /* custom kind ptr or kind int */
   Field_import_fixup,
   Rec_import_size,
 
@@ -144,7 +145,7 @@ enum rec_fields {
   Field_kind_string = 0,
   Rec_kind_size,
 
-  Field_custom_kind = Field_name + 1,
+  Field_custom_kind = Field_flags + 1,
   Rec_custom_size
 };
 

@@ -29,6 +29,7 @@ import AsmToLvm   ( asmToLvm )          -- translate Asm to Lvm instructions
 import LvmPretty  ( lvmPretty )         -- pretty print instructions (Lvm)
 import LvmWrite   ( lvmWriteFile )      -- write a binary Lvm file
 import LvmImport  ( lvmImport )         -- resolve import declarations
+import LvmRead    ( lvmReadFile )       -- read an lvm file
 
 ----------------------------------------------------------------
 --
@@ -53,6 +54,7 @@ compile src
       ; messageLn ("compiling  : " ++ showFile source)
 
       ; mod        <- coreParse source
+--      ; messageDoc "parsed"  (corePretty mod)
       ; coremod    <- lvmImport (findModule path) mod
 
       ; nameSupply  <- newNameSupply
@@ -63,21 +65,38 @@ compile src
             target  = (reverse (drop 5 (reverse source)) ++ ".lvm")
 
       ; messageDoc "core"         (corePretty coremod)
-      ; messageDoc "assembler"    (asmPretty asmmod)
-      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
-      ; messageDoc "instructions" (lvmPretty lvmmod)
+--      ; messageDoc "assembler"    (asmPretty asmmod)
+--      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
+--      ; messageDoc "instructions" (lvmPretty lvmmod)
 
       ; messageLn  ("writing    : " ++ showFile target)
       ; lvmWriteFile target lvmmod
 
       ; messageLn   "\ndone."
       }
-  where
-    messageLn s    = do{ message s; message "\n" }
-    messageDoc h d = do{ message (unlines $ ["",line, h, line])
-                       ; message (show d)
-                       }
-    line           = replicate 40 '-'
 
-    showFile fname
-      = map (\c -> if (c == '\\') then '/' else c) fname
+
+dump src
+  = do{ path        <- getLvmPath
+      ; messageLn ("search path: " ++ show (map showFile path))
+      ; source      <- searchPath path ".lvm" src
+      ; messageLn ("reading   : " ++ showFile source)
+      ; mod         <- lvmReadFile source
+      ; messageDoc "module" (lvmPretty mod)
+      ; coremod    <- lvmImport (findModule path) mod
+      ; messageDoc "resolved module" (lvmPretty coremod)
+      }
+
+messageLn s    
+  = do{ message s; message "\n" }
+messageDoc h d 
+  = do{ message (unlines $ ["",line, h, line])
+       ; message (show d)
+       }
+
+line           
+  = replicate 40 '-'
+
+showFile fname
+  = map (\c -> if (c == '\\') then '/' else c) fname
+

@@ -1,24 +1,28 @@
 {- import/export -}
 module Export( List(..), Bool( False, True )
              , fromTo, foldr, foldl, foldlStrict
-             , addint, ltint ) where
+             , addint, mulint, ltint ) where
 
 instruction primadd "addint" :: Int! -> Int! -> Int!
+instruction primmul "mulint" :: Int! -> Int! -> Int!
 instruction primlt  "ltint" :: Int! -> Int! -> Bool!
+instruction primle  "leint" :: Int! -> Int! -> Bool!
 
 data Bool   = False | True
 data List a = Nil | Cons a (List a)
 
 
 ltint  x y = let! x = x in let! y = y in primlt x y
+leint  x y = let! x = x in let! y = y in primle x y
 addint x y = let! x = x in let! y = y in primadd x y
+mulint x y = let! x = x in let! y = y in primmul x y
 
 main
   = 42
 
 fromTo :: Int -> Int -> List Int
 fromTo n m
-  = case ltint n m of
+  = case leint n m of
       True  -> let! n1 = addint n 1 in Cons n (fromTo n1 m)
       False -> Nil
 

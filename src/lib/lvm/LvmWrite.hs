@@ -143,9 +143,10 @@ emitImport id declkind access@(Imported public moduleName importName kind majorV
     do{ idxModule <- emitModule moduleName majorVer minorVer
       ; idxName   <- emitName importName
       ; idxId     <- emitName id
+      ; kindenc   <- encodeKind declkind
       ; emitBlockEx (Just id) declkind DeclKindImport 
           (block [encodeIdx idxId, encodeInt (flags access), encodeIdx idxModule
-                 , encodeIdx idxName, encodeInt (fromEnum declkind)]) customs
+                 , encodeIdx idxName, kindenc]) customs
       }
 
 emitModule name major minor

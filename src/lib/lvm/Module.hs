@@ -16,8 +16,8 @@ module Module( Module(..)
              , Arity, Tag 
              , Access(..), ExternName(..), CallConv(..), LinkConv(..)
              
-             , globalNames, externNames
-             , mapValues
+             , globalNames, externNames, filterPublic
+             , mapDecls, mapValues
              , declKindFromDecl, shallowKindFromDecl -- , hasDeclKind
              , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern, isDeclImport, isDeclGlobal
              , public, private
@@ -175,6 +175,10 @@ isDeclGlobal other              = False
 {---------------------------------------------------------------
   More Utility functions
 ---------------------------------------------------------------}
+filterPublic :: Module v -> Module v
+filterPublic mod
+  = mod{ moduleDecls = [d | d <- moduleDecls mod, accessPublic (declAccess d)] }
+
 globalNames :: Module v -> IdSet
 globalNames mod
   = setFromList [declName d | d <- moduleDecls mod, isDeclValue d || isDeclAbstract d || isDeclExtern d]
@@ -183,10 +187,13 @@ externNames :: Module v -> IdSet
 externNames mod
   = setFromList [declName d | d <- moduleDecls mod, isDeclExtern d]
 
+mapDecls :: (Decl v -> Decl w) -> Module v -> Module w
+mapDecls f mod
+  = mod{ moduleDecls = map f (moduleDecls mod) }
 
 mapValues :: (v -> w) -> Module v -> Module w
 mapValues f mod
-  = mod{ moduleDecls = map (mapDeclValue f) (moduleDecls mod)}
+  = mapDecls (mapDeclValue f) mod
 
 mapDeclValue :: (v->w) -> Decl v -> Decl w
 mapDeclValue f decl 

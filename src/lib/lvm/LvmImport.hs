@@ -13,9 +13,9 @@ module LvmImport( lvmImport ) where
 
 
 import Monad    ( foldM )
-import Standard ( foldlStrict )
+import Standard ( foldlStrict)
 import Id       ( Id, stringFromId )
-import IdMap    ( IdMap, emptyMap, insertMap, elemMap, updateMap, listFromMap, lookupMap, findMap  )
+import IdMap    ( IdMap, emptyMap, insertMap, elemMap, updateMap, listFromMap, lookupMap, findMap, mapMap  )
 
 import Module   
 import Lvm
@@ -27,15 +27,15 @@ import PPrint
 
 {--------------------------------------------------------------
   lvmImport: replace all import declarations with
-  abstract declarations or constructors/externs
-  TODO: this doesn't respect the namespaces
+  abstract declarations or constructors/externs/customs
 --------------------------------------------------------------}
 lvmImport :: (Id -> IO FilePath) -> (Module v) -> IO (Module v)
 lvmImport findModule mod
   = do{ mods <- lvmImportModules findModule mod
-      ; let mods' = lvmResolveImports mods
-            mod'  = findMap (moduleName mod) mods'
-      ; return mod'{ moduleDecls = filter (not . isDeclImport) (moduleDecls mod') }
+      ; let mods0 = lvmExpandModule mods (moduleName mod) 
+            mods1 = lvmResolveImports mods0
+            mod1  = findMap (moduleName mod) mods1
+      ; return mod1{ moduleDecls = filter (not . isDeclImport) (moduleDecls mod1) }
       }
 
 {--------------------------------------------------------------
@@ -55,12 +55,41 @@ readModule findModule loaded id
   | elemMap id loaded  = return loaded
   | otherwise          = do{ fname <- findModule id                        
                            ; mod   <- lvmReadFile fname
-                           ; readModuleImports findModule loaded id mod
+                           ; readModuleImports findModule loaded id (filterPublic mod)
                            }
 
 imported mod
   = [importModule (declAccess d) | d <- moduleDecls mod, isDeclImport d]
-    
+
+{--------------------------------------------------------------
+  lvmExpandModule loaded modname: 
+    expand Module import declarations of [modname] 
+    into declarations for all items exported from that module.
+--------------------------------------------------------------}
+lvmExpandModule :: IdMap (Module v) -> Id -> IdMap (Module v)
+lvmExpandModule loaded modname
+  = mapMap expand loaded
+  where
+    expand mod  | moduleName mod == modname  = expandModule loaded mod
+                | otherwise                  = mod
+
+expandModule :: IdMap (Module v) -> Module v -> Module v
+expandModule loaded mod
+  = mod{ moduleDecls = concatMap (expandDecl loaded (moduleName mod)) (moduleDecls mod) }
+
+expandDecl loaded modname DeclImport{declAccess = access@(Imported{importModule = imodname,importKind = DeclKindModule})}
+  = case lookupMap imodname loaded of
+      Nothing   -> error ("LvmImport.expandDecl: import module is not loaded: " ++ stringFromId modname)
+      Just imod | moduleName imod == modname 
+                -> error ("LvmImport.expandDecl: module imports itself: " ++ stringFromId modname)
+      Just imod -> map importDecl (moduleDecls imod)
+  where
+    importDecl decl   
+      = decl{ declAccess = access{importName = declName decl, importKind = declKindFromDecl decl} }
+
+expandDecl loaded modname decl
+  = [decl]
+
 {---------------------------------------------------------------
 lvmResolveImports:
   replaces all "DImport" declarations with the real
@@ -92,7 +121,6 @@ resolveImport visited modid loaded x@(DeclImport id access@(Imported public imod
                                         ds  -> ambigious imodid impid
                                [d] -> update mod{ moduleDecls = d{declName=id,declAccess = access} : (moduleDecls mod)}
                                ds  -> ambigious imodid impid
-
   where
     lookupDecl impid kind decls
       = [d | d <- decls, declName d==impid && declKindFromDecl d == kind]
