@@ -11,6 +11,8 @@
 
 include ../config/makefile
 
+NDEBUG = yes
+
 ifdef NDEBUG
 CCOPT	   = -O2 $(CCOPTS) -I. -Icommon
 LINKOPT    = $(LINKOPTS)
