@@ -31,7 +31,8 @@ lvmMinorVersion  = 0
 --------------------------------------------------------------}
 lvmWriteFile :: FilePath -> LvmModule -> IO ()
 lvmWriteFile path lvm
-  = writeBytes path (lvmToBytes lvm)
+  = let bytes = lvmToBytes lvm
+    in seq bytes (writeBytes path bytes)
 
 
 lvmToBytes :: LvmModule -> Bytes
