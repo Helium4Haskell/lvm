@@ -41,8 +41,8 @@ ppDecls pp decls
 
 
 
-ppDValue ppValue (id,DValue{ valueValue = value })
-  = nest 2 (ppId  id <+> text "=" <$> ppValue value)
+ppDValue ppValue (id,DValue{ valueAccess = access, valueValue = value })
+  = nest 2 (ppId  id <+> text "=" <+> ppAccess access <$> ppValue value)
 
 ppDAbstract (id,DAbstract{ abstractArity=arity})
   = nest 2 (ppId  id <+> text "= <abstract arity=" <+> pretty arity <> text ">")
@@ -64,3 +64,12 @@ ppDImport (id,DImport (Import public modid impid major minor) kind)
 ppId :: Id -> Doc
 ppId id
   = text (stringFromId id)
+
+
+ppAccess acc
+  = case acc of
+      Private -> empty
+      Public  -> text "public"
+      Import public modid impid major minor
+              -> (if (public) then text "public " else empty) <> 
+                 ppId modid <> char '.' <> ppId impid

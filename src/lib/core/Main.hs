@@ -31,8 +31,8 @@ import LvmWrite   ( lvmWriteFile )
 --
 ----------------------------------------------------------------
 message s
-  -- = return () 
-  = putStr s
+   = return () 
+ --  = putStr s
 
 main
   = do{ [arg] <- getArgs

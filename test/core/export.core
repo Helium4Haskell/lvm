@@ -1,5 +1,5 @@
 {- import/export -}
-module Export( fromTo, foldr, foldl, foldlStrict ) where
+module Export( fromTo, foldr, foldl, foldlStrict, addint, ltint ) where
 
 instruction primadd "addint" :: Int! -> Int! -> Int!
 instruction primlt  "ltint" :: Int! -> Int! -> Bool!
@@ -11,9 +11,12 @@ data List a = Nil | Cons a (List a)
 ltint  x y = let! x = x in let! y = y in primlt x y
 addint x y = let! x = x in let! y = y in primadd x y
 
+main
+  = 42
+
 fromTo n m
   = case ltint n m of
-      True  -> let! n1 = addint n m in Cons n (fromTo n1 m)
+      True  -> let! n1 = addint n 1 in Cons n (fromTo n1 m)
       False -> Nil
 
 foldr f z xs

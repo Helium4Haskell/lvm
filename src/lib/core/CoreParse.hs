@@ -100,8 +100,30 @@ parseModule
       ; let externDecls           = mapFromList (externs)
             conDecls              = mapFromList (concat conDs)
             abstractDecls         = mapFromList (abstracts)
-      ; return (Module moduleId 0 0 ds abstractDecls conDecls externDecls emptyMap imports)
+            mod0  = Module moduleId 0 0 ds abstractDecls conDecls externDecls emptyMap imports
+            mod1  = modulePublic (setFromList exports) mod0
+      ; return mod1
       }
+
+
+modulePublic :: IdSet -> Module v -> Module v
+modulePublic exports mod
+  = mod{ values     = map valuePublic (values mod)
+       , abstracts  = mapMapWithId abstractPublic (abstracts mod)
+       }
+  where
+    valuePublic x@(id,value)  
+      | elemSet id exports = (id,value{ valueAccess = setPublic (valueAccess value) })
+      | otherwise          = x
+
+    abstractPublic id abstract
+      | elemSet id exports = abstract{ abstractAccess = setPublic (abstractAccess abstract) }
+      | otherwise          = abstract
+
+    setPublic Private      = Public
+    setPublic Public       = Public
+    setPublic imp          = imp{ importPublic = True } 
+
 ----------------------------------------------------------------
 -- export list
 ----------------------------------------------------------------
@@ -115,12 +137,11 @@ pexport
 pabstract :: TokenParser (Id,DAbstract)
 pabstract
   = do{ lexeme LexABSTRACT
-      ; public <- pPublic
       ; id <- variable
       ; lexeme LexASG
       ; (modid,impid) <- qualifiedVar
       ; (tp,arity) <- ptypeDecl
-      ; return (id,DAbstract (Import public modid impid 0 0) arity)
+      ; return (id,DAbstract (Import False modid impid 0 0) arity)
       }
 
 ----------------------------------------------------------------
@@ -129,27 +150,15 @@ pabstract
 pimport :: TokenParser (Id,DImport)
 pimport
   = do{ lexeme LexIMPORT
-      ; public <- pPublic
-      ; pimportValue public 
+      ; pimportValue 
       }
 
-pimportValue public
+pimportValue 
   = do{ id <- variable
       ; lexeme LexASG
       ; (modid,impid) <- qualifiedVar
-      ; return (id, DImport (Import public modid impid 0  0) declValue)
+      ; return (id, DImport (Import False modid impid 0  0) declValue)
       }
-
-pAccess
-  = do{ public <- pPublic
-      ; if (public) then return Public else return Public
-      }
-
-pPublic 
-  = do{ lexeme LexPUBLIC
-      ; return True
-      }
-  <|> return False
 
 ----------------------------------------------------------------
 -- value declarations

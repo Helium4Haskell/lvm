@@ -663,7 +663,8 @@ static value* find_symbol( value module, const char* name, enum rec_kind kind )
     for( i = 1; i <= Count_records(records); i++)
     {
       rec = Record(records,i);
-      if (   Tag_val(rec) == kind
+      if (   ((Tag_val(rec) == kind) || 
+              (Tag_val(rec) == Rec_import && Long_val(Field( rec, Field_import_kind )) == kind))
           && (Long_val(Field(rec,Field_flags)) & Flag_public) == Flag_public
           && strcmp(name,Name_field(rec,Field_name)) == 0)
       {

@@ -126,7 +126,7 @@ emitDExtern (id,DExtern access arity tp linkconv callconv libname externname cus
 
 
 emitDAbstract (id,DAbstract access arity)
-  | isImport access = emitImport id recImport access
+  | isImport access = emitImport id recValue access
   | otherwise       = error ("LvmWrite.emitDAbstract: abstract values should be imported: " ++ show id)
 
 
