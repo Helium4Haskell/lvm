@@ -23,10 +23,11 @@ HC	= ghc
 HC_OPTS = -static -package lang -i$(IFACES)
 
 #Haskell sources
-COMMON	= common/Id.hs common/IdMap.hs common/IdSet.hs common/IntMap.hs \
+COMMON	= common/Id.hs common/IdMap.hs common/IdSet.hs \
 	  common/Byte.hs common/Standard.hs \
 	  common/PPrint.hs common/TopSort.hs \
-	  common/ghc/Special.hs
+	  common/Set.hs common/IntMap.hs \
+	  common/ghc/Special.hs \
 
 LVM	= lvm/Lvm.hs lvm/LvmPretty.hs lvm/LvmWrite.hs lvm/LvmRead.hs lvm/LvmImport.hs\
 	  lvm/Module.hs lvm/ModulePretty.hs \
@@ -37,7 +38,7 @@ ASM	= asm/AsmOptimize.hs asm/AsmInline.hs asm/AsmOccur.hs \
 
 CORE	= core/Core.hs core/CorePretty.hs core/CoreToAsm.hs \
 	  core/CoreParse.hs core/CoreLexer.hs \
-	  core/CoreNormalize.hs \
+	  core/CoreRemoveDead.hs core/CoreNormalize.hs \
 	  core/CoreNoShadow.hs core/CoreFreeVar.hs core/CoreLetSort.hs \
 	  core/CoreLift.hs core/CoreSaturate.hs
 

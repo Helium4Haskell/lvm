@@ -455,7 +455,7 @@ runEmit (Emit e)
 emitPrimBlock :: Maybe (Id,DeclKind) -> DeclKind -> Bytes -> Emit Index
 emitPrimBlock x kind bs
   = Emit (\env st@(State count map bbs) ->
-            let (index,count',bbs') | {-sharable kind-} False = case find count bs bbs of   --try to share records
+            let (index,count',bbs') | sharable kind = case find count bs bbs of   --try to share records
                                                         Nothing  -> (count+1,count+1,bs:bbs)
                                                         Just idx -> (idx,count,bbs)
                                     | otherwise     = (count+1,count+1,bs:bbs)
@@ -465,6 +465,8 @@ emitPrimBlock x kind bs
             in (index, State count' map' bbs')
          )
 sharable kind
+  = False
+{-
   = case kind of
       DeclKindBytes       -> True
       DeclKindName        -> True
@@ -472,6 +474,7 @@ sharable kind
       DeclKindExternType  -> True
       DeclKindModule      -> True   -- dubious when custom values are present!
       other               -> False
+-}
 
 find n x []       = assert (n==0) "LvmWrite.find: count too large" Nothing
 find n x (y:ys)   | x==y       = Just n

@@ -20,6 +20,7 @@ import Id         ( newNameSupply, stringFromId )
 import CorePretty ( corePretty )        -- pretty print Core
 import CoreParse  ( coreParseExport, modulePublic )
                                         -- parse text into Core
+import CoreRemoveDead( coreRemoveDead ) -- remove dead declarations
 import CoreToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
 
 import AsmPretty  ( asmPretty )         -- pretty print low-level core (Asm)
@@ -35,8 +36,8 @@ import LvmRead    ( lvmReadFile )       -- read a Lvm file
 --
 ----------------------------------------------------------------
 message s
-   = return () 
-  -- = putStr s
+  = return () 
+ --  = putStr s
 
 main
   = do{ [arg] <- getArgs
@@ -54,15 +55,17 @@ compile src
       ; messageLn ("compiling  : " ++ showFile source)
 
       ; messageLn ("parsing")
-      ; (mod, implExps, es)
-                   <- coreParseExport source
+      ; (mod, implExps, es) <- coreParseExport source
       ; messageDoc "parsed"  (corePretty mod)
 
       ; messageLn ("resolving imports")
       ; chasedMod  <- lvmImport (findModule path) mod
       
       ; messageLn ("making exports public")
-      ; let coremod = modulePublic implExps es chasedMod
+      ; let publicmod = modulePublic implExps es chasedMod
+
+      ; messageLn ("remove dead declarations")
+      ; let coremod = coreRemoveDead publicmod
 
       ; nameSupply  <- newNameSupply
       ; messageLn ("generating code")

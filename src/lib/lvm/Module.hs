@@ -72,7 +72,7 @@ data DeclKind
   | DeclKindExtern
   | DeclKindExternType
   | DeclKindCustom !Id
-  deriving Eq
+  deriving (Eq,Show)
 
 data Access
   = Defined  { accessPublic :: !Bool }
@@ -93,6 +93,16 @@ data CallConv   = CallC | CallStd | CallInstr
 
 data LinkConv   = LinkStatic | LinkDynamic | LinkRuntime                
                 deriving (Show, Eq, Enum)
+
+
+instance Ord DeclKind where
+  compare k1 k2
+    = case (k1,k2) of
+        (DeclKindCustom id1,DeclKindCustom id2) -> compare id1 id2
+        (DeclKindCustom id1,other)              -> GT
+        (other,DeclKindCustom id2)              -> LT
+        other                                   -> compare (fromEnum k1) (fromEnum k2)
+
 
 
 instance Enum DeclKind where
