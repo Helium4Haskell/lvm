@@ -24,6 +24,6 @@ cd ../../test/core
 #test all files
 for t in *.core; 
 {
-  test.sh ${t%.core}
+  ./test.sh ${t%.core}
 }
 
