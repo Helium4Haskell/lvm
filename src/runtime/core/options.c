@@ -91,7 +91,7 @@ void show_options(void)
   print( " -m<name>     the initial start function." );
   if (mainfun!=NULL) print( " (%s)\n", mainfun );
                 else print( "\n" );
-  print( " -p           print final value on stdout after execution.   (%4s)\n", (showfinal ? "on" : "off" ));
+  print( " -p           print final value on stdout after execution.   (%s)\n", (showfinal ? "on" : "off" ));
   print( " -t           print timing report on stderr after execution. (%s)\n", (timings_report ? "on" : "off" ) );
   print( " -?           show this help screen.\n" );
   print( "\n" );
