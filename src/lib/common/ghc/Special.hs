@@ -22,7 +22,11 @@ module Special( doesFileExist
 
 import Directory  ( doesFileExist )
 import IO         ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
+#if (__GLASGOW_HASKELL__ >= 602)
+import GHC.Handle ( openBinaryFile )
+#else
 import GHC.Handle ( openFileEx, IOModeEx(..))
+#endif
 
 #if (__GLASGOW_HASKELL__ >= 503)
 import GHC.Base         ( unsafeCoerce# )
@@ -38,8 +42,13 @@ unsafeCoerce x
   = unsafeCoerce# x
 
 openBinary :: FilePath -> IOMode -> IO Handle
+#if (__GLASGOW_HASKELL__ >= 602)
+openBinary
+  = openBinaryFile
+#else
 openBinary path mode
   = openFileEx path (BinaryMode mode)
+#endif
 
 closeBinary :: Handle -> IO ()
 closeBinary h
