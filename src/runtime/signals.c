@@ -453,13 +453,13 @@ static void init_fpe_handler( void )
 {
   struct sigaction sigact, oldsigact;
 
-  sigact.sa_handler   = handle_signal_fpe;
+  sigact.sa_handler   = NULL;
   sigact.sa_sigaction = handle_signal_fpe;
   sigact.sa_flags     = SA_SIGINFO;
   sigemptyset(&sigact.sa_mask);
   if (sigaction(SIGFPE, &sigact, &oldsigact) == -1) raise_user("signal: couldn't install signal handler for signal %i", signo );
   oldfpe = oldsigact.sa_handler;
-  sigaddset(&signals_installed, signo );
+  sigaddset(&signals_installed, SIGFPE );
 }
 
 static void done_fpe_handler( void )
