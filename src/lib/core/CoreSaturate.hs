@@ -65,9 +65,8 @@ satExpr env expr
       Let binds expr
         -> let (env0,env1) = splitEnv env
            in  Let (satBinds env0 binds) (satExpr env1 expr)
-      Case expr id alts
-        -> let (env0,env1) = splitEnv env
-           in  Case (satExpr env0 expr) id (satAlts env1 alts)
+      Match id alts
+        -> Match id (satAlts env alts)
       Lam id expr
         -> Lam id (satExpr env expr)
       Note n expr
@@ -86,7 +85,7 @@ satAlts env alts
 satExprSimple env expr
   = case expr of
       Let _ _     -> satExpr env expr
-      Case _ _ _  -> satExpr env expr
+      Match _ _   -> satExpr env expr
       Lam _ _     -> satExpr env expr
       Ap e1 e2    -> let (env1,env2) = splitEnv env
                      in  Ap (satExprSimple env1 e1) (satExpr env2 e2)
@@ -103,7 +102,7 @@ addLam env n expr
 requiredArgs env expr
   = case expr of
       Let binds expr    -> 0
-      Case expr id alts -> 0
+      Match id alts     -> 0
       Lam id expr       -> 0
       Ap expr1 expr2    -> requiredArgs env expr1 - 1
       Var id            -> findArity id env

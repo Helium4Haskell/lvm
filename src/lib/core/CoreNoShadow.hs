@@ -84,8 +84,7 @@ nsExpr env expr
       Note n expr       -> Note n (nsExpr env expr)
       Let binds expr    -> nsBinds env binds $ \env' binds' ->
                            Let binds' (nsExpr env' expr)
-      Case expr id alts -> renameBinder env id $ \env' id' ->
-                           Case (nsExpr env expr) id' (nsAlts env' alts)
+      Match id alts     -> Match (renameVar env id) (nsAlts env alts)
       Lam id expr       -> renameBinder env id $ \env' id' ->
                            Lam id' (nsExpr env' expr)
       Ap expr1 expr2    -> let (env1,env2) = splitEnv env
@@ -95,12 +94,20 @@ nsExpr env expr
 
 
 nsBinds env binds cont
-  = let (binds',env') = mapAccumBinds (\env id rhs -> renameLetBinder env id $ \env' id' -> (Bind id' rhs,env'))
-                                      env binds
-    in cont env' (zipBindsWith nsBind (splitEnvs env') binds')
+  = case binds of
+      Strict (Bind id rhs)  -> nonrec Strict id rhs
+      NonRec (Bind id rhs)  -> nonrec NonRec id rhs
+      Rec recs              -> rec 
+  where
+    nonrec make id rhs
+      = renameLetBinder env id $ \env' id' ->
+        cont env' (make (Bind id' (nsExpr env rhs)))
+      
+    rec 
+      = let (binds',env') = mapAccumBinds (\env id rhs -> renameLetBinder env id $ \env' id' -> (Bind id' rhs,env'))
+                                           env binds
+        in cont env' (zipBindsWith (\env id rhs -> Bind id (nsExpr env rhs)) (splitEnvs env') binds')
 
-nsBind env id rhs
-  = Bind id (nsExpr env rhs)
 
 nsAlts env alts
   = zipAltsWith nsAlt (splitEnvs env) alts

@@ -65,8 +65,8 @@ liftExpr env expr
       Let binds expr
         -> let (binds',env') = liftBinds env binds
            in Let binds' (liftExpr env' expr)
-      Case expr id alts
-        -> Case (liftExpr env expr) id (liftAlts env alts)
+      Match id alts
+        -> Match id (liftAlts env alts)
       Lam id expr
         -> Lam id (liftExpr env expr)
       Ap expr1 expr2
@@ -86,12 +86,16 @@ liftAlts env alts
 ----------------------------------------------------------------
 liftBinds env binds
   = case binds of
-      NonRec bind
-        -> let ([bind'],env') = liftBindsRec env [bind]
-           in  (NonRec bind',env')
-      Rec recs
-        -> let (recs',env') = liftBindsRec env recs
-           in (Rec recs',env')
+      NonRec bind -> let ([bind'],env') = liftBindsRec env [bind]
+                     in  (NonRec bind',env')      
+      Rec recs    -> let (recs',env') = liftBindsRec env recs
+                     in (Rec recs',env')
+      Strict (Bind id rhs)
+                  -> (Strict (Bind id (liftExpr env rhs)),env)
+  where
+    nonrec make bind = let ([bind'],env') = liftBindsRec env [bind]
+                       in  (make bind',env')
+      
 
 
 liftBindsRec :: Env -> [Bind] -> ([Bind],Env)
@@ -114,7 +118,7 @@ addLambdas env fv (Note (FreeVar _) expr)  | not (isAtomExpr env expr)
 addLambdas env fv (Note n expr)
   = Note n expr
 addLambdas env fv expr
-  = error "CoreLift.updateFreeVar: no free variable annotation. Do coreFreeVar first?"
+  = error "CoreLift.addLambdas: no free variable annotation. Do coreFreeVar first?"
 
 insertLifted env ((Bind id expr),fv)
   = if (isAtomExpr env expr)

@@ -36,8 +36,8 @@ lsExpr expr
       Let binds expr
         -> let bindss = sortBinds binds
            in foldr Let expr bindss
-      Case expr id alts
-        -> Case (lsExpr expr) id (lsAlts alts)
+      Match id alts
+        -> Match id (lsAlts alts)
       Lam id expr
         -> Lam id (lsExpr expr)
       Ap expr1 expr2
@@ -55,14 +55,17 @@ lsAlts alts
 -- topological sort let bindings
 ----------------------------------------------------------------
 sortBinds :: Binds -> [Binds]
-sortBinds bindsSet
-  = let binds  = map (\(Bind id rhs) -> (id,rhs)) (listFromBinds bindsSet)
+sortBinds (Rec bindsrec)
+  = let binds  = map (\(Bind id rhs) -> (id,rhs)) bindsrec
         names  = zip (map fst binds) [0..]
         edges  = concat (map (depends names) binds)
         sorted = topSort (length names-1) edges
         binds'  = map (map (binds!!)) sorted
         binds'' = map (map (\(id,expr) -> (id,lsExpr expr))) binds'
     in  map toBinding binds'' -- foldr sortLets (lsExpr expr) binds''
+
+sortBinds binds
+  = [mapBinds (\id expr -> Bind id (lsExpr expr)) binds]
 
 toBinding [(id,rhs)]
   | not (elemSet id (freeVar rhs)) = NonRec (Bind id rhs)

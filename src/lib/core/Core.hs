@@ -11,13 +11,17 @@
 
 module Core ( module Module
             , CoreModule, CoreValue
-            , Expr(..), Note(..), Binds(..), Recs, Bind(..)
+            , Expr(..), Note(..), Binds(..), Bind(..)
             , Alts, Alt(..), Pat(..), Literal(..)
 
-            , patBinders
             , listFromBinds, unzipBinds, binders, mapBinds
-            , mapAccumBinds, mapAccum, zipBindsWith, mapAlts, zipAltsWith
+            , mapAccumBinds, zipBindsWith
+            
+            , patBinders
+            , mapAlts, zipAltsWith
+            
             , mapExprWithSupply, mapExpr
+            , mapAccum 
             ) where
 
 import Byte   ( Bytes )
@@ -35,63 +39,59 @@ type CoreValue  = DValue Expr
 ----------------------------------------------------------------
 -- Core expressions:
 ----------------------------------------------------------------
-data Expr       = Let       Binds Expr
-                | Case      Expr  Id Alts
-                | Ap        { expr1::Expr, expr2::Expr }
-                | Lam       Id Expr
-                | Con       Id
-                | Var       Id
-                | Lit       { lit::Literal }
-                | Note      Note Expr
+data Expr       = Let       !Binds Expr       
+                | Match     !Id Alts
+                | Ap        Expr Expr
+                | Lam       !Id Expr
+                | Con       !Id
+                | Var       !Id
+                | Lit       !Literal 
+                | Note      !Note !Expr
 
-data Note       = FreeVar   IdSet
+data Note       = FreeVar   !IdSet
 
+data Binds      = Rec       ![Bind]
+                | Strict    !Bind
+                | NonRec    !Bind
 
-data Binds      = Rec       Recs
-                | NonRec    Bind
-type Recs       = [Bind]
-data Bind       = Bind      {bindId::Id, bindExpr::Expr}
+data Bind       = Bind      !Id Expr
 
 type Alts       = [Alt]
-data Alt        = Alt       {pat::Pat, altExpr::Expr}
+data Alt        = Alt       !Pat Expr
 
-
-data Pat        = PatCon     Id [Id]
-                | PatLit     {patLit::Literal}
+data Pat        = PatCon    !Id ![Id]
+                | PatLit    !Literal
                 | PatDefault
 
-data Literal    = LitInt    Int
-                | LitDouble Double
-                | LitBytes  Bytes
-
+data Literal    = LitInt    !Int
+                | LitDouble !Double
+                | LitBytes  !Bytes
 
 ----------------------------------------------------------------
--- Common functions
+-- Binders functions
 ----------------------------------------------------------------
-patBinders pat
-  = case pat of
-      PatCon id ids -> setFromList ids
-      other         -> emptySet
-
 listFromBinds :: Binds -> [Bind]
 listFromBinds binds
   = case binds of
       NonRec bind -> [bind]
+      Strict bind -> [bind]
       Rec recs    -> recs
-
-binders :: Binds -> [Id]
+      
+binders :: [Bind] -> [Id]
 binders binds
-  = map (\(Bind id rhs) -> id) (listFromBinds binds)
+  = map (\(Bind id rhs) -> id) (binds)
 
 unzipBinds :: [Bind] -> ([Id],[Expr])
 unzipBinds binds
-  = unzip (map (\(Bind id rhs) -> (id,rhs)) binds)
+  = unzip (map (\(Bind id rhs) -> (id,rhs)) (binds))
 
 mapBinds :: (Id -> Expr -> Bind) -> Binds -> Binds
 mapBinds f binds
   = case binds of
       NonRec (Bind id rhs)
         -> NonRec (f id rhs)
+      Strict (Bind id rhs)
+        -> Strict (f id rhs)
       Rec recs
         -> Rec (map (\(Bind id rhs) -> f id rhs) recs)
 
@@ -101,6 +101,9 @@ mapAccumBinds f x binds
       NonRec (Bind id rhs)
         -> let (bind,y) = f x id rhs
            in  (NonRec bind, y)
+      Strict (Bind id rhs)
+        -> let (bind,y) = f x id rhs
+           in  (Strict bind, y)
       Rec recs
         -> let (recs',z) = mapAccum (\x (Bind id rhs) -> f x id rhs) x recs
            in  (Rec recs',z)
@@ -113,10 +116,21 @@ mapAccum f s (x:xs)     = (y:ys,s'')
 
 
 zipBindsWith :: (a -> Id -> Expr -> Bind) -> [a] -> Binds -> Binds
+zipBindsWith f (x:xs) (Strict (Bind id rhs))
+  = Strict (f x id rhs)
 zipBindsWith f (x:xs) (NonRec (Bind id rhs))
   = NonRec (f x id rhs)
 zipBindsWith f xs (Rec recs)
   = Rec (zipWith (\x (Bind id rhs) -> f x id rhs) xs recs)
+
+----------------------------------------------------------------
+-- Alternatives functions
+----------------------------------------------------------------
+patBinders :: Pat -> IdSet
+patBinders pat
+  = case pat of
+      PatCon id ids -> setFromList ids
+      other         -> emptySet
 
 
 mapAlts :: (Pat -> Expr -> Alt) -> Alts -> Alts

@@ -80,7 +80,7 @@ asmExpr prim expr
       Note n e        -> asmExpr prim e
       Lam x e         -> error "CoreToAsm.asmExpr: unexpected lambda expression (do 'coreNormalise' first?)"
       Let binds e     -> asmLet prim binds (asmExpr prim e)
-
+{-
       Case e id [Alt PatDefault expr]
                       -> let (lifted0,asme)    = asmExpr prim e
                              (lifted1,asmexpr) = asmExpr prim expr
@@ -88,7 +88,9 @@ asmExpr prim expr
       Case e id alts  -> let (lifted0,asmexpr) = asmExpr prim e
                              (lifted1,asmalts) = asmAlts prim alts
                          in  (lifted0++concat lifted1,Asm.Eval id asmexpr (Asm.Match id asmalts))
-
+-}
+      Match id alts   -> let (lifted,asmalts) = asmAlts prim alts
+                         in (concat lifted, Asm.Match id asmalts)
       atom            -> let asmatom = asmAtom atom []  -- handles prim ap's too
                          in case asmatom of
                               Asm.Ap id args  | elemSet id prim
@@ -114,6 +116,9 @@ asmLet prim binds (lifted,asmexpr)
                 -> if (isAtomic prim expr)
                     then (lifted, Asm.Let id (asmAtom expr []) asmexpr)
                     else (Bind id expr:lifted,asmexpr)
+      Strict bind@(Bind id rhs)
+                -> let (liftedrhs,asmrhs) = asmExpr prim rhs
+                   in  (lifted ++ liftedrhs,Asm.Eval id asmrhs asmexpr)
       Rec binds -> let (lifted',binds') = foldr asmRec (lifted,[]) binds
                    in if (null binds')
                        then (lifted',asmexpr)

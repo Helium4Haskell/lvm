@@ -75,8 +75,7 @@ normBind env expr
   = case expr of
       Let binds expr    -> let (env1,env2) = splitEnv env
                            in Let (normBinds env1 binds) (normExpr env2 expr)
-      Case expr id alts -> let (env1,env2) = splitEnv env
-                           in Case (normExpr env1 expr) id (normAlts env2 alts)
+      Match id alts     -> Match id (normAlts env alts)
       Lam id expr       -> Lam id (normBind env expr)
       Note n expr       -> normBind env expr  -- de-annotate
       Ap expr1 expr2    -> normAp env expr
@@ -95,8 +94,8 @@ normAp env expr
 -- returns an atomic expression + a function that adds the right bindings
 normAtom env expr
   = case expr of
-      Case {}           -> freshBinding
-      Lam {}            -> freshBinding
+      Match _ _         -> freshBinding
+      Lam _ _           -> freshBinding
       Let binds expr    -> let (env1,env2) = splitEnv env
                                (atom,f)    = normAtom env1 expr
                            in  (atom, Let (normBinds env2 binds) . f)

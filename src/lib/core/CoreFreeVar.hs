@@ -14,7 +14,7 @@
 ----------------------------------------------------------------
 module CoreFreeVar( coreFreeVar ) where
 
-import Standard( trace )
+import Standard( warning )
 import Id   ( Id )
 import IdSet( IdSet, emptySet, isEmptySet
             , setFromMap, listFromSet, setFromList
@@ -31,10 +31,10 @@ coreFreeVar mod
 
 fvDeclExpr globals expr
   = let (expr',fv) = fvExpr globals expr
-    in  if (isEmptySet fv)
+    in if (isEmptySet fv)
         then Note (FreeVar fv) expr'
-        else error ("CoreFreeVar.fvDeclExpr: top-level binding with free variables: "
-                    ++ show (listFromSet fv))
+        else warning ("CoreFreeVar.fvDeclExpr: top-level binding with free variables: "
+                      ++ show (listFromSet fv)) (Note (FreeVar fv) expr')
 
 
 
@@ -48,14 +48,13 @@ fvExpr globals expr
       Let binds expr
         -> let (expr',fv)       = fvExpr globals expr
                (binds',fvbinds) = fvBinds globals binds
-           in (Let binds' expr', diffSet (unionSet fvbinds fv) (setFromList (binders binds)))
+           in (Let binds' expr', diffSet (unionSet fvbinds fv) (setFromList (binders (listFromBinds binds))))
       Lam id expr
         -> let (expr',fv) = fvExpr globals expr
            in  (Lam id expr',deleteSet id fv)
-      Case expr id alts
-        -> let (expr',fv)     = fvExpr globals expr
-               (alts',fvalts) = fvAlts globals alts
-           in  (Case expr' id alts',unionSet (deleteSet id fvalts) fv)
+      Match id alts
+        -> let (alts',fvalts) = fvAlts globals alts
+           in  (Match id alts',insertSet id fvalts)
       Ap expr1 expr2
         -> let (expr1',fv1)   = fvExpr globals expr1
                (expr2',fv2)   = fvExpr globals expr2
@@ -82,14 +81,19 @@ fvBinds :: IdSet -> Binds -> (Binds,IdSet)
 fvBinds globals binds
   = case binds of
       NonRec (Bind id expr)
-        -> let (expr',fv) = fvBindExpr globals expr
-           in  if (elemSet id fv)
-                then error "CoreFreeVar.fvBinds: non-recursive binding refers to itself? (do CoreNoShadow first?)"
-                else (NonRec (Bind id expr'),fv)
-      other
+        -> nonrec NonRec id expr
+      Strict (Bind id expr)
+        -> nonrec Strict id expr
+      other 
         -> let binds' = mapBinds (\id rhs -> Bind id (fst (fvBindExpr globals rhs))) binds
-               fvs    = unionSets (map (freeVar . bindExpr) (listFromBinds binds'))
+               fvs    = unionSets (map (\(Bind id rhs) -> freeVar rhs) (listFromBinds binds'))
            in  (binds',fvs)
+  where
+    nonrec make id expr
+      = let (expr',fv) = fvBindExpr globals expr
+        in if (elemSet id fv)
+            then error "CoreFreeVar.fvBinds: non-recursive binding refers to itself? (do CoreNoShadow first?)"
+            else (make (Bind id expr'),fv)
 
 
 freeVar expr

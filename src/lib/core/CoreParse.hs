@@ -345,14 +345,16 @@ pexpr
       ; expr <- pexpr
       ; lexeme LexOF
       ; (id,alts) <- palts
-      ; return (Case expr id alts)
+      ; case alts of
+          [Alt PatDefault rhs] -> return (Let (Strict (Bind id expr)) rhs)
+          other                -> return (Let (Strict (Bind id expr)) (Match id alts))
       }
   <|> 
     do{ lexeme LexLETSTRICT
       ; binds <- semiBraces pbind
       ; lexeme LexIN
       ; expr <- pexpr
-      ; return (foldr (\(Bind id rexpr) expr -> Case rexpr id [Alt PatDefault expr]) expr binds)
+      ; return (foldr (Let . Strict) expr binds)
       }
   <|> pexprAp
   <?> "expression"
