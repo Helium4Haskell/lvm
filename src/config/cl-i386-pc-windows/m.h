@@ -1,4 +1,7 @@
 /* machine architecture settings "cl-i386-pc-windows" */
+#define ARCH_COMP	cl
+#define ARCH_HOST "i386-pc-windows"
+#define ARCH_IA32
 #define ARCH32
 #define SIZEOF_INT 4
 #define SIZEOF_LONG 4

@@ -90,6 +90,7 @@ static void _print_value( int level, value module, value v )
     case Caf_tag:    print( "[caf %s]", find_name_of_code( module, v )); break;
     case Inv_tag:    print( "[blackhole]" ); break;
     case Suspend_tag:print( "[suspension]" ); break;
+    case Double_tag: print( "[float %g]", Double_val(v) ); break;
     default        : if (Wosize_val(v) <= 4) {
                        char buf[16];
                        snprintf( buf, 16, "tag %i", Tag_val(v) );

@@ -118,19 +118,26 @@ enum exn_system {
 
 
 enum exn_arithmetic {
-  Int_zerodivide,
-  Int_overflow,
-  Int_underflow,
+  /* IEEE 754 floating point exceptions (and sticky tags) */
   Fpe_invalid,
-  Fpe_denormal,
   Fpe_zerodivide,
   Fpe_overflow,
   Fpe_underflow,
   Fpe_inexact,
+  Fpe_denormal,
+
+  /* integer arithmetic, [Int_underflow] is used for negative overflows */
+  Int_zerodivide,
+  Int_overflow,
+  Int_underflow,
+
+  /* other floating point exceptions. [Fpe_error] is a general floating point error */
+  Fpe_error,
   Fpe_unemulated,
   Fpe_sqrtneg,
   Fpe_stackoverflow,
   Fpe_stackunderflow,
+
   Fpe_count
 };
 

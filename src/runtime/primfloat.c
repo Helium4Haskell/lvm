@@ -9,8 +9,9 @@
 
 /* $Id$ */
 
-#include <stdio.h>
+#include <stdlib.h>
 #include "mlvalues.h"
+#include "fail.h"
 #include "primfloat.h"
 
 #ifdef HAS_FLOAT_H
@@ -25,31 +26,82 @@
 #include <ieeefp.h>
 #endif
 
+/*----------------------------------------------------------------------
+-- portable functions
+----------------------------------------------------------------------*/
+#ifdef ARCH_ALIGN_DOUBLE
+
+double Double_val(value val)
+{
+  union { value v[2]; double d; } buffer;
+
+  Assert(sizeof(double) == 2 * sizeof(value));
+  buffer.v[0] = Field(val, 0);
+  buffer.v[1] = Field(val, 1);
+  return buffer.d;
+}
+
+void Store_double_val(value val, double dbl)
+{
+  union { value v[2]; double d; } buffer;
+
+  Assert(sizeof(double) == 2 * sizeof(value));
+  buffer.d = dbl;
+  Field(val, 0) = buffer.v[0];
+  Field(val, 1) = buffer.v[1];
+}
+
+#endif
+
+value copy_double(double d)
+{
+  value res;
+
+#define Setup_for_gc
+#define Restore_after_gc
+  Alloc_small(res, Double_wosize, Double_tag);
+#undef Setup_for_gc
+#undef Restore_after_gc
+  Store_double_val(res, d);
+  return res;
+}
+
+float_t float_of_string( const char* s )
+{
+  return atof(s);
+}
+
 
 /*----------------------------------------------------------------------
 -- Each platform defines an array that maps [fp_exception] to bit masks
 ----------------------------------------------------------------------*/
-static long fp_sticky_masks[fp_ex_count];
-static long fp_trap_masks[fp_ex_count];
+#define Fp_exn_count  (Fpe_denormal + 1)
+
+static long fp_sticky_masks[Fp_exn_count];
+static long fp_trap_masks[Fp_exn_count];
 static long fp_round_masks[fp_round_count];
 
-long  fp_sticky_mask( enum fp_exception ex )
+long  fp_sticky_mask( enum exn_arithmetic ex )
 {
-  if (ex < 0 || ex >= fp_ex_count) return 0;
-                              else return fp_sticky_masks[ex];
+  if (ex < 0 || ex >= Fp_exn_count) {
+    raise_invalid_argument( "fp_sticky_mask" ); return 0;
+  }else 
+    return fp_sticky_masks[ex];
 }
 
-long  fp_trap_mask( enum fp_exception ex )
+long  fp_trap_mask( enum exn_arithmetic ex )
 {
-  if (ex < 0 || ex >= fp_ex_count) return 0;
-                              else return fp_trap_masks[ex];
+  if (ex < 0 || ex >= Fp_exn_count) {
+    raise_invalid_argument( "fp_trap_mask" ); return 0;
+  }else 
+    return fp_trap_masks[ex];
 }
 
 long fp_round_mask( enum fp_round rnd )
 {
-  if (rnd < 0 || rnd >= fp_round_count) 
-    return 0;
-  else
+  if (rnd < 0 || rnd >= fp_round_count) {
+    raise_invalid_argument( "fp_round_mask" ); return 0;
+  }else
     return fp_round_masks[rnd];
 }
 
@@ -128,14 +180,14 @@ enum fp_round fp_round_unmask( long rnd )
 #define FP_RN     0x0000
 #define FP_RM     0x0400
 #define FP_RP     0x0800
-#define FP_RZ     0x0c00
+#define FP_RZ     0x0c0
 
 typedef unsigned int fp_reg;
 
-static long fp_sticky_masks[fp_ex_count] =
+static long fp_sticky_masks[Fp_exn_count] =
   { FP_X_INV, FP_X_DZ, FP_X_OFL, FP_X_UFL, FP_X_IMP, FP_X_DNML };
 
-static long fp_trap_masks[fp_ex_count] =
+static long fp_trap_masks[Fp_exn_count] =
   { FP_X_INV, FP_X_DZ, FP_X_OFL, FP_X_UFL, FP_X_IMP, FP_X_DNML };
 
 static long fp_round_masks[fp_round_count] =
@@ -218,10 +270,10 @@ void fp_reset(void)
 # endif
 #endif
 
-static long fp_sticky_masks[fp_ex_count] =
+static long fp_sticky_masks[Fp_exn_count] =
   { FP_X_INV, FP_X_DZ, FP_X_OFL, FP_X_UFL, FP_X_IMP, FP_X_DNML };
 
-static long fp_trap_masks[fp_ex_count] =
+static long fp_trap_masks[Fp_exn_count] =
   { FP_X_INV, FP_X_DZ, FP_X_OFL, FP_X_UFL, FP_X_IMP, FP_X_DNML };
 
 static long fp_round_masks[fp_round_count] =
@@ -271,10 +323,10 @@ enum fp_round fp_set_round( enum fp_round rnd )
 ----------------------------------------------------------------------*/
 #elif defined(HAS_CONTROLFP)
 
-static long fp_sticky_masks[fp_ex_count] =
+static long fp_sticky_masks[Fp_exn_count] =
   { _EM_INVALID, _EM_ZERODIVIDE, _EM_OVERFLOW, _EM_UNDERFLOW, _EM_INEXACT, _EM_DENORMAL };
 
-static long fp_trap_masks[fp_ex_count] =
+static long fp_trap_masks[Fp_exn_count] =
   { _EM_INVALID, _EM_ZERODIVIDE, _EM_OVERFLOW, _EM_UNDERFLOW, _EM_INEXACT, _EM_DENORMAL };
 
 static long fp_round_masks[fp_round_count] =
@@ -317,6 +369,7 @@ long fp_get_sticky( void )
 /* sticky bits can only be set with assembly code :-( */
 long fp_set_sticky( long sticky )
 {
+  raise_arithmetic_exn( Fpe_unemulated );
   return fp_get_sticky();
 }
 
@@ -325,7 +378,59 @@ long fp_set_sticky( long sticky )
 -- IEEE floating point unsupported
 ----------------------------------------------------------------------*/
 #else
-# error "no floating point support!"
+static long fp_sticky_masks[Fp_exn_count] =
+  { 0,0,0,0,0,0 };
+
+static long fp_trap_masks[Fp_exn_count] =
+  { 0,0,0,0,0,0 };
+
+static long fp_round_masks[fp_round_count] =
+  { 0,0,0,0 };
+
+void fp_reset( void )
+{
+  return;
+}
+
+/* sticky */
+long fp_get_sticky(void)
+{
+  raise_arithmetic_exn( Fpe_unemulated );
+  return 0;
+}
+
+long fp_set_sticky( long sticky )
+{ 
+  raise_arithmetic_exn( Fpe_unemulated );
+  return 0;
+}
+
+/* traps */
+long fp_get_traps(void)
+{
+  raise_arithmetic_exn( Fpe_unemulated );
+  return 0;
+}
+
+long fp_set_traps( long traps )
+{ 
+  raise_arithmetic_exn( Fpe_unemulated );
+  return 0;
+}
+
+/* rounding */
+enum fp_round fp_get_round( void )
+{
+  raise_arithmetic_exn( Fpe_unemulated );
+  return fp_round_near;
+}
+
+enum fp_round fp_set_round( enum fp_round rnd )
+{
+  raise_arithmetic_exn( Fpe_unemulated );
+  return fp_round_near;
+}
+
 #endif
 
 /*

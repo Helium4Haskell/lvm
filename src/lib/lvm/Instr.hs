@@ -147,10 +147,20 @@ data Instr    =
               | GTINT
               | LEINT
               | GEINT
-              | LTNAT
-              | GTNAT
-              | LENAT
-              | GENAT
+             
+              -- FLOAT operations
+              | ADDFLOAT
+              | SUBFLOAT
+              | MULFLOAT
+              | DIVFLOAT
+              | NEGFLOAT
+
+              | EQFLOAT
+              | NEFLOAT
+              | LTFLOAT
+              | GTFLOAT
+              | LEFLOAT
+              | GEFLOAT
 
               -- optimized VAR
               | PUSHVAR0
@@ -205,6 +215,7 @@ instrFromName name
     instrNames
       = [ ("CATCH", CATCH [])
         , ("RAISE", RAISE)
+
         , ("ADDINT", ADDINT)
         , ("SUBINT", SUBINT)
         , ("MULINT", MULINT)
@@ -226,6 +237,19 @@ instrFromName name
         , ("GTINT", GTINT)
         , ("LEINT", LEINT)
         , ("GEINT", GEINT)
+
+        , ("ADDFLOAT", ADDFLOAT)
+        , ("SUBFLOAT", SUBFLOAT)
+        , ("MULFLOAT", MULFLOAT)
+        , ("DIVFLOAT", DIVFLOAT)
+        , ("NEGFLOAT", NEGFLOAT)
+
+        , ("EQFLOAT", EQFLOAT)
+        , ("NEFLOAT", NEFLOAT)
+        , ("LTFLOAT", LTFLOAT)
+        , ("GTFLOAT", GTFLOAT)
+        , ("LEFLOAT", LEFLOAT)
+        , ("GEFLOAT", GEFLOAT)
 
         , ("ALLOC",   ALLOC)
         , ("GETFIELD",GETFIELD)
@@ -262,10 +286,19 @@ instrHasStrictResult instr
       GTINT   -> True
       LEINT   -> True
       GEINT   -> True
-      LTNAT   -> True
-      GTNAT   -> True
-      LENAT   -> True
-      GENAT   -> True
+
+      ADDFLOAT  -> True
+      SUBFLOAT  -> True
+      MULFLOAT  -> True
+      DIVFLOAT  -> True
+      NEGFLOAT  -> True
+
+      EQFLOAT   -> True
+      NEFLOAT   -> True
+      LTFLOAT   -> True
+      GTFLOAT   -> True
+      LEFLOAT   -> True
+      GEFLOAT   -> True
 
       other   -> False
 
@@ -307,8 +340,8 @@ instrTable =
     , NEWCON0 con, NEWCON1 con, NEWCON2 con, NEWCON3 con
     , ENTERCODE global, EVALVAR var, RETURNCON con, RETURNINT 0, RETURNCON0 con 
     , MATCHCON [], SWITCHCON [], MATCHINT []
-    -- ,PUSHEAGER 0, INCINT 0
-    , NOP, NOP
+    , ADDFLOAT, SUBFLOAT, MULFLOAT, DIVFLOAT, NEGFLOAT
+    , EQFLOAT, NEFLOAT, LTFLOAT, GTFLOAT, LEFLOAT, GEFLOAT     
     ]
   where
     id     = dummyId
@@ -411,10 +444,6 @@ enumFromInstr instr
       GTINT                   -> 83
       LEINT                   -> 84
       GEINT                   -> 85
-      LTNAT                   -> 86
-      GTNAT                   -> 87
-      LENAT                   -> 88
-      GENAT                   -> 89
 
       -- optimized instructions
       PUSHVAR0                -> 100
@@ -440,6 +469,21 @@ enumFromInstr instr
       NEWCON3 con             -> 123
 
       RETURNCON0 con          -> 124
+
+      -- FLOAT operations
+      ADDFLOAT                  -> 160
+      SUBFLOAT                  -> 161
+      MULFLOAT                  -> 162
+      DIVFLOAT                  -> 163
+      NEGFLOAT                  -> 164
+
+      -- relative FLOAT ops
+      EQFLOAT                   -> 180
+      NEFLOAT                   -> 181
+      LTFLOAT                   -> 182
+      GTFLOAT                   -> 183
+      LEFLOAT                   -> 184
+      GEFLOAT                   -> 185
 
       other                   -> error "Code.enumFromInstr: unknown instruction"
 
@@ -535,11 +579,6 @@ nameFromInstr instr
       GTINT                   -> "GTINT"
       LEINT                   -> "LEINT"
       GEINT                   -> "GEINT"
-      LTNAT                   -> "LTNAT"
-      GTNAT                   -> "GTNAT"
-      LENAT                   -> "LENAT"
-      GENAT                   -> "GENAT"
-
 
       -- optimized instructions
       PUSHVAR0                -> "PUSHVAR0"
@@ -567,5 +606,20 @@ nameFromInstr instr
       NEWCON3 con             -> "NEWCON3"
 
       RETURNCON0 con          -> "RETURNCON0"
+
+    -- FLOAT operations
+      ADDFLOAT                  -> "ADDFLOAT"
+      SUBFLOAT                  -> "SUBFLOAT"
+      MULFLOAT                  -> "MULFLOAT"
+      DIVFLOAT                  -> "DIVFLOAT"
+      NEGFLOAT                  -> "NEGFLOAT"
+
+    -- relative FLOAT ops
+      EQFLOAT                   -> "EQFLOAT"
+      NEFLOAT                   -> "NEFLOAT"
+      LTFLOAT                   -> "LTFLOAT"
+      GTFLOAT                   -> "GTFLOAT"
+      LEFLOAT                   -> "LEFLOAT"
+      GEFLOAT                   -> "GEFLOAT"
 
       other                   -> "<unknown>"

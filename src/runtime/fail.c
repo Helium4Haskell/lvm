@@ -64,14 +64,18 @@ static struct exn_info exn_system_infos[] = {
 };
 
 static struct exn_info exn_arith_infos[] = {
-  { Int_zerodivide,       0, "integer division by zero" },
-  { Int_overflow,         0, "integer overflow" },
-  { Int_underflow,        0, "integer underflow" },
-  { Fpe_invalid,          0, "invalid numeric operation" },
+  { Fpe_invalid,          0, "invalid floating point operation" },
   { Fpe_zerodivide,       0, "floating point division by zero" },
   { Fpe_overflow,         0, "floating point overflow" },
   { Fpe_underflow,        0, "floating point underflow" },
-  { Fpe_inexact,          0, "numeric result is inexact" },
+  { Fpe_inexact,          0, "floating point result is inexact" },
+  { Fpe_denormal,         0, "denormalized floating point value" },
+
+  { Int_zerodivide,       0, "integer division by zero" },
+  { Int_overflow,         0, "integer overflow" },
+  { Int_underflow,        0, "integer underflow" },
+  
+  { Fpe_error,            0, "floating point error" },
   { Fpe_unemulated,       0, "numeric operation can not be emulated" },
   { Fpe_sqrtneg,          0, "square root of a negative number" },
   { Fpe_overflow,         0, "floating point hardware stack overflow"  },

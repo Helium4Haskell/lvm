@@ -23,7 +23,7 @@
 #include "primio.h"
 #include "primsys.h"
 #include "primstring.h"
-
+#include "primfloat.h"
 
 #define PRIM(name,tp)  { #name, tp, name },
 /*----------------------------------------------------------------------
@@ -38,6 +38,19 @@ struct prim_info {
 static struct prim_info primitives[] = {
   { "getTickCount", "l"   , get_msec_count },
 
+  /* floating point control */
+  PRIM(float_of_string,"Fz")
+  PRIM(fp_reset       ,"v" )
+  PRIM(fp_sticky_mask ,"li")
+  PRIM(fp_set_sticky  ,"ll")
+  PRIM(fp_get_sticky  ,"l" )
+  PRIM(fp_trap_mask   ,"li")
+  PRIM(fp_set_traps   ,"ll")
+  PRIM(fp_get_traps   ,"l" )
+  PRIM(fp_set_round   ,"ii")
+  PRIM(fp_get_round   ,"i")
+  
+  /* file handle's */
   PRIM(prim_flag_mask,"ll")
   PRIM(prim_open,"lzl")
   PRIM(prim_close,"vl")
@@ -51,6 +64,7 @@ static struct prim_info primitives[] = {
   PRIM(prim_output,"vazll")
   PRIM(prim_input_char, "la" )
 
+  /* string/list conversion */
   PRIM(prim_string_of_chars, "ala" )
   PRIM(prim_chars_of_string, "aa" )
   PRIM(prim_string_length, "la" )

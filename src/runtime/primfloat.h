@@ -11,6 +11,8 @@
 #ifndef _primfloat_h
 #define _primfloat_h
 
+float_t float_of_string( const char* s );
+
 /*----------------------------------------------------------------------
 -- IEEE floating point interface
 ----------------------------------------------------------------------*/
@@ -26,23 +28,11 @@ enum fp_round {
 enum fp_round fp_get_round( void );
 enum fp_round fp_set_round( enum fp_round rnd );
 
-
-enum fp_exception {
-  fp_ex_invalid,
-  fp_ex_zerodivide,
-  fp_ex_overflow,
-  fp_ex_underflow,
-  fp_ex_inexact,
-  fp_ex_denormal,
-
-  fp_ex_count
-};
-
-long fp_sticky_mask( enum fp_exception ex );
+long fp_sticky_mask( enum exn_arithmetic ex );
 long fp_get_sticky( void );
 long fp_set_sticky( long sticky );
 
-long fp_trap_mask( enum fp_exception ex );
+long fp_trap_mask( enum exn_arithmetic ex );
 long fp_get_traps( void );
 long fp_set_traps( long traps );
 

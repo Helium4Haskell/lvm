@@ -174,6 +174,10 @@ SOURCE=.\module.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\primfloat.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\primio.c
 # End Source File
 # Begin Source File
@@ -323,6 +327,10 @@ SOURCE=.\mlvalues.h
 # Begin Source File
 
 SOURCE=.\module.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\primfloat.h
 # End Source File
 # Begin Source File
 

@@ -388,7 +388,8 @@ struct fpe_info {
 
 
 /* floating point exceptions are synchronous */
-#if defined(OS_WINDOWS)
+/* Visual C++ & mingw32 */
+#if defined(HAS_CONTROLFP)
 static struct fpe_info  fpe_table[] = {
   { _FPE_INVALID            , Fpe_invalid },
   { _FPE_DENORMAL           , Fpe_denormal },
@@ -402,14 +403,26 @@ static struct fpe_info  fpe_table[] = {
   { _FPE_STACKOVERFLOW      , Fpe_stackoverflow },
   { _FPE_STACKUNDERFLOW     , Fpe_stackunderflow },
 
-  { _FPE_EXPLICITGEN        , Fpe_invalid },
-  { -1                      , Fpe_invalid }
+#ifdef __MINGW32__
+  { _EM_INVALID             , Fpe_invalid },
+  { _EM_DENORMAL            , Fpe_denormal },
+  { _EM_ZERODIVIDE          , Fpe_zerodivide },
+  { _EM_OVERFLOW            , Fpe_overflow },
+  { _EM_UNDERFLOW           , Fpe_underflow },
+  { _EM_INEXACT             , Fpe_inexact },
+#endif
+
+  { _FPE_EXPLICITGEN        , Fpe_error },
+  { -1                      , Fpe_error }
 };
 
 static void handle_signal_fpe( int sig, int syserr )
 {
-  enum exn_arithmetic err = Fpe_invalid;
+  enum exn_arithmetic err = Fpe_error;
   struct fpe_info* info;
+#ifdef __MINGW32__
+  syserr = _clearfp();
+#endif
   for( info = fpe_table; info->syserr != -1; info++ ) {
     if (info->syserr == syserr) { err = info->err; break; }
   }
@@ -428,6 +441,7 @@ static void done_fpe_handler( void )
   oldfpe = SIG_DFL;
 }
 
+
 /* POSIX */
 #elif defined(POSIX_SIGNALS)
 static struct fpe_info  fpe_table[] = {
@@ -436,12 +450,12 @@ static struct fpe_info  fpe_table[] = {
   { FPE_FLTOVF, Fpe_overflow },
   { FPE_FLTUND, Fpe_underflow },
   { FPE_FLTRES, Fpe_inexact },
-  { -1        , Fpe_invalid }
+  { -1        , Fpe_error }
 };
 
 static void handle_signal_fpe( int sig, siginfo_t* siginfo, void* p)
 {
-  enum exn_arithmetic err = Fpe_invalid;
+  enum exn_arithmetic err = Fpe_error;
   struct fpe_info* info;
   for( info = fpe_table; info->syserr != -1; info++ ) {
     if (info->syserr == siginfo->si_code) { err = info->err; break; }

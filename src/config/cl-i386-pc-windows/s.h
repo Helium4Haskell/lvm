@@ -7,8 +7,10 @@
 #define HAS_STDARG_H
 #define HAS_TIME_H
 #define HAS_IO_H
+#define HAS_FLOAT_H
 #define HAS_STRERROR
 #define HAS_MEMMOVE
 #define HAS__VSNPRINTF
 #define HAS__SNPRINTF
 #define HAS_STRICMP
+#define HAS_CONTROLFP

@@ -43,15 +43,16 @@ data SystemException
   | SystemError       Int PackedString      -- general system error
 
 data ArithmeticException
-  = DivideByZero                      -- integer division by zero
+  = FloatInvalid                      -- float invalid operation
+  | FloatDivideByZero                 -- float division by zero
+  | FloatOverflow                     -- float has overflowed
+  | FloatUnderflow                    -- float has underflowed
+  | FloatInexact                      -- float result is inexact
+  | FloatDenormal                     -- denormalized float value
+  | DivideByZero                      -- integer division by zero
   | Overflow                          -- integer overflow
   | Underflow                         -- integer underflow
   | InvalidOperation                  -- general arithmetic error
-  | Denormal                          -- denormalized float value
-  | FloatDivideByZero                 -- division by zero
-  | FloatOverflow                     -- float has overflowed
-  | FloatUnderflow                    -- float has underflowed
-  | LossOfPrecision                   -- float result is inexact
   | UnEmulated                        -- cannot emulate float instruction
   | NegativeSquareRoot                -- square root of negative number
   | FloatStackOverflow                -- float hardware stack has overflowed

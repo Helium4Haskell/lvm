@@ -100,9 +100,9 @@
   safe points
 ----------------------------------------------------------------------*/
 #define Safe_check_()         Safe_checkx(sp=sp/* nothing */)
-#define Safe_check(v)         Safe_checkx(Push(v)) 
+#define Safe_check(v)         Safe_checkx((*--sp = (v)) /* Push(v) */) 
 #define Safe_signal_check_()  Safe_signal_checkx(sp=sp;/* nothing */)
-#define Safe_signal_check(v)  Safe_signal_checkx(Push(v))
+#define Safe_signal_check(v)  Safe_signal_checkx((*--sp = (v)) /* Push(v) */)
 
 #define Safe_checkx(v)        { Safe_signal_checkx((v)); \
                                 Safe_stack_checkx((v)); \
