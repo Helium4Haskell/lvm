@@ -1,0 +1,17 @@
+{- recursive modules
+ImportRec1 uses [square] from ImportRec0 and
+ImportRec0 uses [mulint] from ImportRec1.
+On top of that, ImportRec1 imports [fromTo]
+from Abstract which is imported from Export.
+-}
+module ImportRec1( mulint ) where
+
+abstract fromTo = Abstract.fromTo   :: Int -> Int -> List Int
+abstract sum    = Abstract.sum      :: List Int -> Int
+abstract square = ImportRec0.square :: Int -> Int
+
+instruction primMulInt "mulint" :: Int! -> Int! -> Int!
+
+mulint x y  = let! x = x in let! y = y in primMulInt x y
+
+main = square (sum (fromTo 1 100))

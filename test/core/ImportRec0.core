@@ -1,0 +1,8 @@
+{- recursive modules -}
+module ImportRec0( square ) where
+
+abstract mulint = ImportRec1.mulint :: Int -> Int -> Int
+
+main = square 42
+
+square x  = mulint x x
