@@ -36,7 +36,7 @@ LVM	= lvm/Lvm.hs lvm/LvmPretty.hs lvm/LvmWrite.hs \
 ASM	= asm/Asm.hs asm/AsmPretty.hs asm/AsmToLvm.hs
 
 CORE	= core/Core.hs core/CorePretty.hs core/CoreToAsm.hs \
-          core/CoreParse.hs core/CoreLexer.hs \
+	  core/CoreParse.hs core/CoreLexer.hs \
 	  core/CoreNormalize.hs \
 	  core/CoreNoShadow.hs core/CoreFreeVar.hs core/CoreLetSort.hs \
 	  core/CoreLift.hs core/CoreSaturate.hs
@@ -84,8 +84,8 @@ $(MAIN)$(EXE): $(OBJS)
 clean:
 	$(RM) *.hi *.o $(MAIN)$(EXE)
 	$(RM) common/*.hi common/*.o common/ghc/*.hi common/ghc/*.o
-	$(RM) lvm/*.hi  lvm/*.o
-	$(RM) asm/*.hi  asm/*.o
+	$(RM) lvm/*.hi	lvm/*.o
+	$(RM) asm/*.hi	asm/*.o
 	$(RM) core/*.hi core/*.o
 	$(RM) parsec/*.hi parsec/*.o
 
