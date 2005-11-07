@@ -30,7 +30,7 @@ import Standard  (foldlStrict)
 import qualified IntMap
 
 import Data.IORef( IORef, newIORef, readIORef, writeIORef )
-import System.IO.Unsafe ( unsafePerformIO )
+import Special ( unsafePerformIO )
 
 ----------------------------------------------------------------
 -- Types

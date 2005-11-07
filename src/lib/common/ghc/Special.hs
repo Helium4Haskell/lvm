@@ -17,15 +17,17 @@
 module Special( doesFileExist
               , openBinary, closeBinary, readBinary, writeBinaryChar
               , ST, STArray, runST, newSTArray, readSTArray, writeSTArray
-              , unsafeCoerce
+              , unsafeCoerce, unsafePerformIO
               ) where
 
 import Directory  ( doesFileExist )
 import IO         ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
 #if (__GLASGOW_HASKELL__ >= 602)
 import System.IO  ( openBinaryFile )
+import System.IO.Unsafe ( unsafePerformIO )
 #else
 import GHC.Handle ( openFileEx, IOModeEx(..))
+import IOExts ( unsafePerformIO )
 #endif
 
 #if (__GLASGOW_HASKELL__ >= 503)

@@ -21,11 +21,10 @@ module Standard( trace, warning, assert
                , raiseIO, raiseErr
                ) where
 
-import System.IO.Unsafe (unsafePerformIO)
 import List       (isPrefixOf)
 import IO
 import System     (getEnv)
-import Special    (doesFileExist,unsafeCoerce)
+import Special    (doesFileExist,unsafeCoerce,unsafePerformIO)
 
 ----------------------------------------------------------------
 -- three tuples

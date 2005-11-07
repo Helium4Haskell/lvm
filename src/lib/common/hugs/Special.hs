@@ -17,11 +17,12 @@
 module Special( doesFileExist
               , openBinary, closeBinary, readBinary, writeBinaryChar
               , ST, STArray, runST, newSTArray, readSTArray, writeSTArray
-              , unsafeCoerce
+              , unsafeCoerce, unsafePerformIO
               ) where
 
 import IO           ( IOMode(..), openFile, hClose )
 import IOExtensions ( readBinaryFile, writeBinaryFile )
+import IOExts       ( unsafePerformIO )
 import Data.IORef   ( IORef, newIORef, writeIORef, readIORef )
 import LazyST       ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray )
 
