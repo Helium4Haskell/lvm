@@ -21,7 +21,7 @@ module Standard( trace, warning, assert
                , raiseIO, raiseErr
                ) where
 
-import IOExts (unsafePerformIO)
+import System.IO.Unsafe (unsafePerformIO)
 import List       (isPrefixOf)
 import IO
 import System     (getEnv)
