@@ -134,7 +134,7 @@ import qualified List
 {--------------------------------------------------------------------
   Operators
 --------------------------------------------------------------------}
-infixl 9 \\
+infixl 9 \\ -- this comment is needed for cpp
 
 -- | /O(n+m)/. See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
