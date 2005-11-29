@@ -15,13 +15,14 @@ while : ; do
   shift
 done
 
-(echo "main() {"
+(for f in $*; do echo "  void $f(void);"; done
+ echo "main() {"
  for f in $*; do echo "  $f();"; done
  echo "}") >> hasgot.c
 
 if test "$verbose" = yes; then
   echo "hasgot $args: $cc $opts -o tst hasgot.c $libs" >&2
-  exec $cc $opts -o tst hasgot.c $libs > /dev/null
+  exec $cc -fno-builtin $opts -o tst hasgot.c $libs > /dev/null
 else
-  exec $cc $opts -o tst hasgot.c $libs > /dev/null 2>/dev/null
+  exec $cc -fno-builtin $opts -o tst hasgot.c $libs > /dev/null 2>&1
 fi
