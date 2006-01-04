@@ -22,35 +22,19 @@ module Special( doesFileExist
 
 import Directory  ( doesFileExist )
 import IO         ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
-#if (__GLASGOW_HASKELL__ >= 602)
 import System.IO  ( openBinaryFile )
 import System.IO.Unsafe ( unsafePerformIO )
-#else
-import GHC.Handle ( openFileEx, IOModeEx(..))
-import IOExts ( unsafePerformIO )
-#endif
-
-#if (__GLASGOW_HASKELL__ >= 503)
 import GHC.Base         ( unsafeCoerce# )
 import GHC.Arr          ( STArray, newSTArray, readSTArray, writeSTArray)
 import Control.Monad.ST ( runST, ST ) 
-#else
-import GlaExts  ( unsafeCoerce# )
-import LazyST   ( ST, STArray, runST, newSTArray, readSTArray, writeSTArray)
-#endif
-              
+               
 unsafeCoerce :: a -> b
 unsafeCoerce x
   = unsafeCoerce# x
 
 openBinary :: FilePath -> IOMode -> IO Handle
-#if (__GLASGOW_HASKELL__ >= 602)
 openBinary
   = openBinaryFile
-#else
-openBinary path mode
-  = openFileEx path (BinaryMode mode)
-#endif
 
 closeBinary :: Handle -> IO ()
 closeBinary h
