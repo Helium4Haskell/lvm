@@ -42,7 +42,7 @@ static nat heap_max_percent_free_init = 100; /* Initial setting for the compacte
 static wsize_t heap_minor_wsize_init      = 32*Kilo; /* Initial size of the minor zone. (words)  */
 static wsize_t heap_chunk_wsize_init      = 64*Kilo; /* Initial size increment when growing the heap. Must be a multiple of [Page_size / sizeof (value)]. */
 
-static wsize_t heap_wsize_init            = 64*Kilo; /* Default initial size of the major heap (words); same constraints as for Heap_chunk_def. */
+static wsize_t heap_wsize_init            = 4*Mega; /* Default initial size of the major heap (words); same constraints as for Heap_chunk_def. */
 static wsize_t heap_wsize_max_init        = Wsize_bsize(64*Mega); /* Default maximum size of the heap */
 
 #ifdef DEBUG
