@@ -20,7 +20,7 @@ MAIN	= coreasm
 
 #the haskell compiler
 HC	= ghc
-HC_OPTS = -cpp -static -package lang -package text -i$(IFACES) $(EXTRA_HC_OPTS)
+HC_OPTS = -cpp -static -i$(IFACES) $(EXTRA_HC_OPTS)
 
 #Haskell sources
 COMMON	= common/Id.hs common/IdMap.hs common/IdSet.hs \
@@ -54,7 +54,7 @@ OBJS = $(SRCS:.hs=.o)
 
 # The main target
 $(MAIN)$(EXE): $(OBJS)
-	  $(HC)	-o $@ $(HC_OPTS) $(OBJS)
+	  $(HC)	-package parsec -o $@ $(HC_OPTS) $(OBJS)
 	  $(STRIP) $@
 
 common/ghc/Special.hi: common/ghc/Special.hs
