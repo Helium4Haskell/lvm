@@ -233,10 +233,11 @@ static const char* variable( const char* str, const char* current, long* varlen 
     str_cpy(var,name,MAXVAR);
     return var;
   }
-  else if (stricmp("CURRENT",name) == 0) {
-    /* current string value */
+  /* I've decided to always add to the CURRENT.
+    else if (stricmp("CURRENT",name) == 0) {
+    // current string value 
     return current;
-  }
+  }*/
 #ifdef OS_WINDOWS
   else if (stricmp("SYSTEMDIR",name) == 0) {
     if (GetSystemDirectory(var,MAXVAR) == 0) return NULL;
@@ -336,12 +337,20 @@ static char* expand_string( const char* current, const char* str )
 static void parse_malloc_path( const char** path, const char* newpath )
 {
   char* p;
+  char* extendedpath;
+  
   Assert(path);
   p = expand_string( *path, newpath );
   if (p == NULL)     { options_out_of_memory(); }
   normalize_path(p);
-  if (*path != NULL) { free((char*)*path); }
-  *path = p;
+  if (*path != NULL) {
+    asprintf(&extendedpath, "%s%c%s", *path, PATHSEP, p);
+    free(p);
+    free((char*)*path); 
+    *path = extendedpath;
+  }
+  else
+    *path = p;
 }
 
 static void parse_malloc_name( const char** name, const char* newname )
@@ -500,9 +509,22 @@ static void parse_option( const char* option )
 static const char** options_cmd_line( const char** argv )
 {
   int i;
+  char *newopt = NULL;
   for( i = 1; argv[i] != NULL && argv[i][0] == '-'; i++)
   {
-    parse_option( &argv[i][1] );
+    if (argv[i][1] == 'P' && strlen(argv[i])<=2 && argv[i+1] != NULL) { 
+      // Join parameter i with i+1 if the following conditions hold:
+      //   -the option is the -P option
+      //   -the -P is not followed directly by its parameter (like -Pabc)
+      // We use here that -P must be followed by a path. 
+      asprintf(&newopt, "%s%s", argv[i], argv[i+1]);
+      // free((char*)argv[i]); 
+      // free((char*)argv[i+1]); 
+      parse_option( &newopt[1] );
+      i++;
+    }
+    else
+      parse_option( &argv[i][1] );
   }
   return (argv+i);
 }
