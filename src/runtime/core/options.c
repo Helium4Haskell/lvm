@@ -338,13 +338,18 @@ static void parse_malloc_path( const char** path, const char* newpath )
 {
   char* p;
   char* extendedpath;
+  size_t length;
   
   Assert(path);
   p = expand_string( *path, newpath );
   if (p == NULL)     { options_out_of_memory(); }
   normalize_path(p);
   if (*path != NULL) {
-    asprintf(&extendedpath, "%s%c%s", *path, PATHSEP, p);
+    //asprintf(&extendedpath, "%s%c%s", *path, PATHSEP, p);
+    length = strlen(*path) + 1 + strlen(p) + 1;
+    extendedpath = malloc(length);
+    snprintf(extendedpath, length, "%s%c%s", *path, PATHSEP, p);
+
     free(p);
     free((char*)*path); 
     *path = extendedpath;
@@ -510,6 +515,8 @@ static const char** options_cmd_line( const char** argv )
 {
   int i;
   char *newopt = NULL;
+  size_t length;
+  
   for( i = 1; argv[i] != NULL && argv[i][0] == '-'; i++)
   {
     if (argv[i][1] == 'P' && strlen(argv[i])<=2 && argv[i+1] != NULL) { 
@@ -517,7 +524,12 @@ static const char** options_cmd_line( const char** argv )
       //   -the option is the -P option
       //   -the -P is not followed directly by its parameter (like -Pabc)
       // We use here that -P must be followed by a path. 
-      asprintf(&newopt, "%s%s", argv[i], argv[i+1]);
+      
+      // asprintf(&newopt, "%s%s", argv[i], argv[i+1]);
+      length = strlen(argv[i]) + strlen(argv[i+1]) + 1;
+      newopt = malloc(length);
+      snprintf(newopt, length, "%s%s", argv[i], argv[i+1]);
+      
       // free((char*)argv[i]); 
       // free((char*)argv[i+1]); 
       parse_option( &newopt[1] );
