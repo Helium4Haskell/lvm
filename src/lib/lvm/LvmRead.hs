@@ -13,8 +13,6 @@ module LvmRead( lvmReadFile, lvmRead ) where
 
 import Prelude hiding (Read)
 import Array
-import PPrint   ( putDoc )
-import Standard ( assert, foldlStrict, getLvmPath, searchPath )
 import Id       ( Id, stringFromId, idFromString, newNameSupply, freshId )
 import IdMap
 
@@ -22,8 +20,6 @@ import Byte   hiding (readByteList)
 import qualified Byte
 import Lvm
 import Instr
-import InstrPretty ( instrPretty )
-import ModulePretty( modulePretty )
 
 {--------------------------------------------------------------
   Magic numbers
@@ -45,12 +41,14 @@ data Record v   = RecDecl       (Decl v)
 {--------------------------------------------------------------
   read an LVM file
 --------------------------------------------------------------}
+
+{-
 test src
   = do{ path    <- getLvmPath
       ; source  <- searchPath path ".lvm" src
       ; mod     <- lvmReadFile source
       ; putDoc (modulePretty instrPretty mod)
-      }
+      }  -}
 
 lvmReadFile :: FilePath -> IO (Module v)
 lvmReadFile fname

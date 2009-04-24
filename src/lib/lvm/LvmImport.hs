@@ -13,23 +13,12 @@ module LvmImport( lvmImport, lvmImportDecls ) where
 
 
 import Monad    ( foldM )
-import Standard ( foldlStrict)
-import Id       ( Id, stringFromId )
+import Standard ( foldlStrict )
+import Id       ( Id, stringFromId, idFromString )
 import IdMap    ( IdMap, emptyMap, insertMap, elemMap, updateMap, listFromMap, lookupMap, findMap, mapMap  )
-
-import Module   
+import qualified Module   
 import Lvm
 import LvmRead  ( lvmReadFile )
-
-import ModulePretty
-import InstrPretty
-import PPrint
-
-import System
-
--- Helium
-import Byte hiding (cat)
-import Id
 
 {--------------------------------------------------------------
   lvmImport: replace all import declarations with

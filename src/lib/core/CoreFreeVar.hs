@@ -15,9 +15,8 @@
 module CoreFreeVar( coreFreeVar ) where
 
 import Standard( warning )
-import Id   ( Id )
 import IdSet( IdSet, emptySet, isEmptySet
-            , setFromMap, listFromSet, setFromList
+            , listFromSet, setFromList
             , elemSet, insertSet, unionSets, unionSet, deleteSet, diffSet )
 import Core
 

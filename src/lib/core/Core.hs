@@ -27,8 +27,7 @@ module Core ( module Module
 import Byte   ( Bytes )
 import Id     ( Id, NameSupply, mapWithSupply )
 import Module
-import IdMap  ( IdMap, filterMap )
-import IdSet  ( IdSet, emptySet, setFromMap, setFromList )
+import IdSet  ( IdSet, emptySet, setFromList )
 
 ----------------------------------------------------------------
 -- Modules

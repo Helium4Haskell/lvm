@@ -13,7 +13,6 @@ module CorePretty ( corePretty ) where
 
 import PPrint
 import Byte         ( stringFromBytes )
-import Id           ( Id, stringFromId )
 import IdSet        ( listFromSet )
 import Core
 import ModulePretty ( modulePretty, ppId, ppVarId, ppConId )
@@ -40,11 +39,12 @@ ppExpr  p expr
       Var id      -> ppVarId  id
       Con con     -> ppCon (ppExpr 0) con
       Lit lit     -> ppLit lit
-      Note (FreeVar fv) e
-                -> align (text "{" <+> sep (map (ppVarId ) (listFromSet fv)) <+> text "}"
-                         <$> ppExpr p e)
-      Note n e  -> ppExpr p e
-      other     -> text "<unknown>"
+      Note n e  -> 
+         case n of
+            FreeVar fv ->  align (text "{" <+> sep (map (ppVarId ) (listFromSet fv)) <+> text "}"
+                              <$> ppExpr p e)
+            _          -> ppExpr p e
+      -- other     -> text "<unknown>"
   where
     prec p'  | p' >= p   = id
              | otherwise = parens

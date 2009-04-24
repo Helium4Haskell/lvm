@@ -12,8 +12,8 @@
 module InstrPretty( instrPretty  ) where
 
 import PPrint
-import Byte   ( Bytes, stringFromBytes )
-import Id     ( Id, stringFromId )
+import Byte   ( stringFromBytes )
+import Id     ( stringFromId )
 import Instr
 
 ----------------------------------------------------------------

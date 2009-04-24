@@ -17,7 +17,7 @@ module CoreLetSort( coreLetSort ) where
 
 import TopSort( topSort )
 import Id     ( Id )
-import IdSet  ( IdSet, elemSet, foldSet )
+import IdSet  ( elemSet, foldSet )
 import Core
 
 ----------------------------------------------------------------

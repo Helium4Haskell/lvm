@@ -15,7 +15,6 @@ import Char     ( isAlphaNum, isAlpha, isLower, isUpper )
 import PPrint
 import Byte     ( stringFromBytes )
 import Id       ( Id, stringFromId, idFromString )
-import IdMap    ( listFromMap )
 import IdSet    ( IdSet, setFromList, elemSet )
 import Module
 

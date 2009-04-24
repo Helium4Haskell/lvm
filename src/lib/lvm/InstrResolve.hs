@@ -11,8 +11,7 @@
 
 module InstrResolve( instrResolve ) where
 
-import Standard( assert, trace )
-import Id      ( Id )
+import Standard( assert )
 import IdMap   ( IdMap, emptyMap, lookupMap, extendMap )
 import Instr
 

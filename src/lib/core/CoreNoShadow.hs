@@ -20,7 +20,7 @@ module CoreNoShadow( coreNoShadow, coreRename ) where
 
 import Id     ( Id, freshIdFromId, NameSupply, splitNameSupply, splitNameSupplies )
 import IdMap  ( IdMap, emptyMap, lookupMap, extendMap )
-import IdSet  ( IdSet, emptySet, elemSet, insertSet, setFromMap, setFromList, unionSets  )
+import IdSet  ( IdSet, emptySet, elemSet, insertSet )
 import Core
 
 ----------------------------------------------------------------

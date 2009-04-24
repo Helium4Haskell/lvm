@@ -10,9 +10,8 @@
 --  $Id$
 module AsmInline (asmInline) where
 
-import Standard ( assert )
 import Id       ( Id )
-import IdMap    ( IdMap, emptyMap, extendMap, deleteMap, elemMap, lookupMap )
+import IdMap    ( IdMap, emptyMap, extendMap, deleteMap, lookupMap )
 import Module   ( mapValues )
 
 import Asm

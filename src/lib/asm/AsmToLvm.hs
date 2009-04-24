@@ -13,8 +13,8 @@ module AsmToLvm( asmToLvm )  where
 
 import Standard ( assert )
 import List     ( partition)
-import Id       ( Id, idFromString )
-import IdMap    ( IdMap, emptyMap, lookupMap, extendMap, mapMapWithId, mapFromList )
+import Id       ( idFromString )
+import IdMap    ( IdMap, lookupMap, mapFromList )
 import Asm
 import Lvm
 
@@ -23,8 +23,6 @@ import qualified Instr
 
 import InstrResolve   ( instrResolve )
 import InstrRewrite   ( instrRewrite )
-
-import AsmOccur(asmOccur)
 
 {---------------------------------------------------------------
   asmToLvm: generate instructions from Asm expressions

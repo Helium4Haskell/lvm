@@ -16,7 +16,6 @@
 ----------------------------------------------------------------
 module CoreLift ( coreLift ) where
 
-import List    ( mapAccumL )
 import Standard( foldlStrict )
 
 import Id      ( Id )

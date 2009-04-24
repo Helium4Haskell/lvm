@@ -11,26 +11,27 @@
 
 module InstrRewrite( instrRewrite )  where
 
-import Standard ( assert, trace )
-import Id       ( Id, stringFromId )
-import Instr    ( Instr(..), Alt(..), Pat(..), Var(..)
-                , idFromVar, offsetFromVar, depthFromVar
+import Instr    ( Instr(..), Alt(..), Var(..)
+                , offsetFromVar
                 , arityFromGlobal, arityFromCon
                 , instrHasStrictResult
                 )
-import InstrPretty
 
 {---------------------------------------------------------------
   debugging
 ---------------------------------------------------------------}
+
+{-
 showInstr instr
   = showInstrs [instr]
 
 showInstrs instrs
   = show (instrPretty instrs)
 
+
 traceInstrs instrs 
-  = trace ("trace:\n" ++ showInstrs instrs ++ "\n\n") instrs
+  = trace ("trace:\n" ++ showInstrs instrs ++ "\n\n") instrs 
+  -}
 
 {---------------------------------------------------------------
   rewrite rules

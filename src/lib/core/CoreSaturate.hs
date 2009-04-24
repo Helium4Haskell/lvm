@@ -16,8 +16,8 @@
 module CoreSaturate( coreSaturate ) where
 
 import List   ( mapAccumR )
-import Id     ( Id, NameSupply, freshId, splitNameSupply, splitNameSupplies )
-import IdMap  ( IdMap, emptyMap, lookupMap, filterMap, mapFromList )
+import Id     ( NameSupply, freshId, splitNameSupply, splitNameSupplies )
+import IdMap  ( IdMap, lookupMap, mapFromList )
 import Core
 
 ----------------------------------------------------------------

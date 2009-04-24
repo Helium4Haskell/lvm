@@ -143,7 +143,7 @@ declKindFromDecl decl
       DeclExtern{}   -> DeclKindExtern
       DeclCustom{}   -> declKind decl
       DeclImport{}   -> importKind (declAccess decl)
-      other          -> error "Module.kindFromDecl: unknown declaration"
+      -- other          -> error "Module.kindFromDecl: unknown declaration"
 
 shallowKindFromDecl decl
   = case decl of
@@ -153,7 +153,7 @@ shallowKindFromDecl decl
       DeclExtern{}   -> DeclKindExtern
       DeclCustom{}   -> declKind decl
       DeclImport{}   -> DeclKindImport
-      other          -> error "Module.shallowKindFromDecl: unknown declaration"
+      -- other          -> error "Module.shallowKindFromDecl: unknown declaration"
 
 
 

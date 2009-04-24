@@ -15,8 +15,6 @@ module Lvm( module Module, LvmModule, LvmDecl
           , recHeader,recFooter           
           ) where
 
-import Byte    ( Byte )
-import Id      ( Id )
 import Instr   ( Instr )
 import Module
 

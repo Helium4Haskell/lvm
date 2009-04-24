@@ -13,12 +13,11 @@ module CoreToAsm( coreToAsm ) where
 
 import Standard( assert, unsafeCoerce )
 import Id      ( Id, idFromString, NameSupply, splitNameSupplies )
-import IdMap   ( IdMap, listFromMap, mapFromList )
 import IdSet   ( IdSet, elemSet )
 import Core
 import qualified Asm
 
-import CoreNoShadow   ( coreNoShadow, coreRename )    -- rename local variables
+import CoreNoShadow   ( coreRename )      -- rename local variables
 import CoreSaturate   ( coreSaturate )    -- saturate constructors, instructions and externs
 import CoreNormalize  ( coreNormalize )   -- normalize core, ie. atomic arguments and lambda's at let bindings
 import CoreFreeVar    ( coreFreeVar )     -- attach free variable information at let bindings

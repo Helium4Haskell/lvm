@@ -26,7 +26,7 @@
 ----------------------------------------------------------------
 module CoreNormalize ( coreNormalize ) where
 
-import Id     ( Id, NameSupply, splitNameSupply, splitNameSupplies, freshId )
+import Id     ( NameSupply, splitNameSupply, splitNameSupplies, freshId )
 import IdSet  ( IdSet, elemSet )
 import Core
 

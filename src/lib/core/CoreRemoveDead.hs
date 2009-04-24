@@ -12,7 +12,7 @@
 module CoreRemoveDead( coreRemoveDead ) where
 
 import qualified Set
-import Standard ( foldlStrict, trace )
+import Standard ( foldlStrict )
 import Id       ( Id, idFromString )
 import IdSet    ( IdSet, emptySet, elemSet, insertSet, setFromList, unionSet )
 import Core

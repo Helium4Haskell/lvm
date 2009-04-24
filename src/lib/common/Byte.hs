@@ -29,7 +29,7 @@ module Byte( Byte
 
 import IO       ( IOMode(..) )
 import Special  ( openBinary, writeBinaryChar, readBinary, closeBinary )
-import Standard ( strict, foldlStrict )
+import Standard ( strict )
 import System   ( exitWith, ExitCode(..))
 
 {----------------------------------------------------------------
