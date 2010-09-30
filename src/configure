@@ -199,7 +199,8 @@ case "$cc,$host" in
     cccompopts="-fno-defer-pop $gcc_warnings -U__GNUC__ -posix"
     cclinkopts="-posix";;
   cc,*-*-macosx*)
-    cccompopts="-fno-defer-pop $gcc_warnings -DSHRINKED_GNUC"
+    cccompopts="-m32 -fno-defer-pop $gcc_warnings -DSHRINKED_GNUC"
+    cclinkopts="-arch i386" 
     mathlib="";;
   *,*-*-rhapsody*)
     # Almost the same as NeXTStep
@@ -238,7 +239,8 @@ case "$cc,$host" in
   *,powerpc-*-aix4.3*)
     cccompopts="-D_XOPEN_SOURCE=500";;
   gcc*,*-*-macosx*)
-    cccompopts="$gcc_warnings";;
+    cccompopts="-m32 $gcc_warnings"
+    cclinkopts="-arch i386";; 
   gcc*,*-*-cygwin*)
     cccompopts="$gcc_warnings"
     exe=".exe"
