@@ -75,7 +75,7 @@ insertMap id x (IdMap map)
 
 insertMapWith :: Id -> a -> (a -> a) -> IdMap a -> IdMap a
 insertMapWith id x f (IdMap map)
-  = IdMap (IntMap.insertWith (\i x -> f x) (intFromId id) x map)
+  = IdMap (IntMap.insertWith (\_ x -> f x) (intFromId id) x map)
 
 updateMap :: Id -> a -> IdMap a -> IdMap a
 updateMap id x (IdMap map)
@@ -123,7 +123,7 @@ unionMap :: IdMap a -> IdMap a -> IdMap a
 unionMap (IdMap map1) (IdMap map2)
   = IdMap (IntMap.unionWith err map1 map2)
   where
-    err a b   = error "IdMap.unionMap: duplicate identifiers"
+    err _ _   = error "IdMap.unionMap: duplicate identifiers"
 
 unionMapWith :: (a->a->a) -> IdMap a -> IdMap a -> IdMap a
 unionMapWith f (IdMap map1) (IdMap map2)

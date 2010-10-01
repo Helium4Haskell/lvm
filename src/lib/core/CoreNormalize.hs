@@ -1,3 +1,5 @@
+{-# OPTIONS -fno-warn-unused-matches #-}
+
 {------------------------------------------------------------------------
   The Core Assembler.
 
@@ -122,7 +124,7 @@ normAtom env expr
 
 -- normAtomBinds returns two functions: one that adds atomic
 -- let bindings and one that adds non-atomic bindings
-normAtomBinds :: Env -> Binds -> (Expr -> Expr, Expr -> Expr)
+{- normAtomBinds :: Env -> Binds -> (Expr -> Expr, Expr -> Expr)
 normAtomBinds env binds
   = let (binds',(env',f)) = mapAccumBinds norm (env,id) binds 
     in (Let binds', f)
@@ -130,7 +132,7 @@ normAtomBinds env binds
     norm (env,f) id expr    = let (env1,env2) = splitEnv env
                                   (atom,g)    = normAtom env1 expr
                               in (Bind id atom, (env2, f . g))
-
+-}
 -- just as an atomic expression but binds 'direct' applications (ie. externs & instructions)
 normArg env expr
   = let (env1,env2) = splitEnv env

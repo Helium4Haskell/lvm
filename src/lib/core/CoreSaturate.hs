@@ -1,3 +1,5 @@
+{-# OPTIONS -fno-warn-unused-matches #-}
+
 {------------------------------------------------------------------------
   The Core Assembler.
 
@@ -95,7 +97,7 @@ satExprSimple env expr
 -- Add lambda's
 ----------------------------------------------------------------
 addLam env n expr
-  = let (env',ids) = mapAccumR (\env i -> let (id,env') = uniqueId env in (env',id)) env [1..n]
+  = let (_,ids) = mapAccumR (\env i -> let (id,env') = uniqueId env in (env',id)) env [1..n]
     in  foldr Lam (foldl Ap expr (map Var ids)) ids
 
 requiredArgs env expr

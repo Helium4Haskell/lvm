@@ -1,3 +1,5 @@
+{-# OPTIONS -fno-warn-unused-matches #-}
+
 {------------------------------------------------------------------------
   The Core Assembler.
 

@@ -92,5 +92,5 @@ depends names (v,expr)
 
 freeVar expr
   = case expr of
-      Note (FreeVar fv) expr  -> fv
-      other                   -> error "CoreLetSort.freeVar: no annotation. Do coreFreeVar first?"
+      Note (FreeVar fv) _ -> fv
+      _                   -> error "CoreLetSort.freeVar: no annotation. Do coreFreeVar first?"

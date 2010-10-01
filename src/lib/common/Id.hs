@@ -145,10 +145,10 @@ shiftIdx, maxIdx :: Int
 shiftIdx          = 0x00100000
 maxIdx            = 0x7FF
 
-shiftUniq,maxUniq,flagUniq :: Int
+shiftUniq,maxUniq :: Int
 shiftUniq         = 0x00000100
 maxUniq           = 0x007FFFFF
-flagUniq          = 0x00000001
+-- flagUniq          = 0x00000001
 
 extractBits, clearBits, initBits :: Int -> Int -> Int -> Int
 extractBits shift max i
@@ -203,16 +203,16 @@ setNameSpace sort (Id i)
 
 
 lookupId :: Id -> Names -> Maybe String
-lookupId (Id i) (Names fresh map)
+lookupId (Id i) (Names _ map)
   = let idx = extractIdx i
         h   = extractHash i
     in  case IntMap.lookupM map h of
           Nothing -> Nothing
           Just xs -> Just (index idx xs)
   where
-    index 0   (x:xx) = x
-    index idx (x:xx) = index (idx-1) xx
-    index idx []     = error "Id.lookupId: corrupted symbol table"
+    index 0   (x:_)  = x
+    index idx (_:xx) = index (idx-1) xx
+    index _   []     = error "Id.lookupId: corrupted symbol table"
 
 
 insertName sort name names

@@ -84,7 +84,7 @@ max32
   Byte lists
 ----------------------------------------------------------------}
 isNil Nil         = True
-isNil (Cons b bs) = False
+isNil (Cons _ _) = False
 isNil (Cat bs cs) = isNil bs && isNil cs
 
 nil         = Nil
@@ -93,10 +93,10 @@ cons b bs   = Cons b bs
 
 cats bbs    = foldr Cat Nil bbs
 cat bs cs   = case cs of
-                Nil   -> bs
-                other -> case bs of
-                           Nil   -> cs
-                           other -> Cat bs cs               
+                Nil -> bs
+                _   -> case bs of
+                         Nil -> cs
+                         _   -> Cat bs cs               
 
 listFromBytes bs
   = loop [] bs
@@ -118,7 +118,7 @@ bytesLength bs
     loop n bs
       = case bs of
           Nil       -> n
-          Cons b bs -> strict loop (n+1) bs
+          Cons _ bs -> strict loop (n+1) bs
           Cat bs cs -> loop (loop n cs) bs
 
 writeBytes :: FilePath -> Bytes -> IO ()
@@ -142,7 +142,7 @@ int32FromByteList :: [Byte] -> (Int,[Byte])
 int32FromByteList bs
   = case bs of
       (n3:n2:n1:n0:cs) -> let i = int32FromByte4 n3 n2 n1 n0 in seq i (i,cs)
-      other            -> error "Byte.int32FromBytes: invalid byte stream"
+      _                -> error "Byte.int32FromBytes: invalid byte stream"
                     
 int32FromByte4 n0 n1 n2 n3
   = (intFromByte n0*16777216) + (intFromByte n1*65536) + (intFromByte n2*256) + intFromByte n3

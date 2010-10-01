@@ -46,11 +46,11 @@ elemSet id set
 
 filterSet :: (Id -> Bool) -> IdSet -> IdSet
 filterSet pred set
-  = filterMapWithId (\id x -> pred id) set
+  = filterMapWithId (\id _ -> pred id) set
 
 foldSet :: (Id -> a ->  a) -> a -> IdSet -> a
 foldSet f x set
-  = foldMapWithId (\id x -> f id) x set
+  = foldMapWithId (\id _ -> f id) x set
 
 
 insertSet :: Id -> IdSet -> IdSet

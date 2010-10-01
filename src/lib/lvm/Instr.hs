@@ -1,3 +1,5 @@
+{-# OPTIONS -fno-warn-unused-matches #-}
+
 {------------------------------------------------------------------------
   The Core Assembler.
 
@@ -45,16 +47,16 @@ data Con      = Con    !Id Index !Arity !Tag
 data Var      = Var    !Id !Offset !Depth
               deriving Show
 
-arityFromCon    (Con id c arity tag) = arity
-tagFromCon      (Con id c arity tag) = tag
-indexFromCon    (Con id c arity tag) = c
+arityFromCon    (Con _ _ arity _  ) = arity
+tagFromCon      (Con _ _ _     tag) = tag
+indexFromCon    (Con _ c _     _  ) = c
 
-arityFromGlobal (Global id c arity)  = arity
-indexFromGlobal (Global id c arity)  = c
+arityFromGlobal (Global _ _ arity)  = arity
+indexFromGlobal (Global _ c _    )  = c
 
-offsetFromVar   (Var id offset depth)  = offset
-depthFromVar    (Var id offset depth)  = depth
-idFromVar       (Var id offset depth)  = id
+offsetFromVar   (Var _  offset _    )  = offset
+depthFromVar    (Var _  _      depth)  = depth
+idFromVar       (Var id _      _    )  = id
 
 ----------------------------------------------------------------
 -- The instructions
@@ -205,7 +207,7 @@ data Instr    =
 ----------------------------------------------------------------
 instance Enum Instr where
   fromEnum  instr     = enumFromInstr instr
-  toEnum i            = error "Code.toEnum: undefined for instructions"
+  toEnum _            = error "Code.toEnum: undefined for instructions"
 
 instance Eq Instr where
   instr1 == instr2    = (fromEnum instr1 == fromEnum instr2)
@@ -277,7 +279,7 @@ instrFromName name
 ---------------------------------------------------------------}
 instrHasStrictResult instr
   = case instr of
-      NEW n   -> True
+      NEW _   -> True
       ALLOC   -> True
 
       ADDINT  -> True
@@ -315,7 +317,7 @@ instrHasStrictResult instr
       LEFLOAT   -> True
       GEFLOAT   -> True
 
-      other   -> False
+      _         -> False
 
 
 ----------------------------------------------------------------
@@ -330,7 +332,7 @@ opcodeFromInstr :: Instr -> Int
 opcodeFromInstr instr
   = walk 0 instrTable
   where
-    walk opc []     = error ("Instr.opcodeFromInstr: no opcode defined for this instruction")
+    walk _   []     = error ("Instr.opcodeFromInstr: no opcode defined for this instruction")
     walk opc (i:is) | instr == i  = opc
                     | otherwise   = strict walk (opc+1) is
 

@@ -29,9 +29,9 @@ import Special    (doesFileExist,unsafeCoerce,unsafePerformIO)
 ----------------------------------------------------------------
 -- three tuples
 ----------------------------------------------------------------
-fst3 (a,b,c)  = a
-snd3 (a,b,c)  = b
-thd3 (a,b,c)  = c
+fst3 (a,_,_)  = a
+snd3 (_,b,_)  = b
+thd3 (_,_,c)  = c
 
 
 ----------------------------------------------------------------
@@ -77,7 +77,7 @@ foldrStrict f y xs
 
 seqList :: [a] -> b -> b
 seqList [] b     = b
-seqList (x:xs) b = seqList xs b
+seqList (_:xs) b = seqList xs b
 
 class Force a where
   force :: a -> b -> b
@@ -135,7 +135,7 @@ getLvmPath
   = do{ xs <- getEnv "LVMPATH"
       ; return (splitPath xs)
       }
-  `catch` \err -> return []
+  `catch` \_ -> return []
 
 splitPath :: String -> [String]
 splitPath xs
