@@ -35,7 +35,7 @@ module TopSort( topSort ) where
 -}
 
 import Array
-import List
+-- import List
 import Special( ST,STArray, runST, newSTArray, readSTArray, writeSTArray)
 
 type Vertex  = Int
@@ -55,14 +55,14 @@ type Edge = (Vertex, Vertex)
 edges    :: Graph -> [Edge]
 edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
 
-mapT    :: (Vertex -> a -> b) -> Table a -> Table b
-mapT f t = array (bounds t) [ (v, f v (t!v)) | v <- indices t ]
+-- mapT    :: (Vertex -> a -> b) -> Table a -> Table b
+-- mapT f t = array (bounds t) [ (v, f v (t!v)) | v <- indices t ]
 
 type Bounds = (Vertex, Vertex)
 
-outdegree :: Graph -> Table Int
-outdegree  = mapT numEdges
-             where numEdges v ws = length ws
+-- outdegree :: Graph -> Table Int
+-- outdegree  = mapT numEdges
+--              where numEdges v ws = length ws
 
 buildG :: Bounds -> [Edge] -> Graph
 buildG  = accumArray (flip (:)) []
@@ -83,8 +83,8 @@ transposeG g = buildG (bounds g) (reverseE g)
 reverseE    :: Graph -> [Edge]
 reverseE g   = [ (w, v) | (v, w) <- edges g ]
 
-indegree :: Graph -> Table Int
-indegree  = outdegree . transposeG
+-- indegree :: Graph -> Table Int
+-- indegree  = outdegree . transposeG
 
 
 -- Depth-first search
@@ -119,7 +119,7 @@ prune bnds ts = runST (mkEmpty bnds >>= \m ->
                        chop m ts)
 
 chop         :: Set s -> Forest Vertex -> ST s (Forest Vertex)
-chop m []     = return []
+chop _ []     = return []
 chop m (Node v ts : us)
               = contains m v >>= \visited ->
                 if visited then
@@ -134,20 +134,20 @@ chop m (Node v ts : us)
 
 -- Algorithm 1: depth first search numbering
 
-preorder            :: Tree a -> [a]
-preorder (Node a ts) = [a] ++ preorderF ts
+-- preorder            :: Tree a -> [a]
+-- preorder (Node a ts) = [a] ++ preorderF ts
 
-preorderF           :: Forest a -> [a]
-preorderF ts         = concat (map preorder ts)
+-- preorderF           :: Forest a -> [a]
+-- preorderF ts         = concat (map preorder ts)
 
-preOrd :: Graph -> [Vertex]
-preOrd  = preorderF . dff
+-- preOrd :: Graph -> [Vertex]
+-- preOrd  = preorderF . dff
 
-tabulate        :: Bounds -> [Vertex] -> Table Int
-tabulate bnds vs = array bnds (zip vs [1..])
+-- tabulate        :: Bounds -> [Vertex] -> Table Int
+-- tabulate bnds vs = array bnds (zip vs [1..])
 
-preArr          :: Bounds -> Forest Vertex -> Table Int
-preArr bnds      = tabulate bnds . preorderF
+-- preArr          :: Bounds -> Forest Vertex -> Table Int
+-- preArr bnds      = tabulate bnds . preorderF
 
 -- Algorithm 2: topological sorting
 
@@ -160,75 +160,75 @@ postorderF ts = concat (map postorder ts)
 postOrd      :: Graph -> [Vertex]
 postOrd       = postorderF . dff
 
-topSortG     :: Graph -> [Vertex]
-topSortG     = reverse . postOrd
+-- topSortG     :: Graph -> [Vertex]
+-- topSortG     = reverse . postOrd
 
 -- Algorithm 3: connected components
 
-components   :: Graph -> Forest Vertex
-components    = dff . undirected
+-- components   :: Graph -> Forest Vertex
+-- components    = dff . undirected
 
-undirected   :: Graph -> Graph
-undirected g  = buildG (bounds g) (edges g ++ reverseE g)
+-- undirected   :: Graph -> Graph
+-- undirected g  = buildG (bounds g) (edges g ++ reverseE g)
 
 -- Algorithm 4: strongly connected components
 
 scc          :: Graph -> Forest Vertex
 scc g         = dfs (transposeG g) (reverse (postOrd g))
 
-scc'         :: Graph -> Forest Vertex
-scc' g        = dfs g (reverse (postOrd (transposeG g)))
+-- scc'         :: Graph -> Forest Vertex
+-- scc' g        = dfs g (reverse (postOrd (transposeG g)))
 
 -- Algorithm 5: Classifying edges
 
-tree              :: Bounds -> Forest Vertex -> Graph
-tree bnds ts       = buildG bnds (concat (map flat ts))
- where flat (Node v rs) = [ (v, w) | Node w us <- ts ] ++
-                          concat (map flat ts)
+-- tree              :: Bounds -> Forest Vertex -> Graph
+-- tree bnds ts       = buildG bnds (concat (map flat ts))
+--  where flat (Node v rs) = [ (v, w) | Node w us <- ts ] ++
+--                          concat (map flat ts)
 
-back              :: Graph -> Table Int -> Graph
-back g post        = mapT select g
- where select v ws = [ w | w <- ws, post!v < post!w ]
+-- back              :: Graph -> Table Int -> Graph
+-- back g post        = mapT select g
+-- where select v ws = [ w | w <- ws, post!v < post!w ]
 
-cross             :: Graph -> Table Int -> Table Int -> Graph
-cross g pre post   = mapT select g
- where select v ws = [ w | w <- ws, post!v > post!w, pre!v > pre!w ]
+-- cross             :: Graph -> Table Int -> Table Int -> Graph
+-- cross g pre post   = mapT select g
+-- where select v ws = [ w | w <- ws, post!v > post!w, pre!v > pre!w ]
 
-forward           :: Graph -> Graph -> Table Int -> Graph
-forward g tree pre = mapT select g
- where select v ws = [ w | w <- ws, pre!v < pre!w ] \\ tree!v
+-- forward           :: Graph -> Graph -> Table Int -> Graph
+-- forward g tree pre = mapT select g
+-- where select v ws = [ w | w <- ws, pre!v < pre!w ] \\ tree!v
 
 -- Algorithm 6: Finding reachable vertices
 
-reachable    :: Graph -> Vertex -> [Vertex]
-reachable g v = preorderF (dfs g [v])
+-- reachable    :: Graph -> Vertex -> [Vertex]
+-- reachable g v = preorderF (dfs g [v])
 
-path         :: Graph -> Vertex -> Vertex -> Bool
-path g v w    = w `elem` (reachable g v)
+-- path         :: Graph -> Vertex -> Vertex -> Bool
+-- path g v w    = w `elem` (reachable g v)
 
 -- Algorithm 7: Biconnected components
 
-bcc :: Graph -> Forest [Vertex]
-bcc g = (concat . map bicomps . map (label g dnum)) forest
- where forest = dff g
-       dnum   = preArr (bounds g) forest
+-- bcc :: Graph -> Forest [Vertex]
+-- bcc g = (concat . map bicomps . map (label g dnum)) forest
+-- where forest = dff g
+--       dnum   = preArr (bounds g) forest
 
-label :: Graph -> Table Int -> Tree Vertex -> Tree (Vertex,Int,Int)
-label g dnum (Node v ts) = Node (v,dnum!v,lv) us
- where us = map (label g dnum) ts
-       lv = minimum ([dnum!v] ++ [dnum!w | w <- g!v]
-                     ++ [lu | Node (u,du,lu) xs <- us])
+-- label :: Graph -> Table Int -> Tree Vertex -> Tree (Vertex,Int,Int)
+-- label g dnum (Node v ts) = Node (v,dnum!v,lv) us
+-- where us = map (label g dnum) ts
+--       lv = minimum ([dnum!v] ++ [dnum!w | w <- g!v]
+--                     ++ [lu | Node (u,du,lu) xs <- us])
 
-bicomps :: Tree (Vertex,Int,Int) -> Forest [Vertex]
-bicomps (Node (v,dv,lv) ts)
-      = [ Node (v:vs) us | (l,Node vs us) <- map collect ts]
+-- bicomps :: Tree (Vertex,Int,Int) -> Forest [Vertex]
+-- bicomps (Node (v,dv,lv) ts)
+--      = [ Node (v:vs) us | (l,Node vs us) <- map collect ts]
 
-collect :: Tree (Vertex,Int,Int) -> (Int, Tree [Vertex])
-collect (Node (v,dv,lv) ts) = (lv, Node (v:vs) cs)
- where collected = map collect ts
-       vs = concat [ ws | (lw, Node ws us) <- collected, lw<dv]
-       cs = concat [ if lw<dv then us else [Node (v:ws) us]
-                        | (lw, Node ws us) <- collected ]
+-- collect :: Tree (Vertex,Int,Int) -> (Int, Tree [Vertex])
+-- collect (Node (v,dv,lv) ts) = (lv, Node (v:vs) cs)
+-- where collected = map collect ts
+--       vs = concat [ ws | (lw, Node ws us) <- collected, lw<dv]
+--       cs = concat [ if lw<dv then us else [Node (v:ws) us]
+--                        | (lw, Node ws us) <- collected ]
 
 {-
 figure4 = buildG ('a','i') (vs ++ reverse [ (v, w) | (w, v) <- vs ])
@@ -268,18 +268,19 @@ flattenTree (Node x trees)  = x : concatMap flattenTree trees
 ----------------------------------------------------------------
 -- Utility functions for drawing trees and forests:
 
-showTree :: Show a => Tree a -> String
-showTree  = drawTree . mapTree show
+-- showTree :: Show a => Tree a -> String
+-- showTree  = drawTree . mapTree show
 
-showForest :: Show a => Forest a -> String
-showForest  = unlines . map showTree
+-- showForest :: Show a => Forest a -> String
+-- showForest  = unlines . map showTree
 
-mapTree              :: (a -> b) -> (Tree a -> Tree b)
-mapTree f (Node x ts) = Node (f x) (map (mapTree f) ts)
+-- mapTree              :: (a -> b) -> (Tree a -> Tree b)
+-- mapTree f (Node x ts) = Node (f x) (map (mapTree f) ts)
 
-drawTree        :: Tree String -> String
-drawTree         = unlines . draw
+-- drawTree        :: Tree String -> String
+-- drawTree         = unlines . draw
 
+{-
 draw (Node x ts) = grp this (space (length this)) (stLoop ts)
  where this          = s1 ++ x ++ " "
 
@@ -295,5 +296,6 @@ draw (Node x ts) = grp this (space (length this)) (stLoop ts)
        grp fst rst   = zipWith (++) (fst:repeat rst)
 
        [s1,s2,s3,s4,s5,s6] = ["- ", "--", "-+", " |", " `", " +"]
+-}
 
 ------------------------------------------------------------------------------

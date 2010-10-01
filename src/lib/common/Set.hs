@@ -157,21 +157,21 @@ isEmpty :: Set a -> Bool
 isEmpty t
   = case t of
       Tip           -> True
-      Bin sz x l r  -> False
+      Bin _ _ _ _  -> False
 
 -- | /O(1)/. The number of elements in the set.
 size :: Set a -> Int
 size t
   = case t of
       Tip           -> 0
-      Bin sz x l r  -> sz
+      Bin sz _ _ _  -> sz
 
 -- | /O(log n)/. Is the element in the set?
 member :: Ord a => a -> Set a -> Bool
 member x t
   = case t of
       Tip -> False
-      Bin sz y l r
+      Bin _ y l r
           -> case compare x y of
                LT -> member x l
                GT -> member x r
@@ -210,7 +210,7 @@ delete :: Ord a => a -> Set a -> Set a
 delete x t
   = case t of
       Tip -> Tip
-      Bin sz y l r 
+      Bin _ y l r 
           -> case compare x y of
                LT -> balance y (delete x l) r
                GT -> balance y l (delete x r)
@@ -230,8 +230,8 @@ subset :: Ord a => Set a -> Set a -> Bool
 subset t1 t2
   = (size t1 <= size t2) && (subsetX t1 t2)
 
-subsetX Tip t = True
-subsetX t Tip = False
+subsetX Tip _ = True
+subsetX _ Tip = False
 subsetX (Bin _ x l r) t
   = found && subsetX l lt && subsetX r gt
   where
@@ -243,25 +243,25 @@ subsetX (Bin _ x l r) t
 --------------------------------------------------------------------}
 -- | /O(log n)/. The minimal element of a set.
 findMin :: Set a -> a
-findMin (Bin _ x Tip r) = x
-findMin (Bin _ x l r)   = findMin l
+findMin (Bin _ x Tip _) = x
+findMin (Bin _ _ l _)   = findMin l
 findMin Tip             = error "Set.findMin: empty set has no minimal element"
 
 -- | /O(log n)/. The maximal element of a set.
 findMax :: Set a -> a
-findMax (Bin _ x l Tip)  = x
-findMax (Bin _ x l r)    = findMax r
+findMax (Bin _ x _ Tip)  = x
+findMax (Bin _ _ _ r)    = findMax r
 findMax Tip              = error "Set.findMax: empty set has no maximal element"
 
 -- | /O(log n)/. Delete the minimal element.
 deleteMin :: Set a -> Set a
-deleteMin (Bin _ x Tip r) = r
+deleteMin (Bin _ _ Tip r) = r
 deleteMin (Bin _ x l r)   = balance x (deleteMin l) r
 deleteMin Tip             = Tip
 
 -- | /O(log n)/. Delete the maximal element.
 deleteMax :: Set a -> Set a
-deleteMax (Bin _ x l Tip) = l
+deleteMax (Bin _ _ l Tip) = l
 deleteMax (Bin _ x l r)   = balance x l (deleteMax r)
 deleteMax Tip             = Tip
 
@@ -283,7 +283,7 @@ union t1 t2  -- hedge-union is more efficient on (bigset `union` smallset)
   | size t1 >= size t2  = hedgeUnion (const LT) (const GT) t1 t2
   | otherwise           = hedgeUnion (const LT) (const GT) t2 t1
 
-hedgeUnion cmplo cmphi t1 Tip 
+hedgeUnion _ _ t1 Tip 
   = t1
 hedgeUnion cmplo cmphi Tip (Bin _ x l r)
   = join x (filterGt cmplo l) (filterLt cmphi r)
@@ -299,11 +299,11 @@ hedgeUnion cmplo cmphi (Bin _ x l r) t2
 -- | /O(n+m)/. Difference of two sets. 
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 difference :: Ord a => Set a -> Set a -> Set a
-difference Tip t2  = Tip
+difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff (const LT) (const GT) t1 t2
 
-hedgeDiff cmplo cmphi Tip t     
+hedgeDiff _     _     Tip _     
   = Tip
 hedgeDiff cmplo cmphi (Bin _ x l r) Tip 
   = join x (filterGt cmplo l) (filterLt cmphi r)
@@ -318,14 +318,14 @@ hedgeDiff cmplo cmphi t (Bin _ x l r)
 --------------------------------------------------------------------}
 -- | /O(n+m)/. The intersection of two sets.
 intersection :: Ord a => Set a -> Set a -> Set a
-intersection Tip t = Tip
-intersection t Tip = Tip
+intersection Tip _ = Tip
+intersection _ Tip = Tip
 intersection t1 t2  -- intersection is more efficient on (bigset `intersection` smallset)
   | size t1 >= size t2  = intersect t1 t2
   | otherwise           = intersect t2 t1
 
-intersect Tip t = Tip
-intersect t Tip = Tip
+intersect Tip _ = Tip
+intersect _ Tip = Tip
 intersect t (Bin _ x l r)
   | found     = join x tl tr
   | otherwise = merge tl tr
@@ -340,7 +340,7 @@ intersect t (Bin _ x l r)
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all elements that satisfy the predicate.
 filter :: Ord a => (a -> Bool) -> Set a -> Set a
-filter p Tip = Tip
+filter _ Tip = Tip
 filter p (Bin _ x l r)
   | p x       = join x (filter p l) (filter p r)
   | otherwise = merge (filter p l) (filter p r)
@@ -349,7 +349,7 @@ filter p (Bin _ x l r)
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
 partition :: Ord a => (a -> Bool) -> Set a -> (Set a,Set a)
-partition p Tip = (Tip,Tip)
+partition _ Tip = (Tip,Tip)
 partition p (Bin _ x l r)
   | p x       = (join x l1 r1,merge l2 r2)
   | otherwise = (merge l1 r1,join x l2 r2)
@@ -367,7 +367,7 @@ fold f z s
 
 -- | /O(n)/. Post-order fold.
 foldR :: (a -> b -> b) -> b -> Set a -> b
-foldR f z Tip           = z
+foldR _ z Tip           = z
 foldR f z (Bin _ x l r) = foldR f (f x (foldR f z r)) l
 
 
@@ -455,7 +455,7 @@ instance Eq a => Eq (Set a) where
   Show
 --------------------------------------------------------------------}
 instance Show a => Show (Set a) where
-  showsPrec d s  = showSet (toAscList s)
+  showsPrec _ s  = showSet (toAscList s)
 
 showSet :: (Show a) => [a] -> ShowS
 showSet []     
@@ -490,14 +490,15 @@ showSet (x:xs)
   empty or the key of the root is between @lo@ and @hi@.
 --------------------------------------------------------------------}
 trim :: (a -> Ordering) -> (a -> Ordering) -> Set a -> Set a
-trim cmplo cmphi Tip = Tip
-trim cmplo cmphi t@(Bin sx x l r)
+trim _     _     Tip = Tip
+trim cmplo cmphi t@(Bin _ x l r)
   = case cmplo x of
       LT -> case cmphi x of
               GT -> t
-              le -> trim cmplo cmphi l
-      ge -> trim cmplo cmphi r
-              
+              _  -> trim cmplo cmphi l
+      _  -> trim cmplo cmphi r
+
+{-
 trimMemberLo :: Ord a => a -> (a -> Ordering) -> Set a -> (Bool, Set a)
 trimMemberLo lo cmphi Tip = (False,Tip)
 trimMemberLo lo cmphi t@(Bin sx x l r)
@@ -507,23 +508,23 @@ trimMemberLo lo cmphi t@(Bin sx x l r)
               le -> trimMemberLo lo cmphi l
       GT -> trimMemberLo lo cmphi r
       EQ -> (True,trim (compare lo) cmphi r)
-
+-}
 
 {--------------------------------------------------------------------
   [filterGt x t] filter all values >[x] from tree [t]
   [filterLt x t] filter all values <[x] from tree [t]
 --------------------------------------------------------------------}
 filterGt :: (a -> Ordering) -> Set a -> Set a
-filterGt cmp Tip = Tip
-filterGt cmp (Bin sx x l r)
+filterGt _   Tip = Tip
+filterGt cmp (Bin _ x l r)
   = case cmp x of
       LT -> join x (filterGt cmp l) r
       GT -> filterGt cmp r
       EQ -> r
       
 filterLt :: (a -> Ordering) -> Set a -> Set a
-filterLt cmp Tip = Tip
-filterLt cmp (Bin sx x l r)
+filterLt _   Tip = Tip
+filterLt cmp (Bin _ x l r)
   = case cmp x of
       LT -> filterLt cmp l
       GT -> join x l (filterLt cmp r)
@@ -537,8 +538,8 @@ filterLt cmp (Bin sx x l r)
 -- where all elements in @set1@ are lower than @x@ and all elements in
 -- @set2@ larger than @x@.
 split :: Ord a => a -> Set a -> (Set a,Set a)
-split x Tip = (Tip,Tip)
-split x (Bin sy y l r)
+split _ Tip = (Tip,Tip)
+split x (Bin _ y l r)
   = case compare x y of
       LT -> let (lt,gt) = split x l in (lt,join y gt r)
       GT -> let (lt,gt) = split x r in (join y l lt,gt)
@@ -547,8 +548,8 @@ split x (Bin sy y l r)
 -- | /O(log n)/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord a => a -> Set a -> (Bool,Set a,Set a)
-splitMember x Tip = (False,Tip,Tip)
-splitMember x (Bin sy y l r)
+splitMember _ Tip = (False,Tip,Tip)
+splitMember x (Bin _ y l r)
   = case compare x y of
       LT -> let (found,lt,gt) = splitMember x l in (found,lt,join y gt r)
       GT -> let (found,lt,gt) = splitMember x r in (found,join y l lt,gt)
@@ -600,13 +601,13 @@ insertMax,insertMin :: a -> Set a -> Set a
 insertMax x t
   = case t of
       Tip -> single x
-      Bin sz y l r
+      Bin _ y l r
           -> balance y l (insertMax x r)
              
 insertMin x t
   = case t of
       Tip -> single x
-      Bin sz y l r
+      Bin _ y l r
           -> balance y (insertMin x l) r
              
 {--------------------------------------------------------------------
@@ -797,9 +798,9 @@ showsTree :: Show a => Bool -> [String] -> [String] -> Set a -> ShowS
 showsTree wide lbars rbars t
   = case t of
       Tip -> showsBars lbars . showString "|\n"
-      Bin sz x Tip Tip
+      Bin _ x Tip Tip
           -> showsBars lbars . shows x . showString "\n" 
-      Bin sz x l r
+      Bin _ x l r
           -> showsTree wide (withBar rbars) (withEmpty rbars) r .
              showWide wide rbars .
              showsBars lbars . shows x . showString "\n" .
@@ -810,9 +811,9 @@ showsTreeHang :: Show a => Bool -> [String] -> Set a -> ShowS
 showsTreeHang wide bars t
   = case t of
       Tip -> showsBars bars . showString "|\n" 
-      Bin sz x Tip Tip
+      Bin _ x Tip Tip
           -> showsBars bars . shows x . showString "\n" 
-      Bin sz x l r
+      Bin _ x l r
           -> showsBars bars . shows x . showString "\n" . 
              showWide wide bars .
              showsTreeHang wide (withBar bars) l .
@@ -848,14 +849,14 @@ ordered t
     bounded lo hi t
       = case t of
           Tip           -> True
-          Bin sz x l r  -> (lo x) && (hi x) && bounded lo (<x) l && bounded (>x) hi r
+          Bin _  x l r  -> (lo x) && (hi x) && bounded lo (<x) l && bounded (>x) hi r
 
 balanced :: Set a -> Bool
 balanced t
   = case t of
-      Tip           -> True
-      Bin sz x l r  -> (size l + size r <= 1 || (size l <= delta*size r && size r <= delta*size l)) &&
-                       balanced l && balanced r
+      Tip          -> True
+      Bin _ _ l r  -> (size l + size r <= 1 || (size l <= delta*size r && size r <= delta*size l)) &&
+                      balanced l && balanced r
 
 
 validsize t
@@ -864,9 +865,9 @@ validsize t
     realsize t
       = case t of
           Tip          -> Just 0
-          Bin sz x l r -> case (realsize l,realsize r) of
+          Bin sz _ l r -> case (realsize l,realsize r) of
                             (Just n,Just m)  | n+m+1 == sz  -> Just sz
-                            other            -> Nothing
+                            _                               -> Nothing
 
 {-
 {--------------------------------------------------------------------

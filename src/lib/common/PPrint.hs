@@ -81,8 +81,8 @@ encloseSep left right sep ds
 -----------------------------------------------------------
 -- punctuate p [d1,d2,...,dn] => [d1 <> p,d2 <> p, ... ,dn]
 -----------------------------------------------------------
-punctuate p []      = []
-punctuate p [d]     = [d]
+punctuate _ []      = []
+punctuate _ [d]     = [d]
 punctuate p (d:ds)  = (d <> p) : punctuate p ds
 
 
@@ -99,7 +99,7 @@ fillCat         = fold (<//>)
 hcat            = fold (<>)
 vcat            = fold (<$$>)
 
-fold f []       = empty
+fold _ []       = empty
 fold f ds       = foldr1 f ds
 
 x <> y          = x `beside` y
@@ -287,7 +287,7 @@ flatten :: Doc -> Doc
 flatten (Cat x y)       = Cat (flatten x) (flatten y)
 flatten (Nest i x)      = Nest i (flatten x)
 flatten (Line break)    = if break then Empty else Text 1 " "
-flatten (Union x y)     = flatten x
+flatten (Union x _)     = flatten x
 flatten (Column f)      = Column (flatten . f)
 flatten (Nesting f)     = Nesting (flatten . f)
 flatten other           = other                     --Empty,Char,Text
@@ -316,7 +316,7 @@ renderPretty rfrac w x
       -- best :: n = indentation of current line
       --         k = current column
       --        (ie. (k >= n) && (k - n == count of inserted characters)
-      best n k Nil      = SEmpty
+      best _ _ Nil      = SEmpty
       best n k (Cons i d ds)
         = case d of
             Empty       -> best n k ds
@@ -341,11 +341,11 @@ renderPretty rfrac w x
                           width = min (w - k) (r - k + n)
 
 
-fits w x        | w < 0         = False
-fits w SEmpty                   = True
-fits w (SChar c x)              = fits (w - 1) x
-fits w (SText l s x)            = fits (w - l) x
-fits w (SLine i x)              = True
+fits w _        | w < 0         = False
+fits _ SEmpty                   = True
+fits w (SChar _ x)              = fits (w - 1) x
+fits w (SText l _ x)            = fits (w - l) x
+fits _ (SLine _ _)              = True
 
 
 -----------------------------------------------------------
@@ -356,15 +356,15 @@ renderCompact :: Doc -> SimpleDoc
 renderCompact x
     = scan 0 [x]
     where
-      scan k []     = SEmpty
+      scan _ []     = SEmpty
       scan k (d:ds) = case d of
                         Empty       -> scan k ds
                         Char c      -> let k' = k+1 in seq k' (SChar c (scan k' ds))
                         Text l s    -> let k' = k+l in seq k' (SText l s (scan k' ds))
                         Line _      -> SLine 0 (scan 0 ds)
                         Cat x y     -> scan k (x:y:ds)
-                        Nest j x    -> scan k (x:ds)
-                        Union x y   -> scan k (y:ds)
+                        Nest _ x    -> scan k (x:ds)
+                        Union _ y   -> scan k (y:ds)
                         Column f    -> scan k (f k:ds)
                         Nesting f   -> scan k (f 0:ds)
 
@@ -376,7 +376,7 @@ renderCompact x
 displayS :: SimpleDoc -> ShowS
 displayS SEmpty             = id
 displayS (SChar c x)        = showChar c . displayS x
-displayS (SText l s x)      = showString s . displayS x
+displayS (SText _ s x)      = showString s . displayS x
 displayS (SLine i x)        = showString ('\n':indentation i) . displayS x
 
 displayIO :: Handle -> SimpleDoc -> IO ()
@@ -385,7 +385,7 @@ displayIO handle simpleDoc
     where
       display SEmpty        = return ()
       display (SChar c x)   = do{ hPutChar handle c; display x}
-      display (SText l s x) = do{ hPutStr handle s; display x}
+      display (SText _ s x) = do{ hPutStr handle s; display x}
       display (SLine i x)   = do{ hPutStr handle ('\n':indentation i); display x}
 
 
@@ -393,7 +393,7 @@ displayIO handle simpleDoc
 -- default pretty printers: show, putDoc and hPutDoc
 -----------------------------------------------------------
 instance Show Doc where
-  showsPrec d doc       = displayS (renderPretty 0.5 70 doc)
+  showsPrec _ doc       = displayS (renderPretty 0.5 70 doc)
 
 putDoc :: Doc -> IO ()
 putDoc doc              = hPutDoc stdout doc
