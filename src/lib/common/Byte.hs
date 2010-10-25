@@ -27,6 +27,8 @@ module Byte( Byte
            , stringFromByteList, bytesFromByteList
            ) where
 
+import Data.Word
+
 import IO       ( IOMode(..) )
 import Special  ( openBinary, writeBinaryChar, readBinary, closeBinary )
 import Standard ( strict )
@@ -35,7 +37,7 @@ import System   ( exitWith, ExitCode(..))
 {----------------------------------------------------------------
   types
 ----------------------------------------------------------------}
-type Byte   = Char
+type Byte   = Word8
 
 data Bytes  = Nil
             | Cons Byte   !Bytes    -- Byte is not strict since LvmWrite uses it lazily right now.
@@ -52,19 +54,19 @@ instance Eq Bytes where
 ----------------------------------------------------------------}
 byteFromInt8 :: Int -> Byte
 byteFromInt8 i
-  = toEnum (mod i 256)
+  = toEnum i
   
 intFromByte :: Byte -> Int
 intFromByte b
   = fromEnum b
 
 bytesFromString :: String -> Bytes
-bytesFromString s
-  = bytesFromList s
+bytesFromString 
+  = bytesFromList . map (toEnum . fromEnum)
 
 stringFromBytes :: Bytes -> String
-stringFromBytes bs
-  = listFromBytes bs
+stringFromBytes 
+  = map (toEnum . fromEnum) . listFromBytes 
 
 bytesFromInt32 :: Int -> Bytes    -- 4 byte big-endian encoding
 bytesFromInt32 i
@@ -72,7 +74,7 @@ bytesFromInt32 i
         n1 = div n0 256
         n2 = div n1 256
         n3 = div n2 256
-        xs = map byteFromInt8 [n3,n2,n1,n0]
+        xs = map (byteFromInt8 . (flip mod) 256) [n3,n2,n1,n0]
     in bytesFromList xs
 
 max32 :: Int
@@ -131,7 +133,7 @@ writeBytes path bs
     write h bs
       = case bs of
           Nil       -> return ()
-          Cons b bs -> do{ writeBinaryChar h b; write h bs }
+          Cons b bs -> do{ writeBinaryChar h (toEnum (fromEnum b)); write h bs }
           Cat bs cs -> do{ write h bs; write h cs }
 
 
@@ -150,7 +152,7 @@ int32FromByte4 n0 n1 n2 n3
 
 stringFromByteList :: [Byte] -> String
 stringFromByteList bs
-  = bs
+  = map (toEnum . fromEnum) bs
 
 bytesFromByteList :: [Byte] -> Bytes
 bytesFromByteList bs
@@ -161,7 +163,7 @@ readByteList path
   = do{ h <- openBinary path ReadMode
       ; xs <- readBinary h
       ; closeBinary h
-      ; return xs
+      ; return (map (toEnum . fromEnum) xs)
       } `catch` (\exception ->
             let message =  show exception ++ "\n\nUnable to read from file " ++ show path
             in do { putStrLn message; exitWith (ExitFailure 1) })

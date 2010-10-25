@@ -664,7 +664,7 @@ case "$config" in
      echo "CONFIGPATH=../config" >> makefile;;
 esac
 
-echo "CCOPTS=$cccompopts -I\$(CONFIGPATH)" >> makefile
+echo "CCOPTS=$cccompopts -fno-strict-aliasing -I\$(CONFIGPATH)" >> makefile
  
 rm -f tst$exe hasgot.c *.obj
 

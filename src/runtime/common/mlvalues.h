@@ -25,6 +25,7 @@
 #ifndef _mlvalues_
 #define _mlvalues_
 
+#include <limits.h>
 #include "config.h"
 #include "misc.h"
 
@@ -95,8 +96,11 @@ typedef opcode_t *  code_t;
 #define Val_int         Val_long
 #define Int_val(x)      ((int) Long_val(x))
 
-#define Min_word_t      (1L << (8*sizeof(word_t) - 1))
-#define Max_word_t      (~0 ^ Min_word_t)
+// #define Min_word_t      (1L << (8*sizeof(word_t) - 1))
+// #define Max_word_t      (~0 ^ Min_word_t)
+
+#define Min_word_t      INT_MIN
+#define Max_word_t      INT_MAX
 
 /* Foreign (C) pointers */
 #define Val_ptr(p)  ((value)(p))

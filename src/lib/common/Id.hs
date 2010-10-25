@@ -29,17 +29,19 @@ module Id ( Id -- instance Eq, Show
 import Standard  (foldlStrict)
 import qualified IntMap
 
+import Data.Int (Int32)
 import Data.IORef( IORef, newIORef, readIORef, writeIORef )
 import Special ( unsafePerformIO )
 
 ----------------------------------------------------------------
 -- Types
 ----------------------------------------------------------------
-newtype Id        = Id Int
-
-intFromId (Id i)  = i
-idFromInt i       = Id i
-
+newtype Id        = Id Int32
+ 
+intFromId :: Id -> Int
+intFromId (Id i)  = fromIntegral i
+idFromInt :: Int -> Id
+idFromInt i       = Id (fromIntegral i)
 
 ----------------------------------------------------------------
 -- Names: the symbol table
@@ -83,7 +85,7 @@ stringFromId id@(Id i)
 -- fresh identifiers without a nice name
 -- but the advantage of a pure interface
 ----------------------------------------------------------------
-newtype NameSupply   = NameSupply (IORef Int)
+newtype NameSupply   = NameSupply (IORef Int32)
 
 newNameSupply :: IO NameSupply
 newNameSupply
@@ -133,24 +135,24 @@ mapWithSupply f supply xs
 dummyId :: Id
 dummyId           = Id (0x7FFFFFF1)
 
-shiftSort, maxSort :: Int
+shiftSort, maxSort :: Int32
 shiftSort         = 0x00000002
 maxSort           = 0x7F
 
-maxHash, shiftHash :: Int
+maxHash, shiftHash :: Int32
 maxHash           = 0xFFF
 shiftHash         = 0x00000100
 
-shiftIdx, maxIdx :: Int
+shiftIdx, maxIdx :: Int32
 shiftIdx          = 0x00100000
 maxIdx            = 0x7FF
 
-shiftUniq,maxUniq :: Int
+shiftUniq,maxUniq :: Int32
 shiftUniq         = 0x00000100
 maxUniq           = 0x007FFFFF
 -- flagUniq          = 0x00000001
 
-extractBits, clearBits, initBits :: Int -> Int -> Int -> Int
+extractBits, clearBits, initBits :: Int32 -> Int32 -> Int32 -> Int32
 extractBits shift max i
   = (i `div` shift) `mod` (max+1)
 
@@ -192,21 +194,21 @@ instance Show Id where
 
 getNameSpace :: Enum a => Id -> a
 getNameSpace (Id i)
-  = toEnum (extractSort i)
+  = toEnum (fromIntegral (extractSort i))
 
 setNameSpace :: Enum a => a -> Id -> Id
 setNameSpace sort (Id i)
   | s > maxSort   = error "Id.setIdSort: sort index out of range"
   | otherwise     = Id (initSort s (clearSort i))
   where
-    s    = fromEnum sort
+    s    = fromIntegral (fromEnum sort)
 
 
 lookupId :: Id -> Names -> Maybe String
 lookupId (Id i) (Names _ map)
   = let idx = extractIdx i
         h   = extractHash i
-    in  case IntMap.lookupM map h of
+    in  case IntMap.lookupM map (fromIntegral h) of
           Nothing -> Nothing
           Just xs -> Just (index idx xs)
   where
@@ -223,7 +225,7 @@ insertName' :: String -> Names -> (Id,Names)
 insertName' name (Names fresh map)
   = let hname       = hash name
         h           = initHash hname
-        (i,map1)    = IntMap.insertWithX insert h hname [name] map
+        (i,map1)    = IntMap.insertWithX insert h (fromIntegral hname) [name] map
         insert _ xs = let (idx,xs') = insertIdx name xs
                       in if (idx > maxIdx)
                           then error ("Id.insertName: too many names with the same hash value (" ++ show name ++ ")")
@@ -233,7 +235,7 @@ insertName' name (Names fresh map)
 
 -- [insertIdx] returns the index of an element if it exists already, or
 -- appends the element and returns its index.
-insertIdx :: Eq a => a -> [a] -> (Int,[a])
+insertIdx :: Eq a => a -> [a] -> (Int32,[a])
 insertIdx y xs
   = walk 0 xs
   where
@@ -246,7 +248,7 @@ insertIdx y xs
 ----------------------------------------------------------------
 -- Hashing
 ----------------------------------------------------------------
-hash :: String -> Int
+hash :: String -> Int32
 hash name
   = (hashx name `mod` prime) `mod` maxHash
   where
@@ -254,11 +256,11 @@ hash name
 
 
 -- simple hash function that performs quite good in practice
-hashx :: String -> Int
+hashx :: String -> Int32
 hashx name
   = foldlStrict gobble 0 name
   where
-    gobble n c    = n*65599 + fromEnum c
+    gobble n c    = n*65599 + (fromIntegral . fromEnum) c
 
 
 
