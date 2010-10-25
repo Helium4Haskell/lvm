@@ -100,13 +100,13 @@ nsBinds env binds cont
   = case binds of
       Strict (Bind id rhs)  -> nonrec Strict id rhs
       NonRec (Bind id rhs)  -> nonrec NonRec id rhs
-      Rec recs              -> rec 
+      Rec recs              -> rec_
   where
     nonrec make id rhs
       = renameLetBinder env id $ \env' id' ->
         cont env' (make (Bind id' (nsExpr env rhs)))
       
-    rec 
+    rec_ 
       = let (binds',env') = mapAccumBinds (\env id rhs -> renameLetBinder env id $ \env' id' -> (Bind id' rhs,env'))
                                            env binds
         in cont env' (zipBindsWith (\env id rhs -> Bind id (nsExpr env rhs)) (splitEnvs env') binds')

@@ -98,7 +98,7 @@ readRecords total acc
                 }
         else if (isInt x) 
          then do{ let tag = decodeInt x 
-                ; rec <- case tag of
+                ; rec_ <- case tag of
                           0     -> readName len
                           1     -> readKind len
                           2     -> readBytes len
@@ -110,11 +110,11 @@ readRecords total acc
                           8     -> readExtern len
                           9     -> readExternType len
                           other -> readError "readRecords" ("unknown standard record kind (" ++ show tag ++ ")")
-                ; readRecords total (rec:acc)
+                ; readRecords total (rec_:acc)
                 }
          else do{ let idx = decodeIdx x
-                ; rec <- readDeclCustom idx len 
-                ; readRecords total (rec:acc)
+                ; rec_ <- readDeclCustom idx len 
+                ; readRecords total (rec_:acc)
                 }
       }
 
@@ -272,8 +272,8 @@ readCustom
          else resolve (decodeIdx x) recToCustom
       }
   where
-    recToCustom rec
-      = case rec of
+    recToCustom rec_
+      = case rec_ of
           RecName id        -> CustomName id
           RecBytes bs       -> CustomBytes bs
           RecDecl d         -> CustomLink (declName d) (declKindFromDecl d)
@@ -289,7 +289,7 @@ readNameIdx parent
   = do{ idx <- readIdx (parent ++ ".name")
       ; if (idx == 0)
          then readFreshId
-         else resolve idx (\rec -> case rec of 
+         else resolve idx (\rec_ -> case rec_ of 
                               RecName id  -> id
                               other       -> error "LvmRead.readName: invalid name index")
       }
@@ -299,7 +299,7 @@ readCustomNameIdx
   = do{ idx <- readIdx "custom name"
       ; if (idx==0)
          then return Nothing
-         else do{ id <- resolve idx (\rec -> case rec of 
+         else do{ id <- resolve idx (\rec_ -> case rec_ of 
                                                RecName id  -> id
                                                other       -> error "LvmRead.readCustomNameIdx: invalid name index")
                 ; return (Just id)
@@ -308,21 +308,21 @@ readCustomNameIdx
 
 resolveKindIdx :: Index -> Read v Id
 resolveKindIdx idx
-  = do{ resolve idx (\rec -> case rec of 
+  = do{ resolve idx (\rec_ -> case rec_ of 
                               RecKind id  -> id
                               other       -> error "LvmRead.resolveKindIdx: invalid kind index")
       }
 
 readModuleIdx 
   = do{ idx <- readIdx "module descriptor"
-      ; resolve idx (\rec -> case rec of
+      ; resolve idx (\rec_ -> case rec_ of
                                RecModule modid major minor cs -> (modid,major,minor)
                                other -> error "LvmRead.readModule: invalid module index")
       }
 
 readExternTypeIdx
   = do{ idx <- readIdx "extern type"
-      ; resolve idx (\rec -> case rec of
+      ; resolve idx (\rec_ -> case rec_ of
                                RecExternType tp -> tp
                                other  -> error "LvmRead.readExternType: invalid extern type index")
       }
@@ -333,7 +333,7 @@ readNameStringIdx
       }
 
 readNameString idx 
-  = resolve idx (\rec -> case rec of
+  = resolve idx (\rec_ -> case rec_ of
                            RecName id   -> stringFromId id
                            RecBytes bs  -> stringFromBytes bs
                            other  -> error "LvmRead.readNameString: invalid name index")
@@ -341,7 +341,7 @@ readNameString idx
 
 readCodeIdx
   = do{ idx <- readIdx "code"
-      ; resolve idx (\rec -> case rec of
+      ; resolve idx (\rec_ -> case rec_ of
                                RecCode code -> code
                                other        -> error "readCode" "invalid code index")
       }
@@ -350,7 +350,7 @@ readEnclosing
   = do{ idx  <- readIdx "enclosing"
       ; if (idx == 0) 
           then return Nothing
-          else resolve idx (\rec -> case rec of
+          else resolve idx (\rec_ -> case rec_ of
                                      RecDecl d  | isDeclValue d || isDeclAbstract d -> Just (declName d)
                                      other            -> error "readEnclosing" "invalid enclosing index"
                           )
