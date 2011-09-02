@@ -54,7 +54,7 @@ OBJS = $(SRCS:.hs=.o)
 
 # The main target
 $(MAIN)$(EXE): $(OBJS)
-	  $(HC)	-package parsec -o $@ $(HC_OPTS) $(OBJS)
+	  $(HC)	-package haskell98 -package parsec -o $@ $(HC_OPTS) $(OBJS)
 	  $(STRIP) $@
 
 common/ghc/Special.hi: common/ghc/Special.hs
