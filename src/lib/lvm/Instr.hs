@@ -26,7 +26,7 @@ module Instr( Instr(..)
             , instrHasStrictResult
             ) where
 
-import Char     ( toUpper )
+import Data.Char     ( toUpper )
 import Standard ( strict )
 import Id       ( Id, dummyId )
 import Byte     ( Bytes, nil )

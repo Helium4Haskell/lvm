@@ -34,7 +34,7 @@ module TopSort( topSort ) where
         ) where
 -}
 
-import Array
+import Data.Array
 -- import List
 import Special( ST,STArray, runST, newSTArray, readSTArray, writeSTArray)
 

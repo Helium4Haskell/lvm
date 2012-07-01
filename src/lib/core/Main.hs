@@ -11,7 +11,7 @@
 
 module Main where
 
-import System     ( getArgs )
+import System.Environment     ( getArgs )
 import PPrint     ( putDoc )
 
 import Standard   ( getLvmPath, searchPath, searchPathMaybe )

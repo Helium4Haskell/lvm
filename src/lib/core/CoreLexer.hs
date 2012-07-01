@@ -14,7 +14,7 @@ module CoreLexer( Token, Lexeme(..), Pos
                 , layout, addLayout
                 ) where
 
-import Char
+import Data.Char hiding (isSymbol, isLetter)
 import Standard( foldlStrict )
 
 -----------------------------------------------------------

@@ -14,7 +14,7 @@
 module AsmToLvm( asmToLvm )  where
 
 import Standard ( assert )
-import List     ( partition)
+import Data.List     ( partition)
 import Id       ( idFromString )
 import IdMap    ( IdMap, lookupMap, mapFromList )
 import Asm

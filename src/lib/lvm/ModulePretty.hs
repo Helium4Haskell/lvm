@@ -13,7 +13,7 @@
 
 module ModulePretty ( modulePretty, ppId, ppVarId, ppConId, ppString ) where
 
-import Char     ( isAlphaNum, isAlpha, isLower, isUpper )
+import Data.Char     ( isAlphaNum, isAlpha, isLower, isUpper )
 import PPrint
 import Byte     ( stringFromBytes )
 import Id       ( Id, stringFromId, idFromString )

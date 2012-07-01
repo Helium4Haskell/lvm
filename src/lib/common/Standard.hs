@@ -21,9 +21,9 @@ module Standard( trace, warning, assert
                , raiseIO, raiseErr
                ) where
 
-import List       (isPrefixOf)
-import IO
-import System     (getEnv)
+import Data.List       (isPrefixOf)
+import System.IO
+import System.Environment     (getEnv)
 import Special    (doesFileExist,unsafeCoerce,unsafePerformIO)
 
 ----------------------------------------------------------------

@@ -29,10 +29,10 @@ module Byte( Byte
 
 import Data.Word
 
-import IO       ( IOMode(..) )
+import System.IO       ( IOMode(..) )
 import Special  ( openBinary, writeBinaryChar, readBinary, closeBinary )
 import Standard ( strict )
-import System   ( exitWith, ExitCode(..))
+import System.Exit   ( exitWith, ExitCode(..))
 
 {----------------------------------------------------------------
   types

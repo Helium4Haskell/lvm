@@ -15,7 +15,7 @@ module CoreLex( topLevel
               , integerOrFloat, integer, stringLiteral 
               ) where
 
-import Char  ( digitToInt, isAlphaNum, isLower, isUpper )
+import Data.Char  ( digitToInt, isAlphaNum, isLower, isUpper )
 import Set   ( Set, fromList, member )
 import Id    ( Id, idFromString )
 

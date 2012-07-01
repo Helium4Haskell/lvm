@@ -14,7 +14,7 @@
 module LvmRead( lvmReadFile, lvmRead ) where
 
 import Prelude hiding (Read)
-import Array
+import Data.Array
 import Id       ( stringFromId, idFromString, newNameSupply, freshId )
 import IdMap
 

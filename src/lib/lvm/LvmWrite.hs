@@ -16,7 +16,7 @@ module LvmWrite( lvmWriteFile, lvmToBytes ) where
 import Standard ( assert, strict )
 import Id       ( Id, stringFromId )
 import IdMap    ( IdMap, emptyMap, insertMapWith, lookupMap )
-import System   ( exitWith, ExitCode(..))
+import System.Exit   ( exitWith, ExitCode(..))
 import Byte
 import Instr
 import Lvm

@@ -14,7 +14,7 @@
 module LvmImport( lvmImport, lvmImportDecls ) where
 
 
-import Monad    ( foldM )
+import Control.Monad    ( foldM )
 import Standard ( foldlStrict )
 import Id       ( Id, stringFromId, idFromString )
 import IdMap    ( IdMap, emptyMap, insertMap, elemMap, updateMap, listFromMap, lookupMap, findMap, mapMap  )

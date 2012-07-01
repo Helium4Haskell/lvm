@@ -21,8 +21,8 @@ module Special( doesFileExist
               , unsafeCoerce, unsafePerformIO
               ) where
 
-import Directory  ( doesFileExist )
-import IO         ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
+import System.Directory  ( doesFileExist )
+import System.IO         ( Handle, hGetContents, hClose, hPutChar, IOMode(..) )
 import System.IO  ( openBinaryFile )
 import System.IO.Unsafe ( unsafePerformIO )
 import GHC.Base         ( unsafeCoerce# )
