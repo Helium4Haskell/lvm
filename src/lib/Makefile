@@ -27,7 +27,5 @@ report:
 clean:
 	$(RM) out
 	$(RM) *.hi *.o $(MAIN)$(EXE)
-	$(RM) common/*.hi common/*.o common/ghc/*.hi common/ghc/*.o
-	$(RM) lvm/*.hi	lvm/*.o
-	$(RM) asm/*.hi	asm/*.o
-	$(RM) core/*.hi core/*.o
+	$(RM) */*.hi */*.o
+	$(RM) */*/*.hi */*/*.o

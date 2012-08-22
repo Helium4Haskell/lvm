@@ -29,10 +29,10 @@ module Lvm.Common.Byte( Byte
 
 import Data.Word
 
-import System.IO       ( IOMode(..) )
-import Lvm.Common.Special  ( openBinary, writeBinaryChar, readBinary, closeBinary )
+import System.IO
 import Lvm.Common.Standard ( strict )
 import System.Exit   ( exitWith, ExitCode(..))
+import System.IO
 
 {----------------------------------------------------------------
   types
@@ -125,15 +125,15 @@ bytesLength bs
 
 writeBytes :: FilePath -> Bytes -> IO ()
 writeBytes path bs
-  = do{ h <- openBinary path WriteMode
+  = do{ h <- openBinaryFile path WriteMode
       ; write h bs
-      ; closeBinary h
+      ; hClose h
       }
   where
     write h bs
       = case bs of
           Nil       -> return ()
-          Cons b bs -> do{ writeBinaryChar h (toEnum (fromEnum b)); write h bs }
+          Cons b bs -> do{ hPutChar h (toEnum (fromEnum b)); write h bs }
           Cat bs cs -> do{ write h bs; write h cs }
 
 
@@ -160,11 +160,10 @@ bytesFromByteList bs
 
 readByteList :: FilePath -> IO [Byte]
 readByteList path 
-  = do{ h <- openBinary path ReadMode
-      ; xs <- readBinary h
-      ; closeBinary h
+  = do{ h  <- openBinaryFile path ReadMode
+      ; xs <- hGetContents h
+      ; seq (last xs) (hClose h)
       ; return (map (toEnum . fromEnum) xs)
       } `catch` (\exception ->
             let message =  show exception ++ "\n\nUnable to read from file " ++ show path
             in do { putStrLn message; exitWith (ExitFailure 1) })
-            

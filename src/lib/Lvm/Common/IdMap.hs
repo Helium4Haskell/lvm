@@ -31,7 +31,7 @@ module Lvm.Common.IdMap( module Lvm.Common.Id
 
             ) where
 
-import qualified Lvm.Common.IntMap as IntMap
+import qualified Data.IntMap as IntMap
 import Lvm.Common.Id( Id, intFromId, idFromInt
          , NameSupply, splitNameSupply
          )
@@ -56,7 +56,7 @@ isEmptyMap (IdMap map)
 
 elemMap :: Id -> IdMap a -> Bool
 elemMap id (IdMap map)
-  = IntMap.member map (intFromId id)
+  = IntMap.member (intFromId id) map
 
 mapMap :: (a -> b) -> IdMap a -> IdMap b
 mapMap f (IdMap map)
@@ -91,7 +91,7 @@ extendMap id x (IdMap map)
 
 lookupMap :: Id -> IdMap a -> Maybe a
 lookupMap id (IdMap map)
-  = IntMap.lookupM map (intFromId id)
+  = IntMap.lookup (intFromId id) map
 
 filterMap :: (a -> Bool) -> IdMap a -> IdMap a
 filterMap p (IdMap map)
@@ -132,7 +132,7 @@ unionMapWith f (IdMap map1) (IdMap map2)
 
 unionlMap :: IdMap a -> IdMap a -> IdMap a
 unionlMap (IdMap map1) (IdMap map2)
-  = IdMap (IntMap.unionl map1 map2)
+  = IdMap (IntMap.union map1 map2)
 
 unionMaps maps
   = foldr unionMap emptyMap maps

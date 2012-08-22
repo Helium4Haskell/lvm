@@ -27,11 +27,11 @@ module Lvm.Common.Id ( Id -- instance Eq, Show
           ) where
 
 import Lvm.Common.Standard  (foldlStrict)
-import qualified Lvm.Common.IntMap as IntMap
+import qualified Data.IntMap as IntMap
 
 import Data.Int (Int32)
 import Data.IORef( IORef, newIORef, readIORef, writeIORef )
-import Lvm.Common.Special ( unsafePerformIO )
+import System.IO.Unsafe
 
 ----------------------------------------------------------------
 -- Types
@@ -208,7 +208,7 @@ lookupId :: Id -> Names -> Maybe String
 lookupId (Id i) (Names _ map)
   = let idx = extractIdx i
         h   = extractHash i
-    in  case IntMap.lookupM map (fromIntegral h) of
+    in  case IntMap.lookup (fromIntegral h) map of
           Nothing -> Nothing
           Just xs -> Just (index idx xs)
   where
@@ -222,16 +222,15 @@ insertName sort name names
     in (setNameSpace sort id, names')
 
 insertName' :: String -> Names -> (Id,Names)
-insertName' name (Names fresh map)
-  = let hname       = hash name
-        h           = initHash hname
-        (i,map1)    = IntMap.insertWithX insert h (fromIntegral hname) [name] map
-        insert _ xs = let (idx,xs') = insertIdx name xs
-                      in if (idx > maxIdx)
-                          then error ("Id.insertName: too many names with the same hash value (" ++ show name ++ ")")
-                          else (initIdx idx h, xs')
-    in (Id i, Names fresh map1)
-
+insertName' name (Names fresh m) 
+   | idx > maxIdx = error ("Id.insertName: too many names with the same hash value (" ++ show name ++ ")")
+   | otherwise    = (Id (initIdx idx h), Names fresh m1)
+ where
+   hname      = hash name
+   h          = initHash hname
+   (old, m1)  = IntMap.insertLookupWithKey upd (fromIntegral hname) [name] m
+   (idx, new) = maybe (0, [name]) (insertIdx name) old
+   upd _ _ _  = new
 
 -- [insertIdx] returns the index of an element if it exists already, or
 -- appends the element and returns its index.

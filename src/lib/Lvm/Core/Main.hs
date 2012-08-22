@@ -11,28 +11,28 @@
 
 module Main where
 
-import System.Environment     ( getArgs )
-import Lvm.Common.PPrint     ( putDoc )
+import System.Environment      ( getArgs )
+import Text.PrettyPrint.Leijen ( putDoc )
 
 import Lvm.Common.Standard   ( getLvmPath, searchPath, searchPathMaybe )
 import Lvm.Common.Id         ( newNameSupply, stringFromId )
 
-import Lvm.Core.CorePretty ( corePretty )        -- pretty print Core
-import Lvm.Core.CoreParse  ( coreParseExport, modulePublic )
-import Lvm.Core.CoreParser ( parseModule )       -- new core syntax
+import Lvm.Core.Pretty ( corePretty )        -- pretty print Core
+import Lvm.Core.Parse  ( coreParseExport, modulePublic )
+import Lvm.Core.Parser ( parseModule )       -- new core syntax
 
                                         -- parse text into Core
-import Lvm.Core.CoreRemoveDead( coreRemoveDead ) -- remove dead declarations
-import Lvm.Core.CoreToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
+import Lvm.Core.RemoveDead( coreRemoveDead ) -- remove dead declarations
+import Lvm.Core.ToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
 
-import Lvm.Asm.AsmPretty  ( asmPretty )         -- pretty print low-level core (Asm)
-import Lvm.Asm.AsmOptimize( asmOptimize )       -- optimize Asm (ie. local inlining)
-import Lvm.Asm.AsmToLvm   ( asmToLvm )          -- translate Asm to Lvm instructions
+import Lvm.Asm.Pretty  ( asmPretty )         -- pretty print low-level core (Asm)
+import Lvm.Asm.Optimize( asmOptimize )       -- optimize Asm (ie. local inlining)
+import Lvm.Asm.ToLvm   ( asmToLvm )          -- translate Asm to Lvm instructions
 
-import Lvm.LvmPretty  ( lvmPretty )         -- pretty print instructions (Lvm)
-import Lvm.LvmWrite   ( lvmWriteFile )      -- write a binary Lvm file
-import Lvm.LvmImport  ( lvmImport )         -- resolve import declarations
-import Lvm.LvmRead    ( lvmReadFile )       -- read a Lvm file
+import Lvm.Pretty  ( lvmPretty )         -- pretty print instructions (Lvm)
+import Lvm.Write   ( lvmWriteFile )      -- write a binary Lvm file
+import Lvm.Import  ( lvmImport )         -- resolve import declarations
+import Lvm.Read    ( lvmReadFile )       -- read a Lvm file
 
 ----------------------------------------------------------------
 --

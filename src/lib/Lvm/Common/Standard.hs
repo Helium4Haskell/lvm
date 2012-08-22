@@ -19,12 +19,17 @@ module Lvm.Common.Standard( trace, warning, assert
                , fst3, snd3, thd3
                , unsafeCoerce
                , raiseIO, raiseErr
+               , topSort
                ) where
 
 import Data.List       (isPrefixOf)
+import Data.Graph (Vertex, Edge, buildG, scc)
+import Data.Tree  (flatten)
 import System.IO
+import System.Directory
 import System.Environment     (getEnv)
-import Lvm.Common.Special    (doesFileExist,unsafeCoerce,unsafePerformIO)
+import System.IO.Unsafe
+import Unsafe.Coerce 
 
 ----------------------------------------------------------------
 -- three tuples
@@ -150,3 +155,14 @@ splitPath xs
           (':':'\\':cs)  -> walk ps ("\\:" ++ p) cs
           (':':cs)       -> walk (reverse p:ps) "" cs
           (c:cs)         -> walk ps (c:p) cs
+
+
+----------------------------------------------------------------
+-- topological sort
+----------------------------------------------------------------
+
+topSort :: Vertex -> [Edge] -> [[Vertex]]
+topSort max edges
+  = let graph = buildG (0, max) edges
+        forest = scc graph
+    in map flatten forest
