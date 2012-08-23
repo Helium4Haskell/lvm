@@ -10,22 +10,18 @@
 --  $Id$
 
 module Lvm.Core.Parse
-    ( coreParse, coreParseExport, coreParseExpr
-    , modulePublic
-    , coreParseType, Type(..)
+    ( coreParse, coreParseExport, coreParseExpr, coreParseType
     ) where
-
-import Text.PrettyPrint.Leijen( (<+>), (<>), Doc, text, hsep )
-import qualified Text.PrettyPrint.Leijen as PPrint
 
 import Lvm.Common.Standard( foldlStrict )
 import Text.ParserCombinators.Parsec hiding (satisfy)
-import Lvm.Common.Byte   ( bytesFromString )
+import Lvm.Common.Byte   ( Bytes, bytesFromString )
 import Lvm.Common.Id     ( Id, stringFromId, idFromString, dummyId )
 import Lvm.Common.IdSet
 import Lvm.Core.Data
 import Lvm.Core.Utils
 import Lvm.Core.Lexer
+import Lvm.Core.Type
 
 ----------------------------------------------------------------
 -- Parse a Core source file
@@ -61,133 +57,7 @@ coreParseType fname input = addForall (coreParseAny ptypeFun fname input)
 ----------------------------------------------------------------
 -- Basic parsers
 ----------------------------------------------------------------
-type TokenParser a  = GenParser Token () a
-
-----------------------------------------------------------------
--- Types
-----------------------------------------------------------------
-data Type       = TFun    {tp1::Type, tp2::Type}
-                | TAp     {tp1::Type, tp2::Type}
-                | TForall {tpId::Id, tp::Type}
-                | TExist  {tpId::Id, tp::Type}
-                | TStrict {tp::Type}
-                | TVar    {tpId::Id}
-                | TCon    {tpId::Id}
-                | TAny
-                | TString {tpString::String}
-                deriving (Show)
-
-data Kind       = KFun {kind1::Kind, kind2::Kind}
-                | KStar
-                | KString {kindString::String}
-
-data SuperKind  = Box
-
-arityFromType :: Type -> Int
-arityFromType tp
-  = case tp of
-      TFun    t1 t2   -> arityFromType t2 + 1
-      TAp     t1 t2   -> 0                     -- assumes saturated constructors!
-      TForall id t    -> arityFromType t
-      TExist  id t    -> arityFromType t
-      TStrict t       -> arityFromType t
-      TVar    id      -> 0
-      TCon    id      -> 0
-      TAny            -> 0
-      TString s       -> error "Core.arityFromType: string type"
-
-arityFromKind :: Kind -> Int
-arityFromKind kind
-  = case kind of
-      KFun    k1 k2   -> arityFromKind k1 + 1
-      KStar           -> 0
-      KString s       -> error "Core.arityFromKind: string kind"
-
-ppType :: Type -> Doc
-ppType tp
-  = ppTypeEx 0 tp
-
-ppTypeEx :: Int -> Type -> Doc
-ppTypeEx level tp
-  = parenthesized $
-    case tp of
-      TAp (TCon id) t2 | id == idFromString "[]" -> text "[" <> ppType t2 <> text "]" 
-      TFun    t1 t2   -> ppHi t1 <+> text "->" <+> ppEq t2
-      TAp     t1 t2   -> ppEq t1 <+> ppHi t2
-      TForall id t    -> text "forall" <+> ppId id <> text "." <+> ppEq t
-      TExist  id t    -> text "exist" <+> ppId id <> text "." <+> ppEq t
-      TStrict t       -> ppHi t <> text "!"
-      TVar    id      -> ppId id
-      TCon    id      -> ppId id
-      TAny            -> text "any"
-      TString s       -> PPrint.string s
-  where
-    tplevel           = levelFromType tp
-    parenthesized doc | level <= tplevel  = doc
-                      | otherwise         = PPrint.parens doc
-    ppHi t            | level <= tplevel  = ppTypeEx (tplevel+1) t
-                      | otherwise         = ppTypeEx 0 t
-    ppEq  t           | level <= tplevel  = ppTypeEx tplevel t
-                      | otherwise         = ppTypeEx 0 t
-
-
-ppKind :: Kind -> Doc
-ppKind kind
-  = ppKindEx 0 kind
-
-ppKindEx level kind
-  = parenthesized $
-    case kind of
-      KFun k1 k2    -> ppHi k1 <+> text "->" <+> ppEq k2
-      KStar         -> text "*"
-      KString s     -> PPrint.string s
-  where
-    (klevel,parenthesized)
-      | level <= levelFromKind kind   = (levelFromKind kind,id)
-      | otherwise                     = (0,PPrint.parens)
-
-    ppHi k  = ppKindEx (if klevel<=0 then 0 else klevel+1) k
-    ppEq k  = ppKindEx klevel k
-
-
-ppId id
-  = PPrint.string (stringFromId id)
-
-levelFromType tp
-  = case tp of
-      TString s       -> 1 
-      TForall id t    -> 2
-      TExist  id t    -> 2
-      TFun    t1 t2   -> 3
-      TAp     t1 t2   -> 4
-      TStrict t       -> 5
-      TVar    id      -> 6
-      TCon    id      -> 6
-      TAny            -> 7 
-
-levelFromKind kind
-  = case kind of
-      KString s     -> 1
-      KFun k1 k2    -> 2
-      KStar         -> 3
-
-addForall :: Type -> Type
-addForall tp
-  = foldr TForall tp (listFromSet (varsInType tp))
-
-varsInType :: Type -> IdSet
-varsInType tp
-  = case tp of
-      TForall id t    -> deleteSet id (varsInType t)
-      TExist  id t    -> deleteSet id (varsInType t)
-      TString s       -> emptySet
-      TFun    t1 t2   -> unionSet (varsInType t1) (varsInType t2)
-      TAp     t1 t2   -> unionSet (varsInType t1) (varsInType t2)
-      TStrict t       -> varsInType t
-      TVar    id      -> singleSet id
-      TCon    id      -> emptySet
-      TAny            -> emptySet
-   
+type TokenParser a  = GenParser Token () a   
 
 ----------------------------------------------------------------
 -- Program
@@ -235,69 +105,6 @@ parseModuleExport =
                     )
             )
       }
-
-modulePublic :: Bool -> (IdSet,IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
-modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) mod
-  = mod{ moduleDecls = map setPublic (moduleDecls mod) }
-  where
-    setPublic decl  | declPublic decl = decl{ declAccess = (declAccess decl){ accessPublic = True } }
-                    | otherwise       = decl
-    
-    isExported decl elemIdSet =
-        let
-            access = declAccess decl
-            name   = declName   decl
-        in
-        if implicit then
-            case decl of
-                DeclImport{} ->  False
-                _ ->
-                    case access of
-                        Imported{} -> False
-                        _          -> True
-        else
-            case access of
-                Imported{ importModule = id }
-                    | elemSet id exportMods               -> True
-                    | otherwise                           -> elemIdSet
-                Defined{}
-                    | elemSet (moduleName mod) exportMods -> True
-                    | otherwise                           -> elemIdSet
-                other -> elemIdSet
-    
-    declPublic decl =
-        let
-            name = declName decl
-        in
-        case decl of
-            DeclValue{}     ->  isExported decl (elemSet name exports)
-            DeclAbstract{}  ->  isExported decl (elemSet name exports)
-            DeclExtern{}    ->  isExported decl (elemSet name exports)
-            DeclCon{}       ->  isExported decl
-                                    (  elemSet name exportCons
-                                    || elemSet (conTypeName decl) exportDataCon
-                                    )
-            DeclCustom{}    ->  isExported decl
-                                    (   (  declKind decl == customData
-                                        || declKind decl == customTypeDecl
-                                        )
-                                    &&  elemSet name exportData
-                                    )
-            DeclImport{}    ->  not implicit && case importKind (declAccess decl) of
-                                    DeclKindValue  -> isExported decl (elemSet name exports)
-                                    DeclKindExtern -> isExported decl (elemSet name exports)
-                                    DeclKindCon    -> isExported decl (elemSet name exportCons) 
-                                    DeclKindModule -> isExported decl (elemSet name exportMods)
-                                    DeclKindCustom id
-                                     | id == idFromString "data"
-                                       ||
-                                       id == idFromString "typedecl" ->
-                                         isExported decl (elemSet name exportData)
-                                    other          -> False
-            other           -> False
-
-    conTypeName (DeclCon{declCustoms=(tp:CustomLink id customData:rest)})  = id
-    conTypeName other  = dummyId
 
 ----------------------------------------------------------------
 -- export list
@@ -436,7 +243,7 @@ pImportSpec modid
       ; kind <- lexString
       ; id   <- variable <|> constructor
       ; impid <- option id (do { lexeme LexASG; variable <|> constructor })
-      ; return [DeclImport id (Imported False modid impid (DeclKindCustom (idFromString kind)) 0 0) []]
+      ; return [DeclImport id (Imported False modid impid (customDeclKind kind) 0 0) []]
       }
   <|>
     do{ id <- typeid
@@ -531,11 +338,15 @@ pbindRhs
 ----------------------------------------------------------------
 -- data declarations
 ----------------------------------------------------------------
-customData      = DeclKindCustom (idFromString "data")
-customTypeDecl  = DeclKindCustom (idFromString "typedecl")
 
-customType tp   = CustomDecl (DeclKindCustom (idFromString "type")) [CustomBytes (bytesFromString (show (ppType tp)))]
-customKind k    = CustomDecl (DeclKindCustom (idFromString "kind")) [CustomBytes (bytesFromString (show (ppKind k)))]
+makeCustomBytes :: String -> Bytes -> Custom
+makeCustomBytes k bs = CustomDecl (customDeclKind k) [CustomBytes bs]
+
+customType :: Type -> Custom
+customType = makeCustomBytes "type" . bytesFromString . show
+
+customKind :: Kind -> Custom
+customKind = makeCustomBytes "kind" . bytesFromString . show
 
 pdata :: TokenParser [CoreDecl]
 pdata
@@ -575,7 +386,9 @@ ptypeTopDecl
       ; lexeme LexASG
       ; tp   <- ptype
       ; let kind  = foldr KFun KStar (map (const KStar) args)
-            tpstr = show $ (ppId id <+> hsep (map ppId args) <+> text "=" <+> ppType tp)
+            tpstr = unwords $  stringFromId id 
+                            :  map stringFromId args
+                            ++ ["=", show tp]
       ; return [DeclCustom id private customTypeDecl 
                      [CustomBytes (bytesFromString tpstr)
                      ,customKind kind]]
@@ -635,7 +448,7 @@ pcustom
 pdeclKind
   =   do{ id <- varid;    return (DeclKindCustom id) }
   <|> do{ i <- lexInt;    return (toEnum (fromInteger i)) }
-  <|> do{ s <- lexString; return (DeclKindCustom (idFromString s)) }
+  <|> do{ s <- lexString; return (customDeclKind s) }
   <?> "custom kind"
 
 ----------------------------------------------------------------
@@ -865,7 +678,7 @@ pextern
       ; id <- varid
       ; s  <- lexString
       ; (tp,arity) <- ptypeDecl
-      ; return (DeclExtern id private arity (show (ppType tp)) LinkStatic CallInstr "" (Plain s) [])
+      ; return (DeclExtern id private arity (show tp) LinkStatic CallInstr "" (Plain s) [])
       }
 
 ------------------

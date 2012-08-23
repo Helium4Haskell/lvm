@@ -268,7 +268,7 @@ whnfAlt env (Alt pat e)
 whnfPrim env id
   = case lookupInstr id env of
       Nothing    -> False -- TODO: look at the type of a primitive
-      Just instr -> instrHasStrictResult instr
+      Just instr -> strictResult instr
 
 
 {---------------------------------------------------------------

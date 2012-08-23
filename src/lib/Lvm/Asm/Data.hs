@@ -20,7 +20,6 @@ import Lvm.Common.Id     ( Id )
 import Lvm.Core.Module
 import Text.PrettyPrint.Leijen
 import Lvm.Common.Byte         ( stringFromBytes )
-import Lvm.Common.Id           ( stringFromId )
 
 {---------------------------------------------------------------
   Asm modules
@@ -67,7 +66,7 @@ data Con tag = ConId !Id
 
 instance Pretty Top where
    pretty (Top args expr) =
-      nest 2 (text "\\" <> hsep (map ppId args) <+> text "->" <$> pretty expr)
+      nest 2 (text "\\" <> hsep (map pretty args) <+> text "->" <$> pretty expr)
 
 {---------------------------------------------------------------
   expressions
@@ -85,12 +84,12 @@ ppExprWith pars expr
   = case expr of
       Let x atom e   -> pars $ align $ hang 3 (text "let" <+> ppBind (x,atom)) <$> (text "in" <+> pretty e)
       LetRec binds e -> pars $ align $ hang 7 (text "letrec" <+> vcat (map ppBind binds)) <$> nest 3 (text "in" <+> pretty e)
-      Eval x e e'    -> pars $ align $ hang 7 (text "let!" <+> ppId x <+> text "=" </> pretty e) 
+      Eval x e e'    -> pars $ align $ hang 7 (text "let!" <+> pretty x <+> text "=" </> pretty e) 
                                        <$> nest 3 (text "in" <+> pretty e')
-      Match x alts   -> pars $ align $ hang 2 (text "match" <+> ppId x <+> text "with" <$> vcat (map pretty alts))
-      Prim x args    -> pars $ text "prim" <> char '[' <> (ppId x) <+> hsep (map ppArg args) <> char ']'
-      Ap x []        -> ppId x
-      Ap x args      -> pars $ ppId x <+> hsep (map ppArg args)
+      Match x alts   -> pars $ align $ hang 2 (text "match" <+> pretty x <+> text "with" <$> vcat (map pretty alts))
+      Prim x args    -> pars $ text "prim" <> char '[' <> (pretty x) <+> hsep (map ppArg args) <> char ']'
+      Ap x []        -> pretty x
+      Ap x args      -> pars $ pretty x <+> hsep (map ppArg args)
       Con con []     -> pretty con
       Con con args   -> pars $ pretty con <+> hsep (map ppArg args)
       Lit lit        -> pretty lit
@@ -99,7 +98,7 @@ ppExprWith pars expr
 instance Pretty a => Pretty (Con a) where
    pretty con =
       case con of
-         ConId x          -> ppId x
+         ConId x          -> pretty x
          ConTag tag arity -> text "(@" <> pretty tag <> char ',' <> pretty arity <> char ')'
 
 instance Pretty Note where
@@ -121,8 +120,8 @@ instance Pretty Alt where
 instance Pretty Pat where
    pretty pat =
       case pat of
-         PatCon con params -> pretty con <+> hsep (map ppId params)
-         PatVar x          -> ppId x
+         PatCon con params -> pretty con <+> hsep (map pretty params)
+         PatVar x          -> pretty x
          PatLit lit        -> pretty lit
 
 {---------------------------------------------------------------
@@ -138,7 +137,4 @@ instance Pretty Lit where
 
 ppBind :: Pretty a => (Id, a) -> Doc
 ppBind (x, atom) = 
-   ppId x <+> text "=" <+> pretty atom
-
-ppId :: Id -> Doc
-ppId x = text (stringFromId x)
+   pretty x <+> text "=" <+> pretty atom

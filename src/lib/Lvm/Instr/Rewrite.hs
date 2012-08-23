@@ -14,7 +14,7 @@ module Lvm.Instr.Rewrite( instrRewrite )  where
 import Lvm.Instr.Data    ( Instr(..), Alt(..), Var(..)
                 , offsetFromVar
                 , arityFromGlobal, arityFromCon
-                , instrHasStrictResult
+                , strictResult
                 )
 
 {---------------------------------------------------------------
@@ -77,7 +77,7 @@ rewrites instrs
         -> SLIDE 0 m (d-1): RETURNINT i : rewrites is
 
       instr : SLIDE 1 m d: ENTER : is
-        | instrHasStrictResult instr
+        | strictResult instr
         -> instr : SLIDE 1 m d: RETURN : is
 
       -- eval and pushcode

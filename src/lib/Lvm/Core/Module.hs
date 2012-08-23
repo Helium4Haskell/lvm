@@ -18,6 +18,8 @@ module Lvm.Core.Module( Module(..)
              
              , globalNames, externNames, filterPublic
              , mapDecls, mapValues
+             , customDeclKind, customData, customTypeDecl
+             , modulePublic
              , declKindFromDecl, shallowKindFromDecl -- , hasDeclKind
              , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern, isDeclImport, isDeclGlobal
              , public, private
@@ -25,8 +27,8 @@ module Lvm.Core.Module( Module(..)
 
 import Lvm.Common.Standard( unsafeCoerce )
 import Lvm.Common.Byte    ( Bytes, stringFromBytes )
-import Lvm.Common.Id      ( Id, idFromString )
-import Lvm.Common.IdSet   ( IdSet, setFromList )
+import Lvm.Common.Id      ( Id, idFromString, dummyId )
+import Lvm.Common.IdSet   ( IdSet, setFromList, elemSet )
 import Lvm.Core.PrettyId
 import Lvm.Instr.Data   ( Arity, Tag )
 import Text.PrettyPrint.Leijen
@@ -138,6 +140,13 @@ instance Enum DeclKind where
 --      DeclKindCustom i  -> i
         _                 -> error "Module.DeclKind.fromEnum: unknown kind"
 
+customDeclKind :: String -> DeclKind
+customDeclKind = DeclKindCustom . idFromString
+
+customData, customTypeDecl :: DeclKind
+customData     = customDeclKind "data"
+customTypeDecl = customDeclKind "typedecl"
+
 declKindFromDecl :: Decl a -> DeclKind
 declKindFromDecl decl
   = case decl of
@@ -159,6 +168,65 @@ shallowKindFromDecl decl
       DeclCustom{}   -> declKind decl
       DeclImport{}   -> DeclKindImport
       -- other          -> error "Module.shallowKindFromDecl: unknown declaration"
+
+modulePublic :: Bool -> (IdSet,IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
+modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) mod
+  = mod{ moduleDecls = map setPublic (moduleDecls mod) }
+  where
+    setPublic decl  | declPublic decl = decl{ declAccess = (declAccess decl){ accessPublic = True } }
+                    | otherwise       = decl
+    
+    isExported decl elemIdSet =
+        let
+            access = declAccess decl
+            name   = declName   decl
+        in
+        if implicit then
+            case decl of
+                DeclImport{} ->  False
+                _ ->
+                    case access of
+                        Imported{} -> False
+                        _          -> True
+        else
+            case access of
+                Imported{ importModule = id }
+                    | elemSet id exportMods               -> True
+                    | otherwise                           -> elemIdSet
+                Defined{}
+                    | elemSet (moduleName mod) exportMods -> True
+                    | otherwise                           -> elemIdSet
+                other -> elemIdSet
+    
+    declPublic decl =
+        let
+            name = declName decl
+        in
+        case decl of
+            DeclValue{}     ->  isExported decl (elemSet name exports)
+            DeclAbstract{}  ->  isExported decl (elemSet name exports)
+            DeclExtern{}    ->  isExported decl (elemSet name exports)
+            DeclCon{}       ->  isExported decl
+                                    (  elemSet name exportCons
+                                    || elemSet (conTypeName decl) exportDataCon
+                                    )
+            DeclCustom{}    ->  isExported decl
+                                    ( declKind decl `elem` [customData, customTypeDecl]
+                                    &&  elemSet name exportData
+                                    )
+            DeclImport{}    ->  not implicit && case importKind (declAccess decl) of
+                                    DeclKindValue  -> isExported decl (elemSet name exports)
+                                    DeclKindExtern -> isExported decl (elemSet name exports)
+                                    DeclKindCon    -> isExported decl (elemSet name exportCons) 
+                                    DeclKindModule -> isExported decl (elemSet name exportMods)
+                                    dk@(DeclKindCustom id)
+                                     | dk `elem` [customData, customTypeDecl] ->
+                                         isExported decl (elemSet name exportData)
+                                    other          -> False
+            other           -> False
+
+    conTypeName (DeclCon{declCustoms=(tp:CustomLink id customData:rest)})  = id
+    conTypeName other  = dummyId
 
 ----------------------------------------------------------------
 -- Pretty printing

@@ -17,7 +17,8 @@ import Text.PrettyPrint.Leijen ( putDoc, pretty )
 import Lvm.Common.Standard   ( getLvmPath, searchPath, searchPathMaybe )
 import Lvm.Common.Id         ( newNameSupply, stringFromId )
 
-import Lvm.Core.Parse  ( coreParseExport, modulePublic )
+import Lvm.Core.Module ( modulePublic )
+import Lvm.Core.Parse  ( coreParseExport )
 import Lvm.Core.Parser ( parseModule )       -- new core syntax
 
                                         -- parse text into Core

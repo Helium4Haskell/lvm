@@ -32,6 +32,7 @@ import qualified Data.IntMap as IntMap
 import Data.Int (Int32)
 import Data.IORef( IORef, newIORef, readIORef, writeIORef )
 import System.IO.Unsafe
+import Text.PrettyPrint.Leijen
 
 ----------------------------------------------------------------
 -- Types
@@ -191,6 +192,8 @@ instance Ord Id where
 instance Show Id where
   show id   = "\"" ++ stringFromId id ++ "\""
 
+instance Pretty Id where
+   pretty = string . stringFromId
 
 getNameSpace :: Enum a => Id -> a
 getNameSpace (Id i)

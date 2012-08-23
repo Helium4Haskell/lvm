@@ -15,47 +15,48 @@ module Lvm.Instr.Data ( Instr(..)
 
             , Offset, Depth, Index, Tag, Arity
 
-            , arityFromCon,    tagFromCon, indexFromCon
-            , arityFromGlobal, indexFromGlobal
-            , offsetFromVar,   idFromVar, depthFromVar
-
             , opcodeFromInstr, instrFromOpcode
             , instrFromName, nameFromInstr, isCATCH
-            , instrHasStrictResult
+            , strictResult
             ) where
 
 import Data.Char     ( toUpper )
 import Lvm.Common.Standard ( strict )
-import Lvm.Common.Id       ( Id, dummyId, stringFromId )
+import Lvm.Common.Id       ( Id, dummyId )
 import Lvm.Common.Byte     ( Bytes, nil, stringFromBytes )
 import Text.PrettyPrint.Leijen
 
 ----------------------------------------------------------------
 -- Types
 ----------------------------------------------------------------
+
 type Offset   = Int
 type Depth    = Int
 type Index    = Int
 type Tag      = Int
 type Arity    = Int
 
-data Global   = Global !Id Index !Arity
-              deriving Show
-data Con      = Con    !Id Index !Arity !Tag
-              deriving Show
-data Var      = Var    !Id !Offset !Depth
-              deriving Show
+data Global = Global 
+   { idFromGlobal :: !Id
+   , indexFromGlobal :: Index
+   , arityFromGlobal :: !Arity 
+   }
+ deriving Show
 
-arityFromCon    (Con _ _ arity _  ) = arity
-tagFromCon      (Con _ _ _     tag) = tag
-indexFromCon    (Con _ c _     _  ) = c
+data Con = Con
+   { idFromCon    :: !Id 
+   , indexFromCon :: Index 
+   , arityFromCon :: !Arity 
+   , tagFromCon   :: !Tag
+   }
+ deriving Show
 
-arityFromGlobal (Global _ _ arity)  = arity
-indexFromGlobal (Global _ c _    )  = c
-
-offsetFromVar   (Var _  offset _    )  = offset
-depthFromVar    (Var _  _      depth)  = depth
-idFromVar       (Var id _      _    )  = id
+data Var = Var
+   { idFromVar     :: !Id 
+   , offsetFromVar :: !Offset 
+   , depthFromVar  :: !Depth
+   } 
+ deriving Show
 
 ----------------------------------------------------------------
 -- The instructions
@@ -206,128 +207,111 @@ data Instr    =
 ----------------------------------------------------------------
 
 instance Pretty Instr where
-   pretty     = ppInstr
-   prettyList = instrPretty
-
-----------------------------------------------------------------
--- instrPretty
-----------------------------------------------------------------
-instrPretty :: [Instr] -> Doc
-instrPretty instrs
-  = ppInstrs instrs
-
-
-----------------------------------------------------------------
--- Pretty
-----------------------------------------------------------------
-ppInstrs :: [Instr] -> Doc
-ppInstrs instrs
-  = align (vcat (map (ppInstr ) instrs))
-
-ppInstr instr
-  = let name = nameFromInstr instr
-    in case instr of
+   prettyList = align . vcat . map pretty
+   pretty instr = 
+      case instr of
       -- pseudo instructions
-      VAR         id          -> text name <+> ppId id
-      PARAM       id          -> text name <+> ppId id
-      USE         id          -> text name <+> ppId id
+      VAR         x           -> text name <+> pretty x
+      PARAM       x           -> text name <+> pretty x
+      USE         x           -> text name <+> pretty x
       NOP                     -> text name
       
-      ATOM        is          -> nest 2 (text name <$> ppInstrs is)
-      INIT        is          -> nest 2 (text name <$> ppInstrs is)
+      ATOM        is          -> nest 2 (text name <$> pretty is)
+      INIT        is          -> nest 2 (text name <$> pretty is)
 
     -- structured instructions
-      CATCH instrs            -> nest 2 (text name <$> ppInstrs instrs)
-      EVAL d instrs           -> nest 2 (text name <+> pretty d <$> ppInstrs instrs)
-      RESULT instrs           -> nest 2 (text name <$> ppInstrs instrs)
+      CATCH instrs            -> nest 2 (text name <$> pretty instrs)
+      EVAL d instrs           -> nest 2 (text name <+> pretty d <$> pretty instrs)
+      RESULT instrs           -> nest 2 (text name <$> pretty instrs)
 
-      SWITCHCON alts          -> nest 2 (text name <$> ppAlts alts)
-      MATCHCON alts           -> nest 2 (text name <$> ppAlts alts)
-      MATCHINT alts           -> nest 2 (text name <$> ppAlts alts)
-      MATCH alts              -> nest 2 (text name <$> ppAlts alts)
+      SWITCHCON alts          -> nest 2 (text name <$> pretty alts)
+      MATCHCON alts           -> nest 2 (text name <$> pretty alts)
+      MATCHINT alts           -> nest 2 (text name <$> pretty alts)
+      MATCH alts              -> nest 2 (text name <$> pretty alts)
 
 
     -- push instructions
-      PUSHVAR     var         -> text name <+> ppVar var
+      PUSHVAR     var         -> text name <+> pretty var
       PUSHINT     n           -> text name <+> pretty n
-      PUSHBYTES   bs c        -> text name <+> ppBytes bs
+      PUSHBYTES   bs _        -> text name <+> ppBytes bs
       PUSHFLOAT   d           -> text name <+> pretty d
-      PUSHCODE    global      -> text name <+> ppGlobal global
+      PUSHCODE    global      -> text name <+> pretty global
       PUSHCONT    ofs         -> text name <+> pretty ofs
 
     -- stack instructions
       ARGCHK      n           -> text name  <+> pretty n
       SLIDE       n m depth   -> text name  <+> pretty n <+> pretty m <+> pretty depth
-      STUB        var         -> text name <+> ppVar var
+      STUB        var         -> text name  <+> pretty var
 
     -- control
       ENTER                   -> text name
       RAISE                   -> text name
-      CALL        global      -> text name <+> ppGlobal global
+      CALL        global      -> text name <+> pretty global
 
-      ENTERCODE   global      -> text name <+> ppGlobal global
-      EVALVAR     var         -> text name <+> ppVar var
+      ENTERCODE   global      -> text name <+> pretty global
+      EVALVAR     var         -> text name <+> pretty var
 
       RETURN                  -> text name
-      RETURNCON   con         -> text name <+> ppCon con
+      RETURNCON   con         -> text name <+> pretty con
       RETURNINT   n           -> text name <+> pretty n
 
     -- applications
       ALLOCAP     arity       -> text name <+> pretty arity
-      PACKAP      var arity   -> text name  <+> ppVar var <+> pretty arity
-      PACKNAP     var arity   -> text name <+> ppVar var <+> pretty arity
+      PACKAP      var arity   -> text name  <+> pretty var <+> pretty arity
+      PACKNAP     var arity   -> text name <+> pretty var <+> pretty arity
       NEWAP       arity       -> text name   <+> pretty arity
       NEWNAP      arity       -> text name  <+> pretty arity
 
     -- constructors
-      ALLOCCON    con         -> text name <+> ppCon con
-      PACKCON     con var     -> text name  <+> ppVar var <+> ppCon con
-      NEWCON      con         -> text name   <+> ppCon con
+      ALLOCCON    con         -> text name <+> pretty con
+      PACKCON     con var     -> text name  <+> pretty var <+> pretty con
+      NEWCON      con         -> text name   <+> pretty con
       
       NEW arity               -> text name <+> pretty arity
-      PACK arity var          -> text name <+> pretty arity <+> ppVar var
+      PACK arity var          -> text name <+> pretty arity <+> pretty var
       UNPACK arity            -> text name <+> pretty arity
 
     -- optimized instructions
-      PUSHVARS2  v w          -> text name <+> ppVar v <+> ppVar w
+      PUSHVARS2  v w          -> text name <+> pretty v <+> pretty w
 
-      NEWCON0 con             -> text name <+> ppCon con
-      NEWCON1 con             -> text name <+> ppCon con
-      NEWCON2 con             -> text name <+> ppCon con
-      NEWCON3 con             -> text name <+> ppCon con
+      NEWCON0 con             -> text name <+> pretty con
+      NEWCON1 con             -> text name <+> pretty con
+      NEWCON2 con             -> text name <+> pretty con
+      NEWCON3 con             -> text name <+> pretty con
 
-      RETURNCON0 con          -> text name <+> ppCon con
+      RETURNCON0 con          -> text name <+> pretty con
 
     -- others
-      other                   -> text name
+      _                       -> text name
+    where 
+      name = nameFromInstr instr
+    
+instance Pretty Alt where 
+   pretty (Alt pat is) = nest 2 (pretty pat <> text ":" <$> pretty is)
+   prettyList = vcat . map pretty
 
-ppAlts alts
-  = vcat (map ppAlt alts)
+instance Pretty Pat where
+   pretty pat =
+      case pat of
+         PatCon con  -> pretty con
+         PatInt i    -> pretty i
+         PatTag t a  -> text "(@" <> pretty t <> char ',' <> pretty a <> text ")"
+         PatDefault  -> text "<default>"
 
-ppAlt (Alt pat is)
-  = nest 2 (ppPat pat <> text ":" <$> ppInstrs is)
+instance Pretty Con where
+   pretty (Con x _ arity _) =
+      pretty x <+> pretty arity
 
-ppPat pat
-  = case pat of
-      PatCon con  -> ppCon con
-      PatInt i    -> pretty i
-      PatTag t a  -> text "(@" <> pretty t <> char ',' <> pretty a <> text ")"
-      PatDefault  -> text "<default>"
+instance Pretty Global where
+   pretty (Global x _ arity) =
+      pretty x <+> pretty arity
 
-ppCon (Con id c arity tag)
-  = ppId id <+> pretty arity
+instance Pretty Var where
+   pretty (Var x ofs depth) =
+      pretty x <+> parens( pretty ofs <> comma <+> pretty depth )
 
-ppGlobal (Global id c arity)
-  = ppId id <+> pretty arity
-
-ppVar (Var id ofs depth)
-  = ppId id <+> parens( pretty ofs <> comma <+> pretty depth )
-
-ppId id
-  = text (stringFromId id)
-
-ppBytes bs
-  = dquotes (string (stringFromBytes bs))
+ppBytes :: Bytes -> Doc
+ppBytes = dquotes . string . stringFromBytes
 
 ----------------------------------------------------------------
 -- Instruction instances
@@ -404,47 +388,18 @@ instrFromName name
   instrHasStrictResult: returns [True] if an instruction returns
     a strict result, ie. a value that can be [match]ed or [RETURN]'ed.
 ---------------------------------------------------------------}
-instrHasStrictResult instr
-  = case instr of
-      NEW _   -> True
-      ALLOC   -> True
 
-      ADDINT  -> True
-      SUBINT  -> True
-      MULINT  -> True
-      DIVINT  -> True
-      MODINT  -> True
-      QUOTINT -> True
-      REMINT  -> True
-      ANDINT  -> True
-      XORINT  -> True
-      ORINT   -> True
-      SHRINT  -> True
-      SHLINT  -> True
-      SHRNAT  -> True
-      NEGINT  -> True
-
-      EQINT   -> True
-      NEINT   -> True
-      LTINT   -> True
-      GTINT   -> True
-      LEINT   -> True
-      GEINT   -> True
-
-      ADDFLOAT  -> True
-      SUBFLOAT  -> True
-      MULFLOAT  -> True
-      DIVFLOAT  -> True
-      NEGFLOAT  -> True
-
-      EQFLOAT   -> True
-      NEFLOAT   -> True
-      LTFLOAT   -> True
-      GTFLOAT   -> True
-      LEFLOAT   -> True
-      GEFLOAT   -> True
-
-      _         -> False
+strictResult :: Instr -> Bool
+strictResult (NEW _) = True
+strictResult instr   = instr `elem` strictList
+ where
+   strictList = 
+      [ ALLOC, ADDINT, SUBINT, MULINT, DIVINT, MODINT, QUOTINT
+      , REMINT, ANDINT, XORINT, ORINT, SHRINT, SHLINT, SHRNAT 
+      , NEGINT, EQINT, NEINT, LTINT, GTINT, LEINT, GEINT  
+      , ADDFLOAT, SUBFLOAT, MULFLOAT, DIVFLOAT, NEGFLOAT
+      , EQFLOAT, NEFLOAT, LTFLOAT, GTFLOAT, LEFLOAT, GEFLOAT 
+      ]
 
 
 ----------------------------------------------------------------
@@ -490,10 +445,10 @@ instrTable =
     , UPDFIELD    
     ]
   where
-    id     = dummyId
-    var    = Var id 0 0
-    global = Global id 0 0
-    con    = Con id 0 0 0
+    dum    = dummyId
+    var    = Var dum 0 0
+    global = Global dum 0 0
+    con    = Con dum 0 0 0
 
 
 ----------------------------------------------------------------
@@ -503,70 +458,71 @@ instrTable =
 isCATCH :: Instr -> Bool
 isCATCH (CATCH _) = True
 isCATCH _         = False
-
+             
+enumFromInstr :: Instr -> Int
 enumFromInstr instr
   = case instr of
       -- pseudo instructions
-      VAR         id          -> -1
-      PARAM       id          -> -2
-      USE         id          -> -3
+      VAR {}                  -> -1
+      PARAM {}                -> -2
+      USE {}                  -> -3
       NOP                     -> -4
-      ATOM        instrs      -> -5
-      INIT        instrs      -> -6
+      ATOM {}                 -> -5
+      INIT {}                 -> -6
 
 
     -- structured instructions
-      CATCH       is          -> 0
-      EVAL        d is        -> 1
-      RESULT      is          -> 2
+      CATCH {}                -> 0
+      EVAL {}                 -> 1
+      RESULT {}               -> 2
 
-      MATCHCON    alts        -> 3
-      SWITCHCON   alts        -> 4
-      MATCHINT    alts        -> 5
-      MATCH       alts        -> 6
+      MATCHCON {}             -> 3
+      SWITCHCON {}            -> 4
+      MATCHINT {}             -> 5
+      MATCH {}                -> 6
 
     -- push instructions
-      PUSHVAR     var         -> 10
-      PUSHINT     n           -> 11
-      PUSHBYTES   bs c        -> 12
-      PUSHFLOAT   d           -> 13
-      PUSHCODE    global      -> 14
-      PUSHCONT    ofs         -> 15
+      PUSHVAR {}              -> 10
+      PUSHINT {}              -> 11
+      PUSHBYTES {}            -> 12
+      PUSHFLOAT {}            -> 13
+      PUSHCODE {}             -> 14
+      PUSHCONT {}             -> 15
       PUSHCATCH               -> 16
 
     -- stack instructions
-      ARGCHK      n           -> 20
-      SLIDE       n m depth   -> 21
-      STUB        var         -> 22
+      ARGCHK {}               -> 20
+      SLIDE {}                -> 21
+      STUB {}                 -> 22
 
     -- control
       ENTER                   -> 30
       RAISE                   -> 31
-      CALL        global      -> 32
+      CALL {}                 -> 32
 
-      ENTERCODE   global      -> 33
-      EVALVAR     var         -> 34
+      ENTERCODE {}            -> 33
+      EVALVAR {}              -> 34
 
       RETURN                  -> 35
-      RETURNCON   con         -> 36
-      RETURNINT   n           -> 37
+      RETURNCON {}            -> 36
+      RETURNINT {}            -> 37
 
     -- applications
-      ALLOCAP     arity       -> 40
-      PACKAP      var arity   -> 41
-      PACKNAP     var arity   -> 42
-      NEWAP       arity       -> 43
-      NEWNAP      arity       -> 44
+      ALLOCAP {}              -> 40
+      PACKAP {}               -> 41
+      PACKNAP {}              -> 42
+      NEWAP {}                -> 43
+      NEWNAP {}               -> 44
 
     -- constructors
-      ALLOCCON    con         -> 47
-      PACKCON     con var     -> 48
-      NEWCON      con         -> 49
+      ALLOCCON {}             -> 47
+      PACKCON {}              -> 48
+      NEWCON {}               -> 49
 
       ALLOC                   -> 50
-      NEW arity               -> 51
-      PACK arity var          -> 52
-      UNPACK arity            -> 53
+      NEW {}                  -> 51
+      PACK {}                 -> 52
+      UNPACK {}               -> 53
       GETFIELD                -> 54 
       SETFIELD                -> 55
       GETTAG                  -> 56
@@ -603,7 +559,7 @@ enumFromInstr instr
       PUSHVAR2                -> 102
       PUSHVAR3                -> 103
       PUSHVAR4                -> 104
-      PUSHVARS2 v w           -> 105
+      PUSHVARS2 {}            -> 105
 
       -- optimizes AP
       NEWAP2                  -> 111
@@ -615,12 +571,12 @@ enumFromInstr instr
       NEWNAP4                 -> 116
 
       -- optimized NEWCON
-      NEWCON0 con             -> 120
-      NEWCON1 con             -> 121
-      NEWCON2 con             -> 122
-      NEWCON3 con             -> 123
+      NEWCON0 {}              -> 120
+      NEWCON1 {}              -> 121
+      NEWCON2 {}              -> 122
+      NEWCON3 {}              -> 123
 
-      RETURNCON0 con          -> 124
+      RETURNCON0 {}           -> 124
 
       -- FLOAT operations
       ADDFLOAT                  -> 160
@@ -637,75 +593,75 @@ enumFromInstr instr
       LEFLOAT                   -> 184
       GEFLOAT                   -> 185
 
-      other                   -> error "Code.enumFromInstr: unknown instruction"
-
 
 ----------------------------------------------------------------
 -- Instruction names
 ----------------------------------------------------------------
+
+nameFromInstr :: Instr -> String
 nameFromInstr instr
   = case instr of
       -- pseudo instructions
-      VAR         id          -> "VAR"
-      PARAM       id          -> "PARAM"
-      USE         id          -> "USE"
+      VAR {}                  -> "VAR"
+      PARAM {}                -> "PARAM"
+      USE {}                  -> "USE"
       NOP                     -> "NOP"
-      ATOM        is          -> "ATOM"
-      INIT        is          -> "INIT"
+      ATOM {}                 -> "ATOM"
+      INIT {}                 -> "INIT"
 
 
     -- structured instructions
-      CATCH       is          -> "CATCH"
-      EVAL        d is        -> "EVAL"
-      RESULT      is          -> "RESULT"
+      CATCH {}                -> "CATCH"
+      EVAL {}                 -> "EVAL"
+      RESULT {}               -> "RESULT"
 
-      MATCHCON    alts        -> "MATCHCON"
-      SWITCHCON   alts        -> "SWITCHCON"
-      MATCHINT    alts        -> "MATCHINT"
-      MATCH       alts        -> "MATCH"
+      MATCHCON {}             -> "MATCHCON"
+      SWITCHCON {}            -> "SWITCHCON"
+      MATCHINT {}             -> "MATCHINT"
+      MATCH {}                -> "MATCH"
 
     -- push instructions
-      PUSHVAR     var         -> "PUSHVAR"
-      PUSHINT     n           -> "PUSHINT"
-      PUSHBYTES   bs c        -> "PUSHBYTES"
-      PUSHFLOAT   d           -> "PUSHFLOAT"
-      PUSHCODE    global      -> "PUSHCODE"
-      PUSHCONT    ofs         -> "PUSHCONT"
+      PUSHVAR {}              -> "PUSHVAR"
+      PUSHINT {}              -> "PUSHINT"
+      PUSHBYTES {}            -> "PUSHBYTES"
+      PUSHFLOAT {}            -> "PUSHFLOAT"
+      PUSHCODE {}             -> "PUSHCODE"
+      PUSHCONT {}             -> "PUSHCONT"
       PUSHCATCH               -> "PUSHCATCH"
 
     -- stack instructions
-      ARGCHK      n           -> "ARGCHK"
-      SLIDE       n m depth   -> "SLIDE"
-      STUB        var         -> "STUB"
+      ARGCHK {}               -> "ARGCHK"
+      SLIDE {}                -> "SLIDE"
+      STUB {}                 -> "STUB"
 
     -- control
       ENTER                   -> "ENTER"
       RAISE                   -> "RAISE"
-      CALL        global      -> "CALL"
+      CALL {}                 -> "CALL"
 
-      ENTERCODE   global      -> "ENTERCODE"
-      EVALVAR     var         -> "EVALVAR"
+      ENTERCODE {}            -> "ENTERCODE"
+      EVALVAR {}              -> "EVALVAR"
 
       RETURN                  -> "RETURN"
-      RETURNCON   con         -> "RETURNCON"
-      RETURNINT   n           -> "RETURNINT"
+      RETURNCON {}            -> "RETURNCON"
+      RETURNINT {}            -> "RETURNINT"
 
     -- applications
-      ALLOCAP     arity       -> "ALLOCAP"
-      PACKAP      var arity   -> "PACKAP"
-      PACKNAP     var arity   -> "PACKNAP"
-      NEWAP       arity       -> "NEWAP"
-      NEWNAP      arity       -> "NEWNAP"
+      ALLOCAP {}              -> "ALLOCAP"
+      PACKAP {}               -> "PACKAP"
+      PACKNAP {}              -> "PACKNAP"
+      NEWAP {}                -> "NEWAP"
+      NEWNAP {}               -> "NEWNAP"
 
     -- constructors
-      ALLOCCON    con         -> "ALLOCCON"
-      PACKCON     con var     -> "PACKCON"
-      NEWCON      con         -> "NEWCON"
+      ALLOCCON {}             -> "ALLOCCON"
+      PACKCON {}              -> "PACKCON"
+      NEWCON {}               -> "NEWCON"
 
       ALLOC                   -> "ALLOC"
-      NEW arity               -> "NEW"
-      PACK arity var          -> "PACK"
-      UNPACK arity            -> "UNPACK"
+      NEW {}                  -> "NEW"
+      PACK {}                 -> "PACK"
+      UNPACK {}               -> "UNPACK"
       GETFIELD                -> "GETFIELD" 
       SETFIELD                -> "SETFIELD"
       GETTAG                  -> "GETTAG"
@@ -743,7 +699,7 @@ nameFromInstr instr
       PUSHVAR3                -> "PUSHVAR3"
       PUSHVAR4                -> "PUSHVAR4"
 
-      PUSHVARS2 v w           -> "PUSHVARS2"
+      PUSHVARS2 {}            -> "PUSHVARS2"
 
 
       -- optimizes AP
@@ -756,12 +712,12 @@ nameFromInstr instr
       NEWNAP4                 -> "NEWNAP4"
 
       -- optimized NEWCON
-      NEWCON0 con             -> "NEWCON0"
-      NEWCON1 con             -> "NEWCON1"
-      NEWCON2 con             -> "NEWCON2"
-      NEWCON3 con             -> "NEWCON3"
+      NEWCON0 {}              -> "NEWCON0"
+      NEWCON1 {}              -> "NEWCON1"
+      NEWCON2 {}              -> "NEWCON2"
+      NEWCON3 {}              -> "NEWCON3"
 
-      RETURNCON0 con          -> "RETURNCON0"
+      RETURNCON0 {}           -> "RETURNCON0"
 
     -- FLOAT operations
       ADDFLOAT                  -> "ADDFLOAT"
@@ -777,5 +733,3 @@ nameFromInstr instr
       GTFLOAT                   -> "GTFLOAT"
       LEFLOAT                   -> "LEFLOAT"
       GEFLOAT                   -> "GEFLOAT"
-
-      other                   -> "<unknown>"
