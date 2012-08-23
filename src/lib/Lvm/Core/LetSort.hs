@@ -19,6 +19,7 @@ import Lvm.Common.Standard ( topSort )
 import Lvm.Common.Id       ( Id )
 import Lvm.Common.IdSet    ( elemSet, foldSet )
 import Lvm.Core.Data
+import Lvm.Core.Utils
 
 ----------------------------------------------------------------
 -- coreLetSort

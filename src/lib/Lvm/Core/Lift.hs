@@ -23,6 +23,7 @@ import Lvm.Common.IdMap   ( IdMap, elemMap, extendMap, lookupMap, emptyMap )
 import Lvm.Common.IdSet   ( IdSet, elemSet, listFromSet, emptySet, foldSet
                , unionSet, sizeSet, setFromList )
 import Lvm.Core.Data
+import Lvm.Core.Utils
 
 ----------------------------------------------------------------
 -- The environment maps variables to variables that should

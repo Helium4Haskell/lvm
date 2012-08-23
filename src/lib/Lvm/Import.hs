@@ -16,7 +16,7 @@ import Control.Monad    ( foldM )
 import Lvm.Common.Standard ( foldlStrict )
 import Lvm.Common.Id       ( Id, stringFromId, idFromString )
 import Lvm.Common.IdMap    ( IdMap, emptyMap, insertMap, elemMap, updateMap, listFromMap, lookupMap, findMap, mapMap  )
-import qualified Lvm.Module.Data as Module
+import qualified Lvm.Core.Module as Module
 import Lvm.Data
 import Lvm.Read  ( lvmReadFile )
 

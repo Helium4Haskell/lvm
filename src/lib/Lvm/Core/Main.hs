@@ -12,12 +12,11 @@
 module Main where
 
 import System.Environment      ( getArgs )
-import Text.PrettyPrint.Leijen ( putDoc )
+import Text.PrettyPrint.Leijen ( putDoc, pretty )
 
 import Lvm.Common.Standard   ( getLvmPath, searchPath, searchPathMaybe )
 import Lvm.Common.Id         ( newNameSupply, stringFromId )
 
-import Lvm.Core.Pretty ( corePretty )        -- pretty print Core
 import Lvm.Core.Parse  ( coreParseExport, modulePublic )
 import Lvm.Core.Parser ( parseModule )       -- new core syntax
 
@@ -25,14 +24,13 @@ import Lvm.Core.Parser ( parseModule )       -- new core syntax
 import Lvm.Core.RemoveDead( coreRemoveDead ) -- remove dead declarations
 import Lvm.Core.ToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
 
-import Lvm.Asm.Pretty  ( asmPretty )         -- pretty print low-level core (Asm)
 import Lvm.Asm.Optimize( asmOptimize )       -- optimize Asm (ie. local inlining)
 import Lvm.Asm.ToLvm   ( asmToLvm )          -- translate Asm to Lvm instructions
 
-import Lvm.Pretty  ( lvmPretty )         -- pretty print instructions (Lvm)
 import Lvm.Write   ( lvmWriteFile )      -- write a binary Lvm file
 import Lvm.Import  ( lvmImport )         -- resolve import declarations
 import Lvm.Read    ( lvmReadFile )       -- read a Lvm file
+import Lvm.Data (LvmModule)
 
 ----------------------------------------------------------------
 --
@@ -68,7 +66,7 @@ parse path src
       ; case res of
           Left source -> do{ messageLn ("parsing")
                            ; (mod, implExps, es) <- coreParseExport source
-                           ; messageDoc "parsed"  (corePretty mod)
+                           ; messageDoc "parsed"  (pretty mod)
                            ; messageLn ("resolving imports")
                            ; chasedMod  <- lvmImport (findModule path) mod
                            ; messageLn ("making exports public")
@@ -77,7 +75,7 @@ parse path src
                            }
           Right source ->do{ messageLn ("parsing")
                            ; mod <- parseModule source
-                           ; messageDoc "parsed"  (corePretty mod)
+                           ; messageDoc "parsed"  (pretty mod)
                            ; messageLn ("resolving imports")
                            ; chasedMod  <- lvmImport (findModule path) mod
                            ; return (chasedMod,source)
@@ -103,7 +101,7 @@ compile src
 --      ; messageDoc "core"         (corePretty coremod)
 --      ; messageDoc "assembler"    (asmPretty asmmod)
 --      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
-      ; messageDoc "instructions" (lvmPretty lvmmod)
+      ; messageDoc "instructions" (pretty lvmmod)
 
       ; let target  = (reverse (dropWhile (/='.') (reverse source)) ++ "lvm")
       ; messageLn  ("writing    : " ++ showFile target)
@@ -119,9 +117,9 @@ dump src
       ; source      <- searchPath path ".lvm" src
       ; messageLn ("reading   : " ++ showFile source)
       ; mod         <- lvmReadFile source
-      ; messageDoc "module" (lvmPretty mod)
+      ; messageDoc "module" (pretty mod)
       ; coremod    <- lvmImport (findModule path) mod
-      ; messageDoc "resolved module" (lvmPretty coremod)
+      ; messageDoc "resolved module" (pretty (coremod :: LvmModule))
       }
 
 messageLn s    

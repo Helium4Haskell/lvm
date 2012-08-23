@@ -29,6 +29,8 @@ module Lvm.Core.Normalize ( coreNormalize ) where
 import Lvm.Common.Id     ( NameSupply, splitNameSupply, splitNameSupplies, freshId )
 import Lvm.Common.IdSet  ( IdSet, elemSet )
 import Lvm.Core.Data
+import Lvm.Core.Utils
+import Lvm.Core.Module
 
 ----------------------------------------------------------------
 -- Environment: the name supply

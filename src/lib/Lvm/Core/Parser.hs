@@ -12,6 +12,7 @@
 module Lvm.Core.Parser( parseModule ) where
 
 import Lvm.Common.IdSet( setFromList )
+import Lvm.Core.Module
 import Text.ParserCombinators.Parsec
 import Lvm.Core.Lex
 

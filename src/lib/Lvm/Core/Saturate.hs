@@ -19,6 +19,8 @@ import Data.List   ( mapAccumR )
 import Lvm.Common.Id     ( NameSupply, freshId, splitNameSupply, splitNameSupplies )
 import Lvm.Common.IdMap  ( IdMap, lookupMap, mapFromList )
 import Lvm.Core.Data
+import Lvm.Core.Utils
+import Lvm.Core.Module
 
 ----------------------------------------------------------------
 -- Environment: a name supply and a map from id to its arity

@@ -15,6 +15,7 @@ import Lvm.Common.Standard( assert, unsafeCoerce )
 import Lvm.Common.Id      ( Id, idFromString, NameSupply, splitNameSupplies )
 import Lvm.Common.IdSet   ( IdSet, elemSet )
 import Lvm.Core.Data
+import Lvm.Core.Utils
 import qualified Lvm.Asm.Data as Asm
 
 import Lvm.Core.NoShadow   ( coreRename )      -- rename local variables

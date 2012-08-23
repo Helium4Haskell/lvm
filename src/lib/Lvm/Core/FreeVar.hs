@@ -19,6 +19,7 @@ import Lvm.Common.IdSet( IdSet, emptySet, isEmptySet
             , listFromSet, setFromList
             , elemSet, insertSet, unionSets, unionSet, deleteSet, diffSet )
 import Lvm.Core.Data
+import Lvm.Core.Utils
 
 ----------------------------------------------------------------
 -- coreFreeVar

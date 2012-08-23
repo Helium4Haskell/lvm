@@ -22,6 +22,8 @@ import Lvm.Common.Id     ( Id, freshIdFromId, NameSupply, splitNameSupply, split
 import Lvm.Common.IdMap  ( IdMap, emptyMap, lookupMap, extendMap )
 import Lvm.Common.IdSet  ( IdSet, emptySet, elemSet, insertSet )
 import Lvm.Core.Data
+import Lvm.Core.Utils
+import Lvm.Core.Module
 
 ----------------------------------------------------------------
 -- Environment: name supply, id's in scope & renamed identifiers

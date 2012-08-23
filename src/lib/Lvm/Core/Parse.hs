@@ -24,6 +24,7 @@ import Lvm.Common.Byte   ( bytesFromString )
 import Lvm.Common.Id     ( Id, stringFromId, idFromString, dummyId )
 import Lvm.Common.IdSet
 import Lvm.Core.Data
+import Lvm.Core.Utils
 import Lvm.Core.Lexer
 
 ----------------------------------------------------------------

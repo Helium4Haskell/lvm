@@ -12,7 +12,7 @@ module Lvm.Asm.Occur( asmOccur ) where
 
 import Lvm.Common.Id     ( Id )
 import Lvm.Common.IdMap  ( IdMap, emptyMap, insertMapWith, unionMapWith, deleteMap, lookupMap )
-import Lvm.Module.Data ( mapValues )
+import Lvm.Core.Module ( mapValues )
 import Lvm.Asm.Data
 
 {---------------------------------------------------------------

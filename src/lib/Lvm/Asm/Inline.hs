@@ -12,7 +12,7 @@ module Lvm.Asm.Inline (asmInline) where
 
 import Lvm.Common.Id       ( Id )
 import Lvm.Common.IdMap    ( IdMap, emptyMap, extendMap, deleteMap, lookupMap )
-import Lvm.Module.Data   ( mapValues )
+import Lvm.Core.Module   ( mapValues )
 
 import Lvm.Asm.Data
 import Lvm.Asm.Occur ( asmOccur )
