@@ -16,7 +16,7 @@
 ----------------------------------------------------------------
 module Lvm.Core.Lift ( coreLift ) where
 
-import Lvm.Common.Standard( foldlStrict )
+import Data.List (foldl') 
 
 import Lvm.Common.Id      ( Id )
 import Lvm.Common.IdMap   ( IdMap, elemMap, extendMap, lookupMap, emptyMap )
@@ -71,7 +71,7 @@ liftExpr env expr
       Ap expr1 expr2
         -> Ap (liftExpr env expr1) (liftExpr env expr2)
       Var id
-        -> foldlStrict (\e v -> Ap e (Var v)) expr (lookupFree env id)
+        -> foldl' (\e v -> Ap e (Var v)) expr (lookupFree env id)
       Con (ConTag tag arity)
         -> Con (ConTag (liftExpr env tag) arity)
       Note n e
@@ -79,8 +79,7 @@ liftExpr env expr
       other
         -> other
 
-liftAlts env alts
-  = mapAlts (\pat expr -> Alt pat (liftExpr env expr)) alts
+liftAlts env = mapAlts (\pat expr -> Alt pat (liftExpr env expr))
 
 
 ----------------------------------------------------------------

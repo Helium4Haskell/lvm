@@ -11,7 +11,7 @@
 
 module Lvm.Asm.ToLvm( asmToLvm )  where
 
-import Lvm.Common.Standard ( assert )
+import Control.Exception ( assert )
 import Data.List     ( partition)
 import Lvm.Common.Id       ( idFromString )
 import Lvm.Common.IdMap    ( IdMap, lookupMap, mapFromList )
@@ -96,7 +96,7 @@ cgAlloc' env atom
       Asm.Con (ConId x) args   
                        -> [ALLOCCON (conFromId x (length args) env)]
       Asm.Con (ConTag tag arity) args  -- TODO: tag may not be recursively bound!
-                       -> assert (arity == length args) "AsmToCode.cgAlloc': constructor arity doesn't match arguments" $
+                       -> assert (arity == length args) $ -- "AsmToCode.cgAlloc': constructor arity doesn't match arguments"
                           [PUSHINT arity] ++ cgAtom env tag ++ [ALLOC]
       Asm.Lit lit      -> error "AsmToCode.cgAlloc': literal in recursive binding."
       other            -> error "AsmToCode.cgAlloc': non-atomic expression encountered."

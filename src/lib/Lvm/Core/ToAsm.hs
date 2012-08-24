@@ -11,12 +11,13 @@
 
 module Lvm.Core.ToAsm( coreToAsm ) where
 
-import Lvm.Common.Standard( assert, unsafeCoerce )
+import Control.Exception ( assert )
 import Lvm.Common.Id      ( Id, idFromString, NameSupply, splitNameSupplies )
 import Lvm.Common.IdSet   ( IdSet, elemSet )
 import Lvm.Core.Data
 import Lvm.Core.Utils
 import qualified Lvm.Asm.Data as Asm
+import Unsafe.Coerce
 
 import Lvm.Core.NoShadow   ( coreRename )      -- rename local variables
 import Lvm.Core.Saturate   ( coreSaturate )    -- saturate constructors, instructions and externs
@@ -152,7 +153,7 @@ asmAtom atom args
 asmCon con 
   = case con of
       ConId id          -> Asm.ConId id 
-      ConTag tag arity  -> assert (simpleTag tag) "CoreToAsm.asmCon: tag expression too complex (should be integer or (strict) variable" $
+      ConTag tag arity  -> assert (simpleTag tag) $ -- "CoreToAsm.asmCon: tag expression too complex (should be integer or (strict) variable"
                            Asm.ConTag (asmAtom tag []) arity
   where
     simpleTag (Lit (LitInt i))  = True

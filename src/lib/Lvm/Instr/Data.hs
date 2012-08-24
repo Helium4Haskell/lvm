@@ -21,9 +21,8 @@ module Lvm.Instr.Data ( Instr(..)
             ) where
 
 import Data.Char     ( toUpper )
-import Lvm.Common.Standard ( strict )
 import Lvm.Common.Id       ( Id, dummyId )
-import Lvm.Common.Byte     ( Bytes, nil, stringFromBytes )
+import Lvm.Common.Byte     ( Bytes, mempty, stringFromBytes )
 import Text.PrettyPrint.Leijen
 
 ----------------------------------------------------------------
@@ -401,7 +400,6 @@ strictResult instr   = instr `elem` strictList
       , EQFLOAT, NEFLOAT, LTFLOAT, GTFLOAT, LEFLOAT, GEFLOAT 
       ]
 
-
 ----------------------------------------------------------------
 -- Instruction opcodes
 ----------------------------------------------------------------
@@ -416,12 +414,12 @@ opcodeFromInstr instr
   where
     walk _   []     = error ("Instr.opcodeFromInstr: no opcode defined for this instruction")
     walk opc (i:is) | instr == i  = opc
-                    | otherwise   = strict walk (opc+1) is
+                    | otherwise   = (walk $! (opc+1)) is
 
 instrTable :: [Instr]
 instrTable =
     [ ARGCHK 0, PUSHCODE global, PUSHCONT 0, PUSHVAR var
-    , PUSHINT 0, PUSHFLOAT 0, PUSHBYTES nil 0, SLIDE 0 0 0, STUB var
+    , PUSHINT 0, PUSHFLOAT 0, PUSHBYTES mempty 0, SLIDE 0 0 0, STUB var
     , ALLOCAP 0, PACKAP var 0, PACKNAP var 0, NEWAP 0, NEWNAP 0
     , ENTER, RETURN, PUSHCATCH, RAISE, CALL global
     , ALLOCCON con, PACKCON con var, NEWCON con

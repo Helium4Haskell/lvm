@@ -13,12 +13,12 @@ module Lvm.Core.RemoveDead( coreRemoveDead ) where
 
 import qualified Data.Set as Set
 import Lvm.Core.Utils
-import Lvm.Common.Standard ( foldlStrict )
 import Lvm.Common.Id       ( Id, idFromString )
 import Lvm.Common.IdSet    ( IdSet, emptySet, elemSet, insertSet, setFromList, unionSet )
 import Lvm.Core.Data
 import Lvm.Core.Utils
 import Lvm.Core.Module
+import Data.List (foldl')
 
 
 ----------------------------------------------------------------
@@ -51,7 +51,7 @@ coreRemoveDead mod
     -- Retain main$ even though it is private and not used
     -- It cannot be public because it would be imported and clash
     -- in other modules
-    used  = foldlStrict usageDecl alwaysUsed (moduleDecls mod)
+    used  = foldl' usageDecl alwaysUsed (moduleDecls mod)
 
     alwaysUsed = Set.fromList $ map (\name -> (DeclKindValue,idFromString name)) $
                  ["main$","main"]
@@ -79,8 +79,7 @@ usageDecl used decl
          other       -> usedCustoms
 
 usageCustoms :: Used -> [Custom] -> Used
-usageCustoms used customs
-  = foldlStrict usageCustom used customs
+usageCustoms = foldl' usageCustom
 
 usageCustom used custom
   = case custom of
@@ -95,8 +94,7 @@ usageValue used expr
   = usageExpr emptySet used expr
 
 
-usageExprs locals used exprs
-  = foldlStrict (usageExpr locals) used exprs
+usageExprs = foldl' . usageExpr
 
 usageExpr :: IdSet -> Used -> Expr -> Used
 usageExpr locals used expr
@@ -130,8 +128,7 @@ usageBinds locals used binds
                                in usageExprs locals' used rhss
   
       
-usageAlts locals used alts
-  = foldlStrict (usageAlt locals) used alts
+usageAlts = foldl' . usageAlt
 
 usageAlt locals used (Alt pat expr)
   = case pat of

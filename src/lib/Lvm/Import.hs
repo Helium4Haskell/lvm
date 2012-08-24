@@ -13,7 +13,7 @@ module Lvm.Import( lvmImport, lvmImportDecls ) where
 
 
 import Control.Monad    ( foldM )
-import Lvm.Common.Standard ( foldlStrict )
+import Data.List (foldl') 
 import Lvm.Common.Id       ( Id, stringFromId, idFromString )
 import Lvm.Common.IdMap    ( IdMap, emptyMap, insertMap, elemMap, updateMap, listFromMap, lookupMap, findMap, mapMap  )
 import qualified Lvm.Core.Module as Module
@@ -107,12 +107,11 @@ lvmResolveImports:
   needed for all modules.
 ---------------------------------------------------------------}
 lvmResolveImports :: IdMap (Module v) -> IdMap (Module v)
-lvmResolveImports mods
-  = foldlStrict resolveImports mods (listFromMap mods)
+lvmResolveImports mods = foldl' resolveImports mods (listFromMap mods)
 
 resolveImports :: IdMap (Module v) -> (Id,Module v) -> IdMap (Module v)
 resolveImports loaded (modid,mod)
-  = foldlStrict (resolveImport [] modid) loaded (filter isDeclImport (moduleDecls mod))
+  = foldl' (resolveImport [] modid) loaded (filter isDeclImport (moduleDecls mod))
 
 resolveImport :: [Id] -> Id -> IdMap (Module v) -> Decl v -> IdMap (Module v)
 resolveImport visited modid loaded x@(DeclImport id access@(Imported public imodid impid kind major minor) customs)

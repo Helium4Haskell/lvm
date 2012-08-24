@@ -14,12 +14,12 @@
 ----------------------------------------------------------------
 module Lvm.Core.FreeVar( coreFreeVar ) where
 
-import Lvm.Common.Standard( warning )
 import Lvm.Common.IdSet( IdSet, emptySet, isEmptySet
             , listFromSet, setFromList
             , elemSet, insertSet, unionSets, unionSet, deleteSet, diffSet )
 import Lvm.Core.Data
 import Lvm.Core.Utils
+import Debug.Trace
 
 ----------------------------------------------------------------
 -- coreFreeVar
@@ -33,7 +33,7 @@ fvDeclExpr globals expr
   = let (expr',fv) = fvExpr globals expr
     in if (isEmptySet fv)
         then Note (FreeVar fv) expr'
-        else warning ("CoreFreeVar.fvDeclExpr: top-level binding with free variables: "
+        else trace ("warning: CoreFreeVar.fvDeclExpr: top-level binding with free variables: "
                       ++ show (listFromSet fv)) (Note (FreeVar fv) expr')
 
 

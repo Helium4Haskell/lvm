@@ -14,7 +14,7 @@ module Main where
 import System.Environment      ( getArgs )
 import Text.PrettyPrint.Leijen ( putDoc, pretty )
 
-import Lvm.Common.Standard   ( getLvmPath, searchPath, searchPathMaybe )
+import Lvm.Path
 import Lvm.Common.Id         ( newNameSupply, stringFromId )
 
 import Lvm.Core.Module ( modulePublic )

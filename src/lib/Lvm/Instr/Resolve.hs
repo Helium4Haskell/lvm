@@ -11,8 +11,9 @@
 
 module Lvm.Instr.Resolve( instrResolve ) where
 
-import Lvm.Common.Standard( assert )
+import Control.Exception ( assert )
 import Lvm.Common.IdMap   ( IdMap, emptyMap, lookupMap, extendMap )
+import Lvm.Common.Id
 import Lvm.Instr.Data
 
 {---------------------------------------------------------------
@@ -23,18 +24,19 @@ newtype Resolve a   = R ((Base,Env,Depth) -> (a,Depth))
 type Env            = IdMap Depth
 type Base           = Depth
 
-find id env
-  = case lookupMap id env of
-     Nothing    -> error ("InstrResolve.find: unknown identifier " ++ show id)
-     Just depth -> depth
+find :: Id -> IdMap a -> a
+find x env
+  = case lookupMap x env of
+     Nothing    -> error ("InstrResolve.find: unknown identifier " ++ show x)
+     Just d     -> d
 
 
 instance Functor Resolve where
-  fmap f (R r)      = R (\ctx -> case r ctx of (x,depth) -> (f x,depth))
+  fmap f (R r)      = R (\ctx -> case r ctx of (x,d) -> (f x,d))
 
 instance Monad Resolve where
-  return x          = R (\(base,env,depth) -> (x,depth))
-  (R r) >>= f       = R (\ctx@(base,env,depth) ->
+  return x          = R (\(_,_,d) -> (x,d))
+  (R r) >>= f       = R (\ctx@(base,env,_) ->
                             case r ctx of
                               (x,depth') -> case f x of
                                               R fr -> fr (base,env,depth'))
@@ -42,37 +44,43 @@ instance Monad Resolve where
 {---------------------------------------------------------------
   non-proper morphisms
 ---------------------------------------------------------------}
+pop :: Depth -> Resolve ()
 pop n
   = push (-n)
 
+push :: Depth -> Resolve ()
 push n
-  = R (\(base,env,depth) -> ((),depth+n))
+  = R (\(_,_,d) -> ((),d+n))
 
-base
-  = R (\(base,env,depth) -> (base,depth))
+-- base :: Resolve Base
+-- base = R (\(bas,_,d) -> (bas,d))
 
+depth :: Resolve Depth
 depth
-  = R (\(base,env,depth) -> (depth,depth))
+  = R (\(_,_,d) -> (d,d))
 
+bind :: Id -> Resolve a -> Resolve a
 bind x (R r)
-  = R (\(base,env,depth) -> r (base,extendMap x depth env,depth))
+  = R (\(bas,env,d) -> r (bas,extendMap x d env,d))
 
+based :: Resolve a -> Resolve a
 based (R r)
-  = R (\(base,env,depth) -> r (depth,env,depth))
+  = R (\(_,env,d) -> r (d,env,d))
 
-resolveVar (Var id _ _)
-  = R (\(base,env,depth) -> let xdepth = find id env in (Var id (depth - xdepth) xdepth,depth))
+resolveVar :: Var -> Resolve Var
+resolveVar (Var x _ _)
+  = R (\(_,env,d) -> let xd = find x env in (Var x (d - xd) xd,xd))
 
-alternative depth (R r)
-  = R (\(base,env,_) -> let (x,depth') = r (base,env,depth)
-                        in --- assert (depth'==base) ("InstrResolve.alternative: still elements on the stack " ++ show depth' ++ ", " ++ show base) $
-                           assert (depth'==depth+1) ("InstrResolve.alternative: invalid elements on the stack " ++ show depth' ++ ", " ++ show depth) $
-                           (x,depth'))
-
+alternative :: Depth -> Resolve a -> Resolve a
+alternative d (R r)
+  = R (\(bas,env,_) -> let (x,d1) = r (bas,env,d)
+                       in assert (d1==d+1) (x,d1))
+                         -- "InstrResolve.alternative: invalid elements on the stack " ++ show depth' ++ ", " ++ show depth)
+                           
+runResolve :: Resolve a -> a
 runResolve (R r)
-  = let (x,depth) = r (0,emptyMap,0)
-    in  assert (depth==0) ("InstrResolve.runResolve: still elements on the stack (" ++ show depth ++ ")") $
-        x
+  = let (x,d) = r (0,emptyMap,0)
+    in  assert (d==0) x -- "InstrResolve.runResolve: still elements on the stack (" ++ show depth ++ ")"
 
 {---------------------------------------------------------------
   codeResolver
@@ -84,10 +92,10 @@ instrResolve instrs
 resolves :: [Instr] -> Resolve [Instr]
 resolves instrs
   = case instrs of
-      (PARAM id : instrs)       -> do{ push 1; bind id (resolves instrs) }
-      (VAR id : instrs)         -> bind id (resolves instrs)
-      (instr : instrs)          -> do{ is <- resolve instr
-                                     ; iss <- resolves instrs
+      (PARAM x : rest)          -> do{ push 1; bind x (resolves rest) }
+      (VAR x : rest)            -> bind x (resolves rest)
+      (instr : rest)            -> do{ is <- resolve instr
+                                     ; iss <- resolves rest
                                      ; return (is ++ iss)
                                      }
       []                        -> return []
@@ -187,6 +195,7 @@ resolve (MATCHINT alts)
 resolve instr
   = do{ effect instr; return [instr] }
 
+resolveSlide :: Depth -> [Instr] -> Resolve [Instr]
 resolveSlide n is
   = do{ d0  <- depth
       ; is' <- resolves is
@@ -196,6 +205,7 @@ resolveSlide n is
       ; return (is' ++ [SLIDE n m d1])
       }
 
+resolveAlts :: ([Alt] -> a) -> [Alt] -> Resolve [a]
 resolveAlts match alts
   = do{ pop 1
       ; d     <- depth
@@ -211,18 +221,19 @@ resolveAlt (Alt pat [])
       ; return (Alt pat [])
       }
 -}
-
+resolveAlt :: Alt -> Resolve Alt
 resolveAlt (Alt pat [])
   = do{ push 1
       ; return (Alt pat [])
       }
+
 
 resolveAlt (Alt pat is)
   = do{ is' <- resolves is
       ; return (Alt pat (is'))
       }
 
-
+effect :: Instr -> Resolve ()
 effect instr
   = case instr of
       ENTER            -> pop 1
@@ -230,11 +241,11 @@ effect instr
 
       CALL global      -> do{ pop (arityFromGlobal global); push 1 }
 
-      ALLOCAP n        -> push 1
+      ALLOCAP {}       -> push 1
       NEWAP n          -> do{ pop n; push 1 }
       NEWNAP n         -> do{ pop n; push 1 }
 
-      ALLOCCON con     -> push 1
+      ALLOCCON {}      -> push 1
       NEWCON con       -> do{ pop (arityFromCon con); push 1 }
 
       NEW arity        -> do{ pop 1; pop arity; push 1 }
@@ -249,12 +260,12 @@ effect instr
 
       RETURNCON con    -> do{ pop (arityFromCon con) }          -- it is the last instruction!
 
-      PUSHCODE global  -> push 1
-      PUSHINT i        -> push 1
-      PUSHFLOAT d      -> push 1
-      PUSHBYTES s c    -> push 1
+      PUSHCODE _       -> push 1
+      PUSHINT _        -> push 1
+      PUSHFLOAT _      -> push 1
+      PUSHBYTES _ _    -> push 1
 
-      PUSHCONT ofs     -> push 3
+      PUSHCONT _       -> push 3
       PUSHCATCH        -> do{ pop 1; push 3 }
 
       ADDINT           -> pop 1
@@ -279,16 +290,16 @@ effect instr
       LEINT            -> pop 1
       GEINT            -> pop 1
 
-      ADDFLOAT           -> pop 1
-      SUBFLOAT           -> pop 1
-      MULFLOAT           -> pop 1
-      DIVFLOAT           -> pop 1
+      ADDFLOAT         -> pop 1
+      SUBFLOAT         -> pop 1
+      MULFLOAT         -> pop 1
+      DIVFLOAT         -> pop 1
 
-      EQFLOAT            -> pop 1
-      NEFLOAT            -> pop 1
-      LTFLOAT            -> pop 1
-      GTFLOAT            -> pop 1
-      LEFLOAT            -> pop 1
-      GEFLOAT            -> pop 1
+      EQFLOAT          -> pop 1
+      NEFLOAT          -> pop 1
+      LTFLOAT          -> pop 1
+      GTFLOAT          -> pop 1
+      LEFLOAT          -> pop 1
+      GEFLOAT          -> pop 1
 
-      other -> return ()
+      _                -> return ()

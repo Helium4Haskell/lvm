@@ -11,92 +11,62 @@
 
 -- this module is exotic, only used by the core compiler
 -- but it works with any IdMap
-module Lvm.Common.IdSet( module Lvm.Common.Id
-            , IdSet
-            , emptySet, singleSet
-            , elemSet, filterSet, foldSet
-            , insertSet, deleteSet
-            , unionSet, unionSets, diffSet
-            , listFromSet, setFromList
-            , sizeSet, isEmptySet
+module Lvm.Common.IdSet
+   ( module Lvm.Common.Id
+   , IdSet
+   , emptySet, singleSet, elemSet, filterSet, foldSet
+   , insertSet, deleteSet, unionSet, unionSets, diffSet
+   , listFromSet, setFromList, sizeSet, isEmptySet
+   ) where
 
-            , mapFromSet
-            , setFromMap,
-            ) where
-
-import Lvm.Common.Id   ( Id )
-import Lvm.Common.IdMap
+import Lvm.Common.Id
+import Data.IntSet
+import qualified Data.IntSet as IntSet
 
 ----------------------------------------------------------------
 -- IdSet
 ----------------------------------------------------------------
-type IdSet  = IdMap ()
+
+newtype IdSet = IdSet IntSet
 
 emptySet :: IdSet
-emptySet
-  = emptyMap
+emptySet = IdSet empty
 
 singleSet :: Id -> IdSet
-singleSet id
-  = insertMap id () emptyMap
+singleSet = IdSet . singleton . intFromId
 
 elemSet :: Id -> IdSet -> Bool
-elemSet id set
-  = elemMap id set
+elemSet x (IdSet s) = member (intFromId x) s
 
 filterSet :: (Id -> Bool) -> IdSet -> IdSet
-filterSet pred set
-  = filterMapWithId (\id _ -> pred id) set
+filterSet p (IdSet s) = IdSet (IntSet.filter (p . idFromInt) s)
 
 foldSet :: (Id -> a ->  a) -> a -> IdSet -> a
-foldSet f x set
-  = foldMapWithId (\id _ -> f id) x set
-
+foldSet f a (IdSet s) = fold (f . idFromInt) a s
 
 insertSet :: Id -> IdSet -> IdSet
-insertSet id set
-  = insertMap id () set
+insertSet x (IdSet s) = IdSet (insert (intFromId x) s)
 
 deleteSet :: Id -> IdSet -> IdSet
-deleteSet id set
-  = deleteMap id set
+deleteSet x (IdSet s) = IdSet (delete (intFromId x) s)
 
 unionSet :: IdSet -> IdSet -> IdSet
-unionSet set1 set2
-  = unionMap set1 set2
+unionSet (IdSet s1) (IdSet s2) = IdSet (s1 `union` s2)
 
 unionSets :: [IdSet] -> IdSet
-unionSets sets
-  = foldr unionSet emptySet sets
+unionSets xs = IdSet (unions [ s | IdSet s <- xs ])
 
 diffSet :: IdSet -> IdSet -> IdSet
-diffSet set1 set2
-  = diffMap set1 set2
+diffSet (IdSet s1) (IdSet s2) = IdSet (difference s1 s2)
 
 listFromSet :: IdSet -> [Id]
-listFromSet set
-  = map fst (listFromMap set)
+listFromSet (IdSet s) = [ idFromInt n | n <- elems s ]
 
 setFromList :: [Id] -> IdSet
-setFromList xs
-  = mapFromList (map (\id -> (id,())) xs)
+setFromList = foldr insertSet emptySet
 
 sizeSet :: IdSet -> Int
-sizeSet set
-  = sizeMap set
+sizeSet (IdSet s) = IntSet.size s
 
 isEmptySet :: IdSet -> Bool
-isEmptySet set
-  = isEmptyMap set
-
-indicesMap :: IdMap a -> IdSet
-indicesMap map
-  = mapMap (const ()) map
-
-setFromMap :: IdMap a -> IdSet
-setFromMap map
-  = indicesMap map
-
-mapFromSet :: (Id -> a) -> IdSet -> IdMap a
-mapFromSet f set
-  = mapMapWithId (\id () -> f id) set
+isEmptySet (IdSet s) = IntSet.null s

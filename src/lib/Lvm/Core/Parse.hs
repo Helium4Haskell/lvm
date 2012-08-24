@@ -13,7 +13,6 @@ module Lvm.Core.Parse
     ( coreParse, coreParseExport, coreParseExpr, coreParseType
     ) where
 
-import Lvm.Common.Standard( foldlStrict )
 import Text.ParserCombinators.Parsec hiding (satisfy)
 import Lvm.Common.Byte   ( Bytes, bytesFromString )
 import Lvm.Common.Id     ( Id, stringFromId, idFromString, dummyId )
@@ -22,6 +21,7 @@ import Lvm.Core.Data
 import Lvm.Core.Utils
 import Lvm.Core.Lexer
 import Lvm.Core.Type
+import Data.List (foldl') 
 
 ----------------------------------------------------------------
 -- Parse a Core source file
@@ -122,7 +122,7 @@ pexports
             if null (concat exports) then
                 Nothing
             else
-                Just (foldlStrict
+                Just (foldl'
                     split
                     (emptySet,emptySet,emptySet,emptySet,emptySet)
                     (concat exports)

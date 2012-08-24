@@ -25,7 +25,7 @@ module Lvm.Core.Module( Module(..)
              , public, private
              ) where
 
-import Lvm.Common.Standard( unsafeCoerce )
+import Unsafe.Coerce
 import Lvm.Common.Byte    ( Bytes, stringFromBytes )
 import Lvm.Common.Id      ( Id, idFromString, dummyId )
 import Lvm.Common.IdSet   ( IdSet, setFromList, elemSet )

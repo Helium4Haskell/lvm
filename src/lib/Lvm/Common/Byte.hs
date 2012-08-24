@@ -13,7 +13,7 @@
 
 module Lvm.Common.Byte( Byte
            , Bytes  -- instance Show, Eq
-           , nil, unit, cons, cat, cats, isNil
+           , Monoid(..), unit, isEmpty
            , bytesLength
            , writeBytes
            , bytesFromList, listFromBytes
@@ -27,12 +27,11 @@ module Lvm.Common.Byte( Byte
            , stringFromByteList, bytesFromByteList
            ) where
 
+import Data.Monoid
 import Data.Word
 
 import System.IO
-import Lvm.Common.Standard ( strict )
 import System.Exit   ( exitWith, ExitCode(..))
-import System.IO
 
 {----------------------------------------------------------------
   types
@@ -53,12 +52,10 @@ instance Eq Bytes where
   conversion to bytes
 ----------------------------------------------------------------}
 byteFromInt8 :: Int -> Byte
-byteFromInt8 i
-  = toEnum i
+byteFromInt8 = toEnum
   
 intFromByte :: Byte -> Int
-intFromByte b
-  = fromEnum b
+intFromByte = fromEnum
 
 bytesFromString :: String -> Bytes
 bytesFromString 
@@ -70,71 +67,69 @@ stringFromBytes
 
 bytesFromInt32 :: Int -> Bytes    -- 4 byte big-endian encoding
 bytesFromInt32 i
-  = let n0 = if (i < 0) then (max32+i+1) else i
+  = let n0 = if i < 0 then (max32+i+1) else i
         n1 = div n0 256
         n2 = div n1 256
         n3 = div n2 256
         xs = map (byteFromInt8 . (flip mod) 256) [n3,n2,n1,n0]
     in bytesFromList xs
 
-max32 :: Int
-max32
-  = 2^32-1
-
+max32 :: Int 
+max32 = 2^(32::Int) -1 -- Bastiaan (Todo: check)
 
 {----------------------------------------------------------------
   Byte lists
 ----------------------------------------------------------------}
-isNil Nil         = True
-isNil (Cons _ _) = False
-isNil (Cat bs cs) = isNil bs && isNil cs
 
-nil         = Nil
-unit b      = Cons b Nil
-cons b bs   = Cons b bs
+instance Monoid Bytes where
+   mempty  = Nil
+   mappend bs  Nil = bs 
+   mappend Nil cs  = cs
+   mappend bs  cs  = Cat bs cs     
 
-cats bbs    = foldr Cat Nil bbs
-cat bs cs   = case cs of
-                Nil -> bs
-                _   -> case bs of
-                         Nil -> cs
-                         _   -> Cat bs cs               
+isEmpty :: Bytes -> Bool
+isEmpty Nil         = True
+isEmpty (Cons _ _)  = False
+isEmpty (Cat bs cs) = isEmpty bs && isEmpty cs
 
-listFromBytes bs
-  = loop [] bs
+unit :: Byte -> Bytes
+unit = (`Cons` Nil)
+
+listFromBytes :: Bytes -> [Byte]
+listFromBytes = loop []
   where
     loop next bs
       = case bs of
           Nil       -> next
-          Cons b bs -> b:loop next bs
-          Cat bs cs -> loop (loop next cs) bs
+          Cons b xs -> b:loop next xs
+          Cat xs ys -> loop (loop next ys) xs
 
-bytesFromList bs
-  = foldr Cons Nil bs
-
+bytesFromList :: [Byte] -> Bytes
+bytesFromList = foldr Cons Nil
 
 bytesLength :: Bytes -> Int
-bytesLength bs
-  = loop 0 bs
+bytesLength = loop 0
   where
     loop n bs
       = case bs of
           Nil       -> n
-          Cons _ bs -> strict loop (n+1) bs
-          Cat bs cs -> loop (loop n cs) bs
+          Cons _ xs -> (loop $! (n+1)) xs
+          Cat xs ys -> loop (loop n ys) xs
 
 writeBytes :: FilePath -> Bytes -> IO ()
 writeBytes path bs
   = do{ h <- openBinaryFile path WriteMode
-      ; write h bs
+      ; writeHandle h bs
       ; hClose h
+
       }
-  where
-    write h bs
-      = case bs of
-          Nil       -> return ()
-          Cons b bs -> do{ hPutChar h (toEnum (fromEnum b)); write h bs }
-          Cat bs cs -> do{ write h bs; write h cs }
+      
+writeHandle :: Handle -> Bytes -> IO ()
+writeHandle h bs
+   = case bs of
+       Nil       -> return ()
+       Cons b xs -> do{ hPutChar h (toEnum (fromEnum b)); writeHandle h xs }
+       Cat xs ys -> do{ writeHandle h xs; writeHandle h ys }
 
 
 {----------------------------------------------------------------
@@ -143,9 +138,10 @@ writeBytes path bs
 int32FromByteList :: [Byte] -> (Int,[Byte])
 int32FromByteList bs
   = case bs of
-      (n3:n2:n1:n0:cs) -> let i = int32FromByte4 n3 n2 n1 n0 in seq i (i,cs)
-      _                -> error "Byte.int32FromBytes: invalid byte stream"
-                    
+      n3:n2:n1:n0:cs -> let i = int32FromByte4 n3 n2 n1 n0 in seq i (i,cs)
+      _              -> error "Byte.int32FromBytes: invalid byte stream"
+              
+int32FromByte4 :: Byte -> Byte -> Byte -> Byte -> Int      
 int32FromByte4 n0 n1 n2 n3
   = (intFromByte n0*16777216) + (intFromByte n1*65536) + (intFromByte n2*256) + intFromByte n3
 

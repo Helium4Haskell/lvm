@@ -11,7 +11,7 @@
 
 module Lvm.Write( lvmWriteFile, lvmToBytes ) where
 
-import Lvm.Common.Standard ( assert, strict )
+import Control.Exception (assert)
 import Lvm.Common.Id       ( Id, stringFromId )
 import Lvm.Common.IdMap    ( IdMap, emptyMap, insertMapWith, lookupMap )
 import System.Exit   ( exitWith, ExitCode(..))
@@ -55,9 +55,9 @@ lvmToBytes mod
         footerlen = 4
         footer    = block [ recFooter, encodeInt footerlen, encodeInt totallen ]
 
-        brecs     = cats recs 
+        brecs     = mconcat recs 
         totallen  = bytesLength brecs + headerlen + 8 + footerlen + 8
-        total     = cats [header,brecs,footer]
+        total     = mconcat [header,brecs,footer]
     in seq totallen total
 
 bytesFromModule :: LvmModule -> (Index,[Bytes])
@@ -142,7 +142,7 @@ emitDAbstract (DeclAbstract id access arity customs)
 
 
 emitImport id declkind access@(Imported public moduleName importName kind majorVer minorVer) customs
-  = assert (declkind==kind) "LvmWrite.emitImport: kinds don't match" $
+  = assert (declkind==kind) $ -- LvmWrite.emitImport: kinds don't match
     do{ idxModule <- emitModule moduleName majorVer minorVer
       ; idxName   <- emitName importName
       ; idxId     <- emitName id
@@ -265,7 +265,7 @@ emit instr
 
 
 emitMatch entrySize alts
-  = assert (normalizedAlts alts) "LvmWrite.emitMatch: unnormalized alternatives" $
+  = assert (normalizedAlts alts) $ -- "LvmWrite.emitMatch: unnormalized alternatives"
     let (pats,iss) = unzipAlts alts
         altis      = map emits iss
         start      = 2 + entrySize*(length alts -1)
@@ -394,9 +394,9 @@ emitBlock mbId kind bs custom
 emitBlockEx mbId kindId kind bs custom
   = do{ bcustom <- emitCustoms custom
       ; kindenc <- encodeKind kind
-      ; let bytes = cat bs bcustom
-            total = cat (block [kindenc,encodeInt (bytesLength bytes)]) bytes
-      ; assert ((bytesLength bytes `mod` 4) == 0) "LvmWrite.emitBlock: unaligned size" $
+      ; let bytes = mappend bs bcustom
+            total = mappend (block [kindenc,encodeInt (bytesLength bytes)]) bytes
+      ; assert ((bytesLength bytes `mod` 4) == 0) $ -- "LvmWrite.emitBlock: unaligned size"
         emitPrimBlock (maybe Nothing (\id -> Just (id,kindId)) mbId) kind total
       }
 
@@ -479,9 +479,9 @@ sharable kind
       other               -> False
 -}
 
-find n x []       = assert (n==0) "LvmWrite.find: count too large" Nothing
+find n x []       = assert (n==0) Nothing -- "LvmWrite.find: count too large"
 find n x (y:ys)   | x==y       = Just n
-                  | otherwise  = strict find (n-1) x ys
+                  | otherwise  = (find $! (n-1)) x ys
 
 -- a nice lazy formulation, we can calculate all indices before writing the bytes.
 findIndex :: DeclKind -> Id -> Emit Index
@@ -501,7 +501,7 @@ findIndex kind id
 --------------------------------------------------------------}
 block :: [Int] -> Bytes
 block is
-  = cats (map bytesFromInt32 is)
+  = mconcat (map bytesFromInt32 is)
 
 blockString :: String -> Bytes
 blockString s
@@ -509,7 +509,7 @@ blockString s
 
 blockBytes bs
   = let len = bytesLength bs
-    in cat (bytesFromInt32 (encodeInt len)) (cat bs (padding len))
+    in mconcat [bytesFromInt32 (encodeInt len), bs, padding len]
 
 padding n
   = let m = (div (n + 3) 4) * 4

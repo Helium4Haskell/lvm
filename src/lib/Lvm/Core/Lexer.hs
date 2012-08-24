@@ -15,7 +15,7 @@ module Lvm.Core.Lexer( Token, Lexeme(..), Pos
                 ) where
 
 import Data.Char hiding (isSymbol, isLetter)
-import Lvm.Common.Standard( foldlStrict )
+import Data.List (foldl')
 
 -----------------------------------------------------------
 -- Testing
@@ -291,7 +291,7 @@ nextinc f pos i cs              = let pos' = incpos pos i  in seq pos' (f pos' c
 
 lexConOrQual pos cs
   = let (ident,rest) = span isLetter cs
-        pos'         = foldlStrict newpos pos ident
+        pos'         = foldl' newpos pos ident
     in case rest of
         ('.':ds@(d:dd))  | isLower d || d == '_'  
                                       -> lexWhile isLetter (LexQualId ident) pos (incpos pos' 1) ds
@@ -299,7 +299,7 @@ lexConOrQual pos cs
         other            -> (pos,LexCon ident) : seq pos' (lexer pos' rest)
 
 lexWhile ctype con pos0 pos cs       = let (ident,rest)  = span ctype cs
-                                           pos'          = foldlStrict newpos pos ident
+                                           pos'          = foldl' newpos pos ident
                                        in  (pos0,con ident) : seq pos' (lexer pos' rest)
 
 
@@ -309,14 +309,14 @@ lexSpecialId originalPos pos cs -- originalPos points to where '' started. it sh
                                 -- ''x'' = 3   -- x and y should be in the same context
   = let (ident,rest) = span (\c -> (not (isSpace c) && c /= '\'')) cs in
     case rest of
-      ('\'':'\'':cs')-> let pos' = foldlStrict newpos pos (ident ++ "''") in
+      ('\'':'\'':cs')-> let pos' = foldl' newpos pos (ident ++ "''") in
                         seq pos' $
                         case ident of
                           []          -> (originalPos,LexError "empty special identifier") : (lexer pos' cs')
                           ":"         -> (originalPos,LexError "empty special con identifier") : (lexer pos' cs')
                           (':':conid) -> (originalPos,LexCon conid) : (lexer pos' cs')
                           other       -> (originalPos,LexId ident)  : (lexer pos' cs')
-      other          -> let pos' = foldlStrict newpos pos (ident) in
+      other          -> let pos' = foldl' newpos pos (ident) in
                         (pos',LexError ("expecting '' after special identifier " ++ show ident)):lexer pos' rest
 
 -----------------------------------------------------------
@@ -350,7 +350,7 @@ lexFloat i pos cs   = let (fracterr,fract,pos',cs')      = lexFract pos cs
 lexFract pos cs     = let (xs,rest) = span isDigit cs
                       in  if (null xs)
                            then ( ((pos,LexError "invalid fraction") :), 0.0, pos, cs )
-                           else ( id, foldr op 0.0 xs, foldlStrict newpos pos xs, rest )
+                           else ( id, foldr op 0.0 xs, foldl' newpos pos xs, rest )
                     where
                       c `op` f  = (f + fromIntegral (fromEnum c - fromEnum '0'))/10.0
 
@@ -374,7 +374,7 @@ number ::Integer-> (Char -> Bool) -> Pos -> String -> Maybe (Integer,Pos,String)
 number base test pos cs = let (xs,rest) = span test cs
                           in  if (null xs)
                                then Nothing
-                               else Just (foldlStrict op 0 xs, foldlStrict newpos pos xs, rest)
+                               else Just (foldl' op 0 xs, foldl' newpos pos xs, rest)
                         where
                           x `op` y      = base*x + fromIntegral (fromChar y)
                           fromChar c    | isDigit c     = fromEnum c - fromEnum '0'
@@ -426,7 +426,7 @@ lexString pos (p,s) (c:cs)      | isGraphic c || c == '\'' || c == ' '
                                                     : lexString (newpos pos c) (p,s) cs
 
 gap pos (p,s) cs                = let (ws,rest) = span isSpace cs
-                                      pos'      = foldlStrict newpos pos ws
+                                      pos'      = foldl' newpos pos ws
                                   in  case rest of
                                         ('\\':cs')  -> lexString pos' (p,s) cs'
                                         _           -> (pos',LexError "(\\) expected at end of gap")

@@ -15,11 +15,13 @@
 ----------------------------------------------------------------
 module Lvm.Core.LetSort( coreLetSort ) where
 
-import Lvm.Common.Standard ( topSort )
+import qualified Data.Graph as G
+import qualified Data.Tree  as G
 import Lvm.Common.Id       ( Id )
 import Lvm.Common.IdSet    ( elemSet, foldSet )
 import Lvm.Core.Data
 import Lvm.Core.Utils
+
 
 ----------------------------------------------------------------
 -- coreLetSort
@@ -67,9 +69,12 @@ sortBinds (Rec bindsrec)
         binds'  = map (map (binds!!)) sorted
         binds'' = map (map (\(id,expr) -> (id,lsExpr expr))) binds'
     in  map toBinding binds'' -- foldr sortLets (lsExpr expr) binds''
-
 sortBinds binds
   = [mapBinds (\id expr -> Bind id (lsExpr expr)) binds]
+
+-- topological sort
+topSort :: G.Vertex -> [G.Edge] -> [[G.Vertex]]
+topSort n = map G.flatten . G.scc . G.buildG (0, n)
 
 toBinding [(id,rhs)]
   | not (elemSet id (freeVar rhs)) = NonRec (Bind id rhs)

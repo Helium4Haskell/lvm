@@ -26,7 +26,7 @@ module Lvm.Common.Id ( Id -- instance Eq, Show
           , intFromId, idFromInt
           ) where
 
-import Lvm.Common.Standard  (foldlStrict)
+import Data.List (foldl')
 import qualified Data.IntMap as IntMap
 
 import Data.Int (Int32)
@@ -50,33 +50,29 @@ idFromInt i       = Id (fromIntegral i)
 data Names        = Names Int (IntMap.IntMap [String])
 
 namesRef :: IORef Names
-namesRef
-  = unsafePerformIO (newIORef emptyNames)
+namesRef = unsafePerformIO (newIORef emptyNames)
 
 emptyNames :: Names
-emptyNames
-  = Names 0 (IntMap.empty)
+emptyNames = Names 0 (IntMap.empty)
 
 idFromString :: String -> Id
-idFromString s
-  = idFromStringEx 0 s
-
+idFromString = idFromStringEx (0::Int)
 
 idFromStringEx :: Enum a => a -> String -> Id
 idFromStringEx ns name
   = unsafePerformIO $
     do{ names <- readIORef namesRef
-      ; let (id,names') = insertName (fromEnum ns) name names
+      ; let (x, names') = insertName (fromEnum ns) name names
       ; writeIORef namesRef names'
-      ; return id
+      ; return x
       }
 
 stringFromId :: Id -> String
-stringFromId id@(Id i)
+stringFromId x@(Id i)
   | isUniq i  = "." ++ show (extractUniq i)
   | otherwise = unsafePerformIO $
                 do{ names <- readIORef namesRef
-                  ; case lookupId id names of
+                  ; case lookupId x names of
                       Nothing   -> error "Id.nameFromId: unknown id"
                       Just name -> return name
                   }
@@ -95,20 +91,19 @@ newNameSupply
       }
 
 splitNameSupply :: NameSupply -> (NameSupply,NameSupply)
-splitNameSupply supply
-  = (supply,supply)
+splitNameSupply supply = (supply,supply)
 
-splitNameSupplies supply
-  = repeat supply
+splitNameSupplies :: NameSupply -> [NameSupply]
+splitNameSupplies = repeat
 
 freshIdFromId :: Id -> NameSupply -> (Id,NameSupply)
-freshIdFromId id supply@(NameSupply ref)
+freshIdFromId x supply@(NameSupply ref)
   = unsafePerformIO (do{ i <- readIORef ref
                        ; writeIORef ref (i+1)
-                       ; let name = stringFromId id ++ "." ++ show i
-                             id'  = idFromString name
-                             id'' = setNameSpace (getNameSpace id :: Int) id'
-                       ; seq name $ seq id'' $ return (id'',supply)
+                       ; let name = stringFromId x ++ "." ++ show i
+                             x1   = idFromString name
+                             x2   = setNameSpace (getNameSpace x :: Int) x1
+                       ; seq name $ seq x2 $ return (x2,supply)
                        })
 
 freshId :: NameSupply -> (Id,NameSupply)
@@ -154,29 +149,44 @@ maxUniq           = 0x007FFFFF
 -- flagUniq          = 0x00000001
 
 extractBits, clearBits, initBits :: Int32 -> Int32 -> Int32 -> Int32
-extractBits shift max i
-  = (i `div` shift) `mod` (max+1)
+extractBits shift maxb i
+  = (i `div` shift) `mod` (maxb+1)
 
-clearBits shift max i
-  = i - (extractBits shift max i * shift)
+clearBits shift maxb i
+  = i - (extractBits shift maxb i * shift)
 
 initBits shift v i
   = i + (shift * v)
 
+extractSort :: Int32 -> Int32
 extractSort = extractBits shiftSort maxSort
-clearSort   = clearBits shiftSort maxSort
-initSort    = initBits shiftSort
 
+clearSort :: Int32 -> Int32
+clearSort = clearBits shiftSort maxSort
+
+initSort :: Int32 -> Int32 -> Int32
+initSort = initBits shiftSort
+
+extractHash :: Int32 -> Int32
 extractHash = extractBits shiftHash maxHash
-initHash h  = initBits shiftHash h 0
 
-extractIdx  = extractBits shiftIdx maxIdx
-initIdx     = initBits shiftIdx
+initHash :: Int32 -> Int32
+initHash h = initBits shiftHash h 0
 
+extractIdx :: Int32 -> Int32
+extractIdx = extractBits shiftIdx maxIdx
+
+initIdx :: Int32 -> Int32 -> Int32
+initIdx = initBits shiftIdx
+
+extractUniq :: Int32 -> Int32
 extractUniq = extractBits shiftUniq maxUniq
-initUniq u  = initBits shiftUniq u 1
 
-isUniq i    = odd i
+initUniq :: Int32 -> Int32
+initUniq u = initBits shiftUniq u 1
+
+isUniq :: Int32 -> Bool
+isUniq = odd
 
 ----------------------------------------------------------------
 -- The core of the symbol table: lookupId and insertName
@@ -190,7 +200,7 @@ instance Ord Id where
 
 
 instance Show Id where
-  show id   = "\"" ++ stringFromId id ++ "\""
+  show x = "\"" ++ stringFromId x ++ "\""
 
 instance Pretty Id where
    pretty = string . stringFromId
@@ -208,10 +218,10 @@ setNameSpace sort (Id i)
 
 
 lookupId :: Id -> Names -> Maybe String
-lookupId (Id i) (Names _ map)
+lookupId (Id i) (Names _ m)
   = let idx = extractIdx i
         h   = extractHash i
-    in  case IntMap.lookup (fromIntegral h) map of
+    in  case IntMap.lookup (fromIntegral h) m of
           Nothing -> Nothing
           Just xs -> Just (index idx xs)
   where
@@ -219,10 +229,10 @@ lookupId (Id i) (Names _ map)
     index idx (_:xx) = index (idx-1) xx
     index _   []     = error "Id.lookupId: corrupted symbol table"
 
-
-insertName sort name names
-  = let (id,names') = insertName' name names
-    in (setNameSpace sort id, names')
+insertName :: Int -> String -> Names -> (Id, Names)
+insertName srt name names
+  = let (x, names') = insertName' name names
+    in (setNameSpace srt x, names')
 
 insertName' :: String -> Names -> (Id,Names)
 insertName' name (Names fresh m) 
@@ -238,8 +248,7 @@ insertName' name (Names fresh m)
 -- [insertIdx] returns the index of an element if it exists already, or
 -- appends the element and returns its index.
 insertIdx :: Eq a => a -> [a] -> (Int32,[a])
-insertIdx y xs
-  = walk 0 xs
+insertIdx y = walk 0
   where
     walk idx []         = (idx,[y])
     walk idx xs@(x:xx)  | x == y    = (idx,xs)
@@ -258,8 +267,7 @@ hash name
 
 -- simple hash function that performs quite good in practice
 hashx :: String -> Int32
-hashx name
-  = foldlStrict gobble 0 name
+hashx name = foldl' gobble 0 name
   where
     gobble n c    = n*65599 + (fromIntegral . fromEnum) c
 
