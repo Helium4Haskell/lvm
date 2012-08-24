@@ -28,7 +28,7 @@ parseModule fname
   = do{ input <- readFile fname
       ; case runParser pmodule () fname input of
           Left err  -> ioError (userError ("parse error: " ++ show err))
-          Right mod -> return mod
+          Right m   -> return m
       }
 
 
@@ -114,15 +114,18 @@ plet
       ; return (\binds body -> Let (Rec binds) body)
       }
 
+fexpr :: Parser Expr
 fexpr
   = do{ xs <- many1 aexpr
       ; return (foldl1 Ap xs)
       }
 
+aexpr :: Parser Expr
 aexpr
   = var <|> con <|> literal <|> parens pexpr
   <?> "atomic expression"
 
+literal :: Parser Expr
 literal
   = do{ x <- integerOrFloat 
       ; case x of Left i  -> return (Lit (LitInt (fromInteger i)))
@@ -140,17 +143,16 @@ literal
       }
 
 -----------------------------------------------------------
--- 
------------------------------------------------------------   
-
------------------------------------------------------------
 -- Identifiers
 -----------------------------------------------------------   
+
+var :: Parser Expr
 var 
   = do{ name <- varid
       ; return (Var name)
       }
 
+con :: Parser Expr
 con 
   = do{ name <- conid
       ; return (Con (ConId name))
@@ -172,9 +174,12 @@ modid   = conid
 -----------------------------------------------------------
 -- Helpers
 -----------------------------------------------------------   
+
+parens, curlies :: Parser a -> Parser a
 parens p  = do{ lparen; x <- p; rparen; return x }
 curlies p = do{ lcurly; x <- p; rcurly; return x }
 
+comma, semi, lparen, rparen, lcurly, rcurly :: Parser ()
 comma     = special "," 
 semi      = special ";"
 lparen    = special "("
@@ -182,12 +187,11 @@ rparen    = special ")"
 lcurly    = special "{"
 rcurly    = special "}"
 
-sepTermBy1 p sep
-  = sepEndBy1 p sep
+sepTermBy1 :: Parser a -> Parser () -> Parser [a]
+sepTermBy1 p sep = sepEndBy1 p sep
 
-termBy p sep
-  = many (do{ x <- p; sep; return x })
+termBy :: Parser a -> Parser () -> Parser [a]
+termBy p sep = many (do{ x <- p; sep; return x })
 
 defaultAccess :: Access
-defaultAccess
-  = private
+defaultAccess = private
