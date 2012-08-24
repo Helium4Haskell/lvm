@@ -69,7 +69,7 @@ based (R r)
 
 resolveVar :: Var -> Resolve Var
 resolveVar (Var x _ _)
-  = R (\(_,env,d) -> let xd = find x env in (Var x (d - xd) xd,xd))
+  = R (\(_,env,d) -> let xd = find x env in (Var x (d - xd) xd,d))
 
 alternative :: Depth -> Resolve a -> Resolve a
 alternative d (R r)
