@@ -18,21 +18,6 @@ import Data.Char hiding (isSymbol, isLetter)
 import Data.List (foldl')
 
 -----------------------------------------------------------
--- Testing
------------------------------------------------------------
-
-main2 f = do text <- readFile f
-             putStr $ unlines $ map show $ layout $ lexer (1,1) text
-
-main3 f = do text <- readFile f
-             print $ last $  lexer (1,1) text
-
-
-
-main    = main2 "test.hs"
-
-
------------------------------------------------------------
 -- The layout rule
 -----------------------------------------------------------
 layout :: [Token] -> [Token]
@@ -48,8 +33,8 @@ data Context   = CtxLay Int
 lay :: [Context] -> [Token] -> [Token]
 
 
-lay (CtxLet c:cs) ((_,Indent i):t@(pos,LexIN):ts)   = (pos,LexRBRACE) : t : lay cs ts
-lay (CtxLet c:cs) (t@(pos,LexIN):ts)        = (pos,LexRBRACE) : t : lay cs ts
+lay (CtxLet _:cs) ((_,Indent _):t@(pos,LexIN):ts)  = (pos,LexRBRACE) : t : lay cs ts
+lay (CtxLet _:cs) (t@(pos,LexIN):ts)               = (pos,LexRBRACE) : t : lay cs ts
 
 
 {-
@@ -70,29 +55,29 @@ lay cc@(CtxLay c:cs) tt@((pos,Indent i):ts) | i == c    = (pos,LexSEMI) : lay cc
                                             | otherwise = lay cc ts
 
 
-lay (CtxLay c:cs) tt@((pos,LexIN):ts)       = (pos,LexRBRACE) : lay cs tt
+lay (CtxLay _:cs) tt@((pos,LexIN):_)        = (pos,LexRBRACE) : lay cs tt
 
-lay cc@(CtxBrace:cs) ((pos,Indent i):ts)    = lay cc ts
-lay (CtxBrace:cs) (t@(pos,LexRBRACE):ts)    = t : lay cs ts
+lay cc@(CtxBrace:_) ((_,Indent _):ts)       = lay cc ts
+lay (CtxBrace:cs) (t@(_,LexRBRACE):ts)      = t : lay cs ts
 
-lay cs (t@(pos,LexLBRACE):ts)               = t : lay (CtxBrace:cs) ts
+lay cs (t@(_,LexLBRACE):ts)                 = t : lay (CtxBrace:cs) ts
 
-lay cs ((pos,Indent i):ts)                  = lay cs ts
+lay cs ((_,Indent _):ts)                    = lay cs ts
 lay cs ((pos,Layout c):ts)                  = (pos,LexLBRACE) : lay (c:cs) ts
 
 lay cs (t:ts)                               = t : lay cs ts
-lay cs []                                   = []
+lay _ []                                    = []
 
-
-addLayout tt@((pos,LexMODULE):ts)   = addLay pos tt
-addLayout tt@((pos,LexLBRACE):ts)   = addLay pos tt
-addLayout tt@((pos,_):ts)           = (pos,Layout (CtxLay (snd pos))) : addLay pos tt
-addLayout []                        = []
+addLayout :: [(Pos, Lexeme)] -> [Token]
+addLayout tt@((pos,LexMODULE):_) = addLay pos tt
+addLayout tt@((pos,LexLBRACE):_) = addLay pos tt
+addLayout tt@((pos,_):_)         = (pos,Layout (CtxLay (snd pos))) : addLay pos tt
+addLayout []                     = []
 
 addLay :: Pos -> [Token] -> [Token]
-addLay pos []                           = []
+addLay _ []                           = []
 --addLay _ (t@(pos,LexIN):ts)             = t : addLay pos ts
-addLay (l,c) (t@(pos,lexeme):ts)
+addLay (l,_) (t@(pos,lexeme):ts)
             | ln > l     = (pos,Indent col) : t : rest
             | otherwise  = t : rest
             where
@@ -109,7 +94,7 @@ addLay (l,c) (t@(pos,lexeme):ts)
                              [] -> []
                              (u@(pos',LexLBRACE):us)
                                 -> u : addLay pos' us
-                             (u@(pos',lexeme'):us)
+                             (u@(pos',_):us)
                                 -> (pos',Layout (ctx (snd pos'))) : u : addLay pos' us
 
 
@@ -197,12 +182,11 @@ data Lexeme     = LexUnknown Char
                 | Indent Int
                 deriving (Eq,Show)
 
+type Lexer  = Pos -> String -> [(Pos, Lexeme)]
+type Lexer5 = Pos -> String -> ([(Pos, Lexeme)] -> [(Pos, Lexeme)], Double, Pos, String)
 
-
-
-
-
-lexer (ln,col) []               = [((ln+1,0),LexEOF)]
+lexer :: Lexer
+lexer (ln,_) []                 = [((ln+1,0),LexEOF)]
 
 lexer pos ('-':'-':cs)          = nextinc lexeol pos 2 cs
 lexer pos ('{':'-':cs)          = nextinc (lexComment 0) pos 2 cs
@@ -274,7 +258,7 @@ lexer pos ('"':cs)              = lexString (incpos pos 1) (pos,"") cs
 
 lexer pos ('0':cs)              = lexZero pos cs
 
-lexer pos xs@(':':cs)           = lexWhile isSymbol LexConOp pos pos xs
+lexer pos xs@(':':_)            = lexWhile isSymbol LexConOp pos pos xs
 lexer pos xs@(c:cs)             | isLower c || c == '_'  = lexWhile isLetter LexId pos pos xs
                                 | isUpper c              = lexConOrQual pos xs
                                 | isSpace c              = next lexer pos c cs
@@ -282,27 +266,28 @@ lexer pos xs@(c:cs)             | isLower c || c == '_'  = lexWhile isLetter Lex
                                 | isDigit c              = lexIntFloat pos xs
                                 | otherwise              = (pos,LexUnknown c) : next lexer pos c cs
 
+next :: (Pos -> String -> a) -> Pos -> Char -> String -> a
+next f pos c cs = let pos' = newpos pos c  in seq pos' (f pos' cs)
 
-next f pos c cs                 = let pos' = newpos pos c  in seq pos' (f pos' cs)
-nextinc f pos i cs              = let pos' = incpos pos i  in seq pos' (f pos' cs)
+nextinc :: (Pos -> String -> a) -> Pos -> Int -> String -> a
+nextinc f pos i cs = let pos' = incpos pos i  in seq pos' (f pos' cs)
 
-
-
-
+lexConOrQual :: Lexer
 lexConOrQual pos cs
   = let (ident,rest) = span isLetter cs
         pos'         = foldl' newpos pos ident
     in case rest of
-        ('.':ds@(d:dd))  | isLower d || d == '_'  
-                                      -> lexWhile isLetter (LexQualId ident) pos (incpos pos' 1) ds
-                         | isUpper d  -> lexWhile isLetter (LexQualCon ident) pos (incpos pos' 1) ds
-        other            -> (pos,LexCon ident) : seq pos' (lexer pos' rest)
+        ('.':ds@(d:_))  | isLower d || d == '_'  
+                                     -> lexWhile isLetter (LexQualId ident) pos (incpos pos' 1) ds
+                        | isUpper d  -> lexWhile isLetter (LexQualCon ident) pos (incpos pos' 1) ds
+        _ -> (pos,LexCon ident) : seq pos' (lexer pos' rest)
 
+lexWhile :: (Char -> Bool) -> (String -> Lexeme) -> Pos -> Lexer
 lexWhile ctype con pos0 pos cs       = let (ident,rest)  = span ctype cs
                                            pos'          = foldl' newpos pos ident
                                        in  (pos0,con ident) : seq pos' (lexer pos' rest)
 
-
+lexSpecialId :: Pos -> Lexer
 lexSpecialId originalPos pos cs -- originalPos points to where '' started. it should
                                 -- be used as the position of the identifier because of the layout rule
                                 -- y = 4
@@ -312,17 +297,18 @@ lexSpecialId originalPos pos cs -- originalPos points to where '' started. it sh
       ('\'':'\'':cs')-> let pos' = foldl' newpos pos (ident ++ "''") in
                         seq pos' $
                         case ident of
-                          []          -> (originalPos,LexError "empty special identifier") : (lexer pos' cs')
-                          ":"         -> (originalPos,LexError "empty special con identifier") : (lexer pos' cs')
-                          (':':conid) -> (originalPos,LexCon conid) : (lexer pos' cs')
-                          other       -> (originalPos,LexId ident)  : (lexer pos' cs')
-      other          -> let pos' = foldl' newpos pos (ident) in
+                          []        -> (originalPos,LexError "empty special identifier") : (lexer pos' cs')
+                          ":"       -> (originalPos,LexError "empty special con identifier") : (lexer pos' cs')
+                          ':':conid -> (originalPos,LexCon conid) : (lexer pos' cs')
+                          _         -> (originalPos,LexId ident)  : (lexer pos' cs')
+      _              -> let pos' = foldl' newpos pos (ident) in
                         (pos',LexError ("expecting '' after special identifier " ++ show ident)):lexer pos' rest
 
 -----------------------------------------------------------
 -- Numbers
 -----------------------------------------------------------
 
+lexZero :: Lexer
 lexZero pos (c:cs)  | c == 'o' || c == 'O'  = case (octal pos' cs) of
                                                 Just (i,pos'',cs')   -> (pos, LexInt i) : lexer pos'' cs'
                                                 Nothing              -> (pos, LexError "illegal octal number")
@@ -338,15 +324,19 @@ lexZero pos (c:cs)  | c == 'o' || c == 'O'  = case (octal pos' cs) of
                       pos'  = newpos (newpos pos '0') c
 lexZero pos cs      = (pos,LexInt 0) : lexer (newpos pos '0') cs
 
+lexIntFloat :: Lexer
 lexIntFloat pos cs  = case (decimal pos cs) of
                         Just (i,pos',cs')   ->
                             case cs' of ('.':cs'')   -> lexFloat i (newpos pos' '.') cs''
                                         _            -> (pos,LexInt i) : lexer pos' cs'
+                        _ -> error "lexIntFloat"
 
-lexFloat i pos cs   = let (fracterr,fract,pos',cs')      = lexFract pos cs
-                          (experr,exponent,pos'',cs'')   = lexExponent pos' cs'
-                      in  fracterr (experr ( (pos,LexFloat ((fromInteger i + fract) * exponent)) : lexer pos'' cs''))
+lexFloat :: Integer -> Lexer
+lexFloat i pos cs   = let (fracterr,fract,pos',cs')   = lexFract pos cs
+                          (experr,expon,pos'',cs'')   = lexExponent pos' cs'
+                      in  fracterr (experr ( (pos,LexFloat ((fromInteger i + fract) * expon)) : lexer pos'' cs''))
 
+lexFract :: Lexer5
 lexFract pos cs     = let (xs,rest) = span isDigit cs
                       in  if (null xs)
                            then ( ((pos,LexError "invalid fraction") :), 0.0, pos, cs )
@@ -354,11 +344,13 @@ lexFract pos cs     = let (xs,rest) = span isDigit cs
                     where
                       c `op` f  = (f + fromIntegral (fromEnum c - fromEnum '0'))/10.0
 
+lexExponent :: Lexer5
 lexExponent pos (c:cs)  | c == 'e' || c == 'E'   = case cs of ('-':cs') -> lexExp negate (incpos pos 2) cs'
                                                               ('+':cs') -> lexExp id (incpos pos 2) cs'
                                                               _         -> lexExp id (incpos pos 1) cs
 lexExponent pos cs      = (id, 1.0, pos, cs)
 
+lexExp :: (Integer -> Integer) -> Lexer5
 lexExp f pos cs         = case (decimal pos cs) of
                             Just (i,pos',cs')   -> (id,power (f i),pos',cs')
                             Nothing             -> (((pos,LexError "invalid exponent"):), 1.0, pos, cs )
@@ -366,6 +358,7 @@ lexExp f pos cs         = case (decimal pos cs) of
                           power e   | e < 0      = 1.0/power(-e)
                                     | otherwise  = fromInteger (10^e)
 
+hexal, octal, decimal :: Pos -> String -> Maybe (Integer, Pos, String)
 hexal   = number 16 isHexal
 octal   = number 8 isOctal
 decimal = number 10 isDigit
@@ -380,6 +373,7 @@ number base test pos cs = let (xs,rest) = span test cs
                           fromChar c    | isDigit c     = fromEnum c - fromEnum '0'
                                         | otherwise     = fromEnum (toUpper c) - fromEnum 'A'
 
+isOctal, isHexal :: Char -> Bool
 isOctal c       = c >= '0' && c <= '7'
 isHexal c       = isDigit c || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 
@@ -388,6 +382,7 @@ isHexal c       = isDigit c || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 -- Characters
 -----------------------------------------------------------
 
+lexChar :: Lexer
 lexChar pos ('\\':cs)           = let (pos',lexeme,xs) = escapeChar pos cs
                                   in  lexEndChar lexeme pos' xs
 lexChar pos ('\'':cs)           = (pos,LexError "empty character") : nextinc lexer pos 1 cs
@@ -397,21 +392,21 @@ lexChar pos (c:cs)              | isGraphic c || c == '"' || c == ' ' = lexEndCh
 
 lexChar pos []                  = (pos,LexError "unexpected end of input in character") : lexer pos []
 
-
+lexEndChar :: (Pos, Lexeme) -> Lexer
 lexEndChar lexeme pos ('\'':cs) = lexeme : nextinc lexer pos 1 cs
-lexEndChar lexeme pos cs        = (pos,LexError "expecting termiInting symbol \"'\"") : lexer pos cs
+lexEndChar _ pos cs             = (pos,LexError "expecting termiInting symbol \"'\"") : lexer pos cs
 
 
-
+lexString :: Pos -> (Pos, String) -> String -> [(Pos, Lexeme)]
 lexString pos (p,s) ('"':cs)    = (p,LexString (reverse s)) : nextinc lexer pos 1 cs
 
 lexString pos (p,s) ('\n':cs)   = (p,LexString (reverse s)) : (pos,LexError "newline in string") : next lexer pos '\n' cs
 
 lexString pos (p,s) ('\\':c:cs) | isSpace c     = gap (incpos pos 1) (p,s) cs
                                 | c == '&'      = lexString (incpos pos 2) (p,s) cs
-                                | otherwise     = let (pos',(pos'',lexeme),cs') = escapeChar pos (c:cs)
+                                | otherwise     = let (pos',(_,lexeme),cs') = escapeChar pos (c:cs)
                                                   in  case lexeme of
-                                                        LexChar c   -> lexString pos' (p,c:s) cs'
+                                                        LexChar d   -> lexString pos' (p,d:s) cs'
                                                         _           -> (pos,LexError "illegal escape sequence") :
                                                                          lexString pos' (p,s) cs'
 
@@ -425,6 +420,7 @@ lexString pos (p,s) (c:cs)      | isGraphic c || c == '\'' || c == ' '
                                 | otherwise  = (pos,LexError ("illegal character (" ++ [c] ++ ") in string"))
                                                     : lexString (newpos pos c) (p,s) cs
 
+gap :: Pos -> (Pos, String) -> String -> [(Pos, Lexeme)]
 gap pos (p,s) cs                = let (ws,rest) = span isSpace cs
                                       pos'      = foldl' newpos pos ws
                                   in  case rest of
@@ -461,17 +457,18 @@ charnum pos ('x':cs)    = numToChar pos (hexal (incpos pos 1) cs)
 charnum pos ('o':cs)    = numToChar pos (octal (incpos pos 1) cs)
 charnum pos ('d':cs)    = numToChar pos (decimal (incpos pos 1) cs)
 charnum pos (c:cs)      | isDigit c  = numToChar pos (decimal (incpos pos 1) cs)
-charnum pos cs          = Nothing
+charnum _ _             = Nothing
 
-numToChar pos (Just (x,pos',cs'))    = Just (pos',(pos,LexChar (toEnum (fromInteger x))), cs')
-numToChar pos Nothing                = Nothing
+numToChar :: Pos -> Maybe (Integer, Pos, String) -> Maybe (Pos, (Pos, Lexeme), String)
+numToChar pos (Just (x,pos',cs')) = Just (pos',(pos,LexChar (toEnum (fromInteger x))), cs')
+numToChar _ _ = Nothing
 
 
 
 control :: Pos -> String -> Maybe (Pos,Token,String)
 control pos ('^':c:cs)  | isUpper c    = let x = toEnum (fromEnum c - fromEnum 'A')
                                          in  Just (incpos pos 2, (pos,LexChar x), cs)
-control pos cs          = Nothing
+control _ _ = Nothing
 
 
 
@@ -479,30 +476,33 @@ escape :: Pos -> String -> Maybe (Pos,Token,String)
 escape pos (c:cs)    = case (lookup c escapemap) of
                          Just k     -> Just (incpos pos 1, (pos,LexChar k), cs)
                          Nothing    -> Nothing
-escape pos []        = Nothing
+escape _ _ = Nothing
 
 ascii2 :: Pos -> String -> Maybe (Pos,Token,String)
 ascii2 pos (x:y:cs)  = case (lookup [x,y] ascii2map) of
                          Just k     -> Just (incpos pos 2, (pos,LexChar k), cs)
                          Nothing    -> Nothing
-ascii2 pos cs        = Nothing
+ascii2 _ _ = Nothing
 
 ascii3 :: Pos -> String -> Maybe (Pos,Token,String)
 ascii3 pos (x:y:z:cs)= case (lookup [x,y,z] ascii3map) of
                          Just k     -> Just (incpos pos 3, (pos,LexChar k), cs)
                          Nothing    -> Nothing
-ascii3 pos cs        = Nothing
+ascii3 _ _ = Nothing
 
 
 
+escapemap :: [(Char, Char)]
 escapemap        = zip "abfnrtv\\\"\'"
                        "\a\b\f\n\r\t\v\\\"\'"
 
+ascii2map :: [(String, Char)]
 ascii2map        = zip ["BS","HT","LF","VT","FF","CR","SO","SI","EM",
                         "FS","GS","RS","US","SP"]
                        ['\BS','\HT','\LF','\VT','\FF','\CR','\SO','\SI',
                         '\EM','\FS','\GS','\RS','\US','\SP']
 
+ascii3map :: [(String, Char)]
 ascii3map        = zip ["NUL","SOH","STX","ETX","EOT","ENQ","ACK","BEL",
                         "DLE","DC1","DC2","DC3","DC4","NAK","SYN","ETB",
                         "CAN","SUB","ESC","DEL"]
@@ -514,41 +514,51 @@ ascii3map        = zip ["NUL","SOH","STX","ETX","EOT","ENQ","ACK","BEL",
 -----------------------------------------------------------
 -- Symbols
 -----------------------------------------------------------
-isSpecial c     = elem c "(),;[]`{}"
 
-isSmall c       = isLower c || c == '_'
-isLarge c       = isUpper c
-isLetter c      = isSmall c || isLarge c || isDigit c || c == '\''
-isSymbol c      = elem c "!#$%&*+./<=>?@\\^|-~:"
+isSpecial, isSmall, isLarge, isLetter, isSymbol :: Char -> Bool
+isSpecial c = elem c "(),;[]`{}"
+isSmall c   = isLower c || c == '_'
+isLarge c   = isUpper c
+isLetter c  = isSmall c || isLarge c || isDigit c || c == '\''
+isSymbol c  = elem c "!#$%&*+./<=>?@\\^|-~:"
 
-isGraphic c     = isLetter c || isSymbol c || isSpecial c || (c == ':') || (c == '"')
+isGraphic :: Char -> Bool
+isGraphic c = isLetter c || isSymbol c || isSpecial c || (c == ':') || (c == '"')
 
-nonId (c:cs)                    = not (isLetter c)
-nonId []                        = True
+nonId :: String -> Bool
+nonId (c:_) = not (isLetter c)
+nonId []    = True
 
-nonSym (c:cs)                   = not (isSymbol c)
-nonSym []                       = True
+nonSym :: String -> Bool
+nonSym (c:_) = not (isSymbol c)
+nonSym []    = True
 
 -----------------------------------------------------------
 -- Comment
 -----------------------------------------------------------
+lexeol :: Pos -> String -> [(Pos, Lexeme)]
 lexeol pos ('\n':cs)    = lexer  (newpos pos '\n') cs
 lexeol pos (c:cs)       = lexeol (newpos pos c) cs
 lexeol pos []           = lexer pos []
 
-lexComment level pos ('-':'}':cs)   | level == 0    = lexer (incpos pos 2) cs
-                                    | otherwise     = lexComment (level - 1) (incpos pos 2) cs
-lexComment level pos ('{':'-':cs)   = lexComment (level+1) (incpos pos 2) cs
-lexComment level pos (c:cs)         = lexComment level (newpos pos c) cs
-lexComment level pos []             = lexer pos []
+lexComment :: Int -> Pos -> String -> [(Pos, Lexeme)]
+lexComment level pos s =
+   case s of
+      '-':'}':cs | level == 0    -> lexer (incpos pos 2) cs
+                 | otherwise     -> lexComment (level - 1) (incpos pos 2) cs
+      '{':'-':cs -> lexComment (level+1) (incpos pos 2) cs
+      c:cs       -> lexComment level (newpos pos c) cs
+      []         -> lexer pos []
 
 
 -----------------------------------------------------------
 -- Positions
 -----------------------------------------------------------
 
+incpos :: Pos -> Int -> Pos
 incpos (line,col) i     = (line,col+i)
 
-newpos (line,col) '\n'  = (line + 1,1)
+newpos :: Pos -> Char -> Pos
+newpos (line,_)   '\n'  = (line + 1,1)
 newpos (line,col) '\t'  = (line, ((((col-1) `div` 8)+1)*8)+1)
-newpos (line,col) c     = (line, col+1)
+newpos (line,col) _     = (line, col+1)

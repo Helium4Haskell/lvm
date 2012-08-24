@@ -15,50 +15,20 @@ module Lvm.Core.Lex( topLevel
               , integerOrFloat, integer, stringLiteral 
               ) where
 
+import Control.Monad (void)
 import Data.Char  ( digitToInt, isAlphaNum, isLower, isUpper )
 import Data.Set ( Set, fromList, member )
 import Lvm.Common.Id    ( Id, idFromString )
 
-import Text.ParserCombinators.Parsec hiding (space,tab,lower,upper,alphaNum)
+import Text.ParserCombinators.Parsec hiding (space,tab,lower,upper,alphaNum,char,string)
+import qualified Text.ParserCombinators.Parsec as P
 
-
-----------------------------------------------------------
--- Testing
------------------------------------------------------------   
-testOk fname
-  = testEx ("c:\\daan\\runtime\\test\\correct\\corelexer\\" ++ fname ++ ".cor")
-
-testErr fname
-  = testEx ("c:\\daan\\runtime\\test\\error\\corelexer\\" ++ fname ++ ".cor")
-
-testEx fname
-  = do{ result <- parseFromFile ptokens fname
-      ; case result of
-          Left err -> do{ putStr "parse error: "; print err }
-          Right xs -> putStr (unlines xs)
-      }
-
-ptokens :: Parser [String]
-ptokens
-  = topLevel (many token)
-  where
-    token =   do{ x <- integerOrFloat
-                ; case x of Left i  -> return (show i)
-                            Right f -> return (show f) 
-                }
-          <|> showit stringLiteral
-          <|> showit varid
-          <|> showit conid
-     
-    showit p  = do{ x <- p; return (show x) }
-          
-  
 -----------------------------------------------------------
 -- Reserved
 -----------------------------------------------------------   
 special :: String -> Parser ()
 special name
-  = lexeme (skip (string name) <?> name)
+  = lexeme (string name <?> name)
 
 reserved :: String -> Parser ()
 reserved name 
@@ -93,40 +63,39 @@ reservedNames
 -----------------------------------------------------------
 -- Numbers
 -----------------------------------------------------------
+
 integerOrFloat :: Parser (Either Integer Double)
 integerOrFloat  = lexeme (intOrFloat) <?> "number"
 
-float           = lexeme floating   <?> "float"
+integer :: Parser Integer
 integer         = lexeme int        <?> "integer"
 
-
--- floats
-floating        = do{ n <- decimal 
-                    ; fractExponent n
-                    }
-
-
+intOrFloat :: Parser (Either Integer Double)
 intOrFloat      = do{ char '0'
                     ; zeroNumFloat
                     }
                   <|> decimalFloat
-                  
+            
+zeroNumFloat :: Parser (Either Integer Double)      
 zeroNumFloat    =  do{ n <- hexadecimal <|> octal
                      ; return (Left n)
                      }
                 <|> decimalFloat
                 <|> fractFloat 0
                 <|> return (Left 0)                  
-                  
+            
+decimalFloat :: Parser (Either Integer Double)      
 decimalFloat    = do{ n <- decimal
                     ; option (Left n) 
                              (fractFloat n)
                     }
 
+fractFloat :: Integer -> Parser (Either a Double)
 fractFloat n    = do{ f <- fractExponent n
                     ; return (Right f)
                     }
-                    
+             
+fractExponent :: Integer -> Parser Double       
 fractExponent n = do{ fract <- try fraction -- "try" due to ".." as in "[1..6]"
                     ; expo  <- option 1.0 exponent'
                     ; return ((fromInteger n + fract)*expo)
@@ -136,6 +105,7 @@ fractExponent n = do{ fract <- try fraction -- "try" due to ".." as in "[1..6]"
                     ; return ((fromInteger n)*expo)
                     }
 
+fraction :: Parser Double
 fraction        = do{ char '.'
                     ; digits <- many1 digit <?> "fraction"
                     ; return (foldr op 0.0 digits)
@@ -143,8 +113,9 @@ fraction        = do{ char '.'
                   <?> "fraction"
                 where
                   op d f    = (f + fromIntegral (digitToInt d))/10.0
-                    
-exponent'       = do{ oneOf "eE"
+
+exponent'  :: Parser Double                    
+exponent'       = do{ void (oneOf "eE")
                     ; f <- sign
                     ; e <- decimal <?> "exponent"
                     ; return (power (f e))
@@ -154,6 +125,7 @@ exponent'       = do{ oneOf "eE"
                    power e  | e < 0      = 1.0/power(-e)
                             | otherwise  = fromInteger (10^e)
 
+sign :: Parser (Integer -> Integer)
 sign            =   (char '-' >> return negate) 
                 <|> (char '+' >> return id)     
                 <|> return id
@@ -161,16 +133,19 @@ sign            =   (char '-' >> return negate)
 
 
 -- integers
+int :: Parser Integer
 int             = zeroNumber <|> decimal
     
+zeroNumber :: Parser Integer
 zeroNumber      = do{ char '0'
                     ; hexadecimal <|> octal <|> decimal <|> return 0
                     }
                   <?> ""       
 
+decimal, hexadecimal, octal :: Parser Integer
 decimal         = number 10 digit        
-hexadecimal     = do{ oneOf "xX"; number 16 hexDigit }
-octal           = do{ oneOf "oO"; number 8 octDigit  }
+hexadecimal     = do{ void (oneOf "xX"); number 16 hexDigit }
+octal           = do{ void (oneOf "oO"); number 8 octDigit  }
 
 number :: Integer -> Parser Char -> Parser Integer
 number base baseDigit
@@ -241,9 +216,11 @@ extchar
   <|> extescape
   <?> "identifier character"
 
+extletter :: Parser Char
 extletter
   = satisfy (\c -> isGraphic c && not (elem c "\\."))
 
+extescape :: Parser (Maybe Char)
 extescape
   = do{ char '\\'
       ;     do{ escapeempty; return Nothing }
@@ -267,19 +244,25 @@ stringchar      =   do{ c <- stringletter; return (Just c) }
                 <|> stringescape 
                 <?> "string character"
             
+stringletter :: Parser Char
 stringletter    = satisfy (\c -> c==' ' || (isGraphic c && not (elem c "\"\\")))
 
+stringescape :: Parser (Maybe Char)
 stringescape    = do{ char '\\'
                     ;     do{ escapegap  ; return Nothing }
                       <|> do{ escapeempty; return Nothing }
                       <|> do{ esc <- escape; return (Just esc) }
                     }
-                    
-escapeempty     = char '&'
+           
+escapeempty :: Parser ()         
+escapeempty = char '&'
+
+escapegap :: Parser ()
 escapegap       = do{ whitespace
                     ; char '\\' <?> "end of string gap"
                     }
-                                       
+      
+escape :: Parser Char                                 
 escape          = charesc <|> charnum <?> "escape code"
 
 charnum :: Parser Char
@@ -289,6 +272,7 @@ charnum         = do{ code <- decimal
                     ; return (toEnum (fromInteger code))
                     }
 
+charesc :: Parser Char
 charesc         = choice (map parseEsc escMap)
                 where
                   parseEsc (c,code) = do{ char c; return code }
@@ -309,6 +293,7 @@ lexeme p
 -----------------------------------------------------------
 -- Whitespace
 -----------------------------------------------------------   
+topLevel :: Parser a -> Parser a
 topLevel p
   = do{ whitespace 
       ; x <- p
@@ -318,26 +303,30 @@ topLevel p
 
 whitespace :: Parser ()
 whitespace 
-  = skipMany (skip white <|> linecomment <|> blockcomment <?> "")
-                                               
+  = skipMany (void white <|> linecomment <|> blockcomment <?> "")
+           
+linecomment :: Parser ()                                    
 linecomment 
   = do{ try (string "--")
       ; skipMany linechar
       }
 
+linechar :: Parser Char
 linechar
   = graphic <|> space <|> tab
 
+blockcomment :: Parser ()
 blockcomment 
   = do{ try (string "{-")
       ; incomment
       }
 
+incomment :: Parser ()
 incomment 
-    =   do{ try (string "-}");        return () }
+    =   do{ try (string "-}")                   }
     <|> do{ blockcomment;             incomment }
     <|> do{ skipMany1 contentchar;    incomment }
-    <|> do{ skip (oneOf commentchar); incomment }
+    <|> do{ void (oneOf commentchar); incomment }
     <?> "end of comment"  
     where
       commentchar     = "-{}"
@@ -347,22 +336,25 @@ incomment
 -----------------------------------------------------------
 -- Character classes
 -----------------------------------------------------------   
+
+white, space, tab, alphanum, lower, upper, graphic :: Parser Char
+
 white    = oneOf " \n\r\t"
-space    = char ' '
-tab      = char '\t'
+space    = P.char ' '
+tab      = P.char '\t'
 alphanum = satisfy isAlphaNum
 lower    = satisfy isLower
 upper    = satisfy isUpper
 graphic  = satisfy isGraphic
 
+isGraphic :: Char -> Bool
 isGraphic c
   =  (code >= 0x21   && code <= 0xD7FF) || (code >= 0xE000 && code <= 0xFFFD)
   where
     code = fromEnum c
+ 
+char :: Char -> Parser ()
+char = void . P.char    
 
------------------------------------------------------------
--- Helpers
------------------------------------------------------------   
-skip :: Parser a -> Parser ()
-skip p 
-  = do{ p; return () }
+string :: String -> Parser ()
+string = void . P.string
