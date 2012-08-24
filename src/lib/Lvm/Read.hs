@@ -65,25 +65,21 @@ readModule :: Read v (Module v,[Record v])
 readModule
   = do{ tag    <- readRaw
       ; readGuard (tag == recHeader) "readHeader" "magic number is incorrect"
-      ; len    <- readint
-      ; total  <- readint
+      ; _len     <- readint
+      ; total    <- readint
       ; lvmmajor <- readint
       ; lvmminor <- readint
       ; readGuard (lvmmajor == lvmMajor && lvmminor >= lvmMinor) "readHeader" ("incompatible lvm version " ++ show lvmmajor ++ "." ++ show lvmminor)
-      ; count  <- readint
-      ; bcount <- readint
-      ; ~(id,major,minor)  <- readModuleIdx 
+      ; count    <- readint
+      ; _bcount  <- readint
+      ; ~(x,major,minor)  <- readModuleIdx 
       ; recs   <- readRecords total [] 
       ; readGuard (count == length recs) "readModule" "incorrect record count"
-      ; return (Module id major minor [d | RecDecl d <- filter isRecDecl recs],recs)
+      ; return (Module x major minor [d | RecDecl d <- filter isRecDecl recs],recs)
       }
   where
-    isRecDecl (RecDecl d) = True
-    isRecDecl other       = False
-
-readFooter :: Read v ()
-readFooter
-  = return ()
+    isRecDecl (RecDecl _) = True
+    isRecDecl _           = False
 
 readRecords :: Int -> [Record v] -> Read v [Record v]
 readRecords total acc
@@ -107,7 +103,7 @@ readRecords total acc
                           7     -> readModuleRec len
                           8     -> readExtern len
                           9     -> readExternType len
-                          other -> readError "readRecords" ("unknown standard record kind (" ++ show tag ++ ")")
+                          _ -> readError "readRecords" ("unknown standard record kind (" ++ show tag ++ ")")
                 ; readRecords total (rec_:acc)
                 }
          else do{ let idx = decodeIdx x
@@ -122,33 +118,34 @@ readRecords total acc
 --------------------------------------------------------------}
 readValue :: Int -> Read v (Record v)
 readValue len
-  = do{ id     <- readNameIdx "value"
+  = do{ x      <- readNameIdx "value"
       ; acc    <- readAccess
       ; arity  <- readint
-      ; enc    <- readEnclosing
-      -- ; code   <- readCodeIdx
-      ; readIdx "code"
+      ; _      <- readEnclosing
+      ; _      <- readIdx "code"
       ; customs<- readCustoms (len - 20)
-      ; return (RecDecl (DeclAbstract id acc arity customs))
+      ; return (RecDecl (DeclAbstract x acc arity customs))
       }
 
+readCon :: Int -> Read v (Record a)
 readCon len
-  = do{ id    <- readNameIdx "constructor"
+  = do{ x     <- readNameIdx "constructor"
       ; acc   <- readAccess
       ; arity <- readint
       ; tag   <- readint
       ; customs <- readCustoms (len - 16)
-      ; return (RecDecl (DeclCon id acc arity tag customs))
+      ; return (RecDecl (DeclCon x acc arity tag customs))
       }
 
+readImport :: Int -> Read v (Record v1)
 readImport len
-  = do{ id    <- readNameIdx "import"
+  = do{ x     <- readNameIdx "import"
       ; flags <- readint
       ; ~(modid,major,minor) <- readModuleIdx
       ; impid <- readNameIdx "imported"
       ; kind  <- readKindIdx
       ; customs <- readCustoms (len - 20)
-      ; return (RecDecl (DeclImport id (Imported (odd flags) modid impid kind major minor) customs))
+      ; return (RecDecl (DeclImport x (Imported (odd flags) modid impid kind major minor) customs))
       }
 
 readKindIdx :: Read v DeclKind
@@ -160,13 +157,13 @@ readKindIdx
                 ; return (DeclKindCustom kindid)
                 }
       }
-
+readModuleRec :: Int -> Read v (Record a)
 readModuleRec len
-  = do{ id    <- readNameIdx "module"
+  = do{ x     <- readNameIdx "module"
       ; major <- readint
       ; minor <- readint
       ; customs <- readCustoms (len - 12)
-      ; return (RecModule id major minor customs)
+      ; return (RecModule x major minor customs)
       }
 
 readDeclCustom :: Index -> Int -> Read v (Record v)
@@ -174,9 +171,9 @@ readDeclCustom kindIdx len
   = do{ kindid  <- resolveKindIdx kindIdx
       ; mbId    <- readCustomNameIdx
       ; case mbId of
-          Just id  -> do{ acc     <- readAccess
+          Just x   -> do{ acc     <- readAccess
                         ; customs <- readCustoms (len-8)
-                        ; return (RecDecl (DeclCustom id acc (DeclKindCustom kindid) customs))
+                        ; return (RecDecl (DeclCustom x acc (DeclKindCustom kindid) customs))
                         }
           Nothing  -> do{ customs <- readCustoms (len-4)
                         ; return (RecAnon (DeclKindCustom kindid) customs)
@@ -185,7 +182,7 @@ readDeclCustom kindIdx len
 
 readExtern :: Int -> Read v (Record v)
 readExtern len
-  = do{ id    <- readNameIdx "extern"
+  = do{ x     <- readNameIdx "extern"
       ; acc   <- readAccess
       ; arity <- readint
       ; tp    <- readExternTypeIdx
@@ -207,7 +204,7 @@ readExtern len
                          1 -> CallStd
                          2 -> CallInstr
                          _ -> CallC
-      ; return (RecDecl (DeclExtern id acc arity tp linkMode callMode libname name customs))
+      ; return (RecDecl (DeclExtern x acc arity tp linkMode callMode libname name customs))
       }
                    
 {--------------------------------------------------------------
@@ -237,6 +234,7 @@ readBytes len
       ; return (RecBytes (bytesFromByteList bs))
       }
 
+readExternType :: Int -> Read v (Record a)
 readExternType len
   = do{ bs <- readByteSeq len
       ; return (RecExternType (stringFromByteList bs))
@@ -272,11 +270,11 @@ readCustom
   where
     recToCustom rec_
       = case rec_ of
-          RecName id        -> CustomName id
+          RecName x         -> CustomName x
           RecBytes bs       -> CustomBytes bs
           RecDecl d         -> CustomLink (declName d) (declKindFromDecl d)
           RecAnon kind cs   -> CustomDecl kind cs
-          other             -> error "LvmRead.readCustom: invalid link"
+          _                 -> error "LvmRead.readCustom: invalid link"
 
 
 {--------------------------------------------------------------
@@ -288,8 +286,8 @@ readNameIdx parent
       ; if (idx == 0)
          then readFreshId
          else resolve idx (\rec_ -> case rec_ of 
-                              RecName id  -> id
-                              other       -> error "LvmRead.readName: invalid name index")
+                              RecName x  -> x
+                              _          -> error "LvmRead.readName: invalid name index")
       }
 
 readCustomNameIdx :: Read v (Maybe Id)
@@ -297,60 +295,57 @@ readCustomNameIdx
   = do{ idx <- readIdx "custom name"
       ; if (idx==0)
          then return Nothing
-         else do{ id <- resolve idx (\rec_ -> case rec_ of 
-                                               RecName id  -> id
-                                               other       -> error "LvmRead.readCustomNameIdx: invalid name index")
-                ; return (Just id)
+         else do{ x1 <- resolve idx (\rec_ -> case rec_ of 
+                                               RecName x2  -> x2
+                                               _       -> error "LvmRead.readCustomNameIdx: invalid name index")
+                ; return (Just x1)
                 }
       }
 
 resolveKindIdx :: Index -> Read v Id
 resolveKindIdx idx
   = do{ resolve idx (\rec_ -> case rec_ of 
-                              RecKind id  -> id
-                              other       -> error "LvmRead.resolveKindIdx: invalid kind index")
+                              RecKind x  -> x
+                              _       -> error "LvmRead.resolveKindIdx: invalid kind index")
       }
 
+readModuleIdx :: Read v (Id, Int, Int)
 readModuleIdx 
   = do{ idx <- readIdx "module descriptor"
       ; resolve idx (\rec_ -> case rec_ of
-                               RecModule modid major minor cs -> (modid,major,minor)
-                               other -> error "LvmRead.readModule: invalid module index")
+                               RecModule modid major minor _ -> (modid,major,minor)
+                               _ -> error "LvmRead.readModule: invalid module index")
       }
 
+readExternTypeIdx :: Read v String
 readExternTypeIdx
   = do{ idx <- readIdx "extern type"
       ; resolve idx (\rec_ -> case rec_ of
                                RecExternType tp -> tp
-                               other  -> error "LvmRead.readExternType: invalid extern type index")
+                               _  -> error "LvmRead.readExternType: invalid extern type index")
       }
 
+readNameStringIdx :: Read v String
 readNameStringIdx
   = do{ idx <- readIdx "name string"
       ; readNameString idx
       }
 
+readNameString :: Int -> Read v String
 readNameString idx 
   = resolve idx (\rec_ -> case rec_ of
-                           RecName id   -> stringFromId id
+                           RecName x    -> stringFromId x
                            RecBytes bs  -> stringFromBytes bs
-                           other  -> error "LvmRead.readNameString: invalid name index")
-              
+                           _  -> error "LvmRead.readNameString: invalid name index")
 
-readCodeIdx
-  = do{ idx <- readIdx "code"
-      ; resolve idx (\rec_ -> case rec_ of
-                               RecCode code -> code
-                               other        -> error "readCode" "invalid code index")
-      }
-
+readEnclosing :: Read a (Maybe Id)
 readEnclosing
   = do{ idx  <- readIdx "enclosing"
       ; if (idx == 0) 
           then return Nothing
           else resolve idx (\rec_ -> case rec_ of
                                      RecDecl d  | isDeclValue d || isDeclAbstract d -> Just (declName d)
-                                     other            -> error "readEnclosing" "invalid enclosing index"
+                                     _            -> error "readEnclosing" "invalid enclosing index"
                           )
       }
 
@@ -369,9 +364,11 @@ readIdx name
       ; return (decodeIdx i)
       }
 
+isInt, isIdx :: Int -> Bool
 isInt i = odd i
 isIdx i = even i
 
+decodeInt, decodeIdx :: Int -> Int
 decodeInt i = (i-1) `div` 2
 decodeIdx i = i `div` 2
 
@@ -387,36 +384,38 @@ data    Result a  = Result a !State
 data    Env v     = Env   !FilePath (Records v)
 data    State     = State ![Byte] !NameSupply
 
+unRead :: Read a b -> Env a -> State -> Result b
 unRead (Read r)   = r
 
 runRead :: Read v (a,[(Record v)]) -> NameSupply -> FilePath -> [Byte]-> a
 runRead (Read r) ns fname bs
-  = let (Result (x,rs) st) = r (Env fname (listArray (1,length rs) rs)) (State bs ns)
+  = let (Result (x,rs) _) = r (Env fname (listArray (1,length rs) rs)) (State bs ns)
     in x
 
 instance Functor (Read v) where
-  fmap f (Read r) = Read (\env st -> case r env st of
-                                       Result x st -> Result (f x) st)
+  fmap f (Read r) = Read (\env st1 -> case r env st1 of
+                                        Result x st2 -> Result (f x) st2)
 instance Monad (Read v) where
-  return x        = Read (\rs bs -> Result x bs)
+  return x        = Read (\_  bs -> Result x bs)
   (Read r) >>= f  = Read (\rs bs -> case r rs bs of
                                       Result x bsx -> unRead (f x) rs bsx) 
 
 
 readRaw :: Read v Int
 readRaw 
-  = Read (\env (State bs ns) -> case int32FromByteList bs of (i,cs) -> Result i (State cs ns))
+  = Read (\_ (State bs ns) -> case int32FromByteList bs of (i,cs) -> Result i (State cs ns))
 
 readByteList :: Int -> Read v [Byte]
 readByteList n
-  = Read (\env (State bs ns) -> case splitAt n bs of (xs,cs) -> Result xs (State cs ns))
+  = Read (\_ (State bs ns) -> case splitAt n bs of (xs,cs) -> Result xs (State cs ns))
 
+skip :: Int -> Read v ()
 skip n
-  = Read (\env (State bs ns) -> Result () (State (drop n bs) ns))
+  = Read (\_ (State bs ns) -> Result () (State (drop n bs) ns))
 
 readFreshId :: Read v Id
 readFreshId
-  = Read (\env (State bs ns) -> let (id,ns') = freshId ns in Result id (State bs ns'))
+  = Read (\_ (State bs ns) -> let (x,ns') = freshId ns in Result x (State bs ns'))
   
 readGuard :: Bool -> String -> String -> Read v ()
 readGuard test fun msg
@@ -424,8 +423,8 @@ readGuard test fun msg
 
 readError :: String -> String -> Read v a
 readError fun msg
-  = Read (\(Env fname rs) st -> error ("LvmRead." ++ fun ++ ": \"" ++ fname ++ "\"\n  " ++ msg))
+  = Read (\(Env fname _) _ -> error ("LvmRead." ++ fun ++ ": \"" ++ fname ++ "\"\n  " ++ msg))
 
 resolve :: Int -> (Record v -> a) -> Read v a
 resolve idx f
-  = Read (\(Env fname rs) st -> Result (f (rs ! idx)) st)
+  = Read (\(Env _ rs) st -> Result (f (rs ! idx)) st)

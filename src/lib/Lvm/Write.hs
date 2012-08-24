@@ -38,8 +38,8 @@ lvmWriteFile path lvm
             in do { putStrLn message; exitWith (ExitFailure 1) })
 
 lvmToBytes :: LvmModule -> Bytes
-lvmToBytes mod
-  = let (idxInfo,recs) = bytesFromModule mod
+lvmToBytes m
+  = let (idxInfo,recs) = bytesFromModule m
         headerlen = 24
         header    = block
                     [ recHeader
@@ -61,14 +61,13 @@ lvmToBytes mod
     in seq totallen total
 
 bytesFromModule :: LvmModule -> (Index,[Bytes])
-bytesFromModule mod
-  = runEmit (emitLvmModule mod) 
+bytesFromModule = runEmit . emitLvmModule
 
 
 emitLvmModule :: LvmModule -> Emit Index
-emitLvmModule mod
-  = do{ idxInfo <- emitModule (moduleName mod) (moduleMajorVer mod) (moduleMinorVer mod)
-      ; mapM_ emitDecl (moduleDecls mod)
+emitLvmModule m
+  = do{ idxInfo <- emitModule (moduleName m) (moduleMajorVer m) (moduleMinorVer m)
+      ; mapM_ emitDecl (moduleDecls m)
       ; return idxInfo
       }
 
@@ -80,11 +79,13 @@ emitLvmModule mod
 flags :: Access -> Int
 flags access    = if (accessPublic access) then 1 else 0
 
+isImported :: Decl v -> Bool
 isImported decl
   = case declAccess decl of
       Imported{}  -> True
-      other       -> False
+      _           -> False
 
+emitDecl :: Decl [Instr] -> Emit Index
 emitDecl DeclExtern{ externCall = CallInstr }  
   = return 0
 emitDecl decl
@@ -96,31 +97,38 @@ emitDecl decl
       DeclCon{}       -> emitDCon decl
       DeclExtern{}    -> emitDExtern decl
       DeclCustom{}    -> emitDCustom decl
-      other           -> error "LvmWrite.emitDecl: invalid declaration at this phase"
+      _               -> error "LvmWrite.emitDecl: invalid declaration at this phase"
 
-emitDValue (DeclValue id access mbEnc instrs custom)
-  = do{ idxEnc  <- maybe (return 0) (\id -> findIndex DeclKindValue id) mbEnc
+emitDValue :: Decl [Instr] -> Emit Index
+emitDValue (DeclValue x access mbEnc instrs custom)
+  = do{ idxEnc  <- maybe (return 0) (\y -> findIndex DeclKindValue y) mbEnc
       ; idxCode <- emitInstrs instrs
-      ; emitNamedBlock id DeclKindValue [encodeInt (flags access), encodeInt arity
+      ; emitNamedBlock x DeclKindValue [encodeInt (flags access), encodeInt arity
                                         ,encodeIdx idxEnc, encodeIdx idxCode] custom
       }
   where
     arity = case instrs of
-              (ARGCHK n:other) -> n
-              otherwise        -> error ("LvmWrite.emitDecl: instructions do not start with an argument check: " ++ show id)
+              (ARGCHK n:_    ) -> n
+              _                -> error ("LvmWrite.emitDecl: instructions do not start with an argument check: " ++ show x)
+emitDValue _ = error "Lvm.Write"
 
-emitDCon (DeclCon id access arity tag custom)
-  = emitNamedBlock id DeclKindCon [encodeInt (flags access),encodeInt arity,encodeInt tag] custom
+emitDCon :: Decl a -> Emit Index
+emitDCon (DeclCon x access arity tag custom)
+  = emitNamedBlock x DeclKindCon [encodeInt (flags access),encodeInt arity,encodeInt tag] custom
+emitDCon _ = error "Lvm.Write"
 
-emitDCustom (DeclCustom id access kind custom)
-  = emitNamedBlock id kind [encodeInt (flags access)] custom
+emitDCustom :: Decl a -> Emit Index
+emitDCustom (DeclCustom x access kind custom)
+  = emitNamedBlock x kind [encodeInt (flags access)] custom
+emitDCustom _ = error "Lvm.Write"
 
-emitDExtern (DeclExtern id access arity tp linkconv callconv libname externname custom)
+emitDExtern :: Decl a -> Emit Index
+emitDExtern (DeclExtern x access arity tp linkconv callconv libname externname custom)
   = do{ idxType            <- emitExternType tp
       ; idxLibName         <- emitNameString libname
       ; (nameFlag,idxName) <- emitNameExtern
-      ; idxId              <- emitName id
-      ; emitBlockEx (Just id) DeclKindValue DeclKindExtern  
+      ; idxId              <- emitName x
+      ; emitBlockEx (Just x) DeclKindValue DeclKindExtern  
             (block [encodeIdx idxId, encodeInt (flags access), encodeInt arity
                     ,encodeIdx idxType
                     ,encodeIdx idxLibName
@@ -135,23 +143,25 @@ emitDExtern (DeclExtern id access arity tp linkconv callconv libname externname 
                         Plain s    -> do{ idx <- emitNameString s; return (0,encodeIdx idx) }
                         Decorate s -> do{ idx <- emitNameString s; return (1,encodeIdx idx) }
                         Ordinal i  -> return (2,encodeInt i)
+emitDExtern _ = error "Lvm.Write"
 
+emitDAbstract :: Decl a -> b
+emitDAbstract _ = error "LvmWrite.emitDAbstract: abstract values should be imported"
 
-emitDAbstract (DeclAbstract id access arity customs)
-  = error ("LvmWrite.emitDAbstract: abstract values should be imported: " ++ show id)
-
-
-emitImport id declkind access@(Imported public moduleName importName kind majorVer minorVer) customs
+emitImport :: Id -> DeclKind -> Access -> [Custom] -> Emit Index
+emitImport x declkind access@(Imported _ modName impName kind majorVer minorVer) customs
   = assert (declkind==kind) $ -- LvmWrite.emitImport: kinds don't match
-    do{ idxModule <- emitModule moduleName majorVer minorVer
-      ; idxName   <- emitName importName
-      ; idxId     <- emitName id
+    do{ idxModule <- emitModule modName majorVer minorVer
+      ; idxName   <- emitName impName
+      ; idxId     <- emitName x
       ; kindenc   <- encodeKind declkind
-      ; emitBlockEx (Just id) declkind DeclKindImport 
+      ; emitBlockEx (Just x) declkind DeclKindImport 
           (block [encodeIdx idxId, encodeInt (flags access), encodeIdx idxModule
                  , encodeIdx idxName, kindenc]) customs
       }
+emitImport _ _ _ _ = error "LvmWrite.emitImport: unknown case"
 
+emitModule :: Id -> Int -> Int -> Emit Index
 emitModule name major minor
   = do{ idxName <- emitName name
       ; emitBlock Nothing DeclKindModule (block [encodeIdx idxName,encodeInt major,encodeInt minor]) []
@@ -182,8 +192,9 @@ emitCode other
 {--------------------------------------------------------------
   emit an instruction
 --------------------------------------------------------------}
-emits instrs
-  = concatMap emit instrs
+
+emits :: [Instr] -> [Int]
+emits = concatMap emit
 
 emit :: Instr -> [Int]
 emit instr
@@ -192,32 +203,32 @@ emit instr
         todo     = error ("LvmWrite.emit: todo: " ++ show (nameFromInstr instr))
     in case instr of
       -- pseudo instructions
-      VAR id                  -> []
-      PARAM id                -> []
-      USE id                  -> []
+      VAR _                   -> []
+      PARAM _                 -> []
+      USE _                   -> []
       NOP                     -> illegal
-      RESULT is               -> illegal
+      RESULT _                -> illegal
 
       -- structured instructions
       MATCH alts              -> [opcode] ++ emitMatch 3 alts
       MATCHCON alts           -> [opcode] ++ emitMatch 2 alts
       MATCHINT alts           -> [opcode] ++ emitMatch 2 alts
-      SWITCHCON alts          -> todo
+      SWITCHCON _             -> todo
 
-      EVAL d is               -> let scrut = emits is
+      EVAL _ is               -> let scrut = emits is
                                  in  emit (PUSHCONT (length scrut)) ++ scrut
 
       -- push instructions
       PUSHVAR     var         -> [opcode, offsetFromVar var]
       PUSHINT     n           -> [opcode, n]
-      PUSHBYTES   bs c        -> [opcode, c]
-      PUSHFLOAT   d           -> todo
+      PUSHBYTES   _ c         -> [opcode, c]
+      PUSHFLOAT   _           -> todo
       PUSHCODE    global      -> [opcode, indexFromGlobal global]
       PUSHCONT    ofs         -> [opcode, ofs]
 
       -- stack instructions
       ARGCHK      n           -> [opcode, n]
-      SLIDE       n m depth   -> [opcode, n, m]
+      SLIDE       n m _       -> [opcode, n, m]
       STUB        var         -> [opcode, offsetFromVar var]
 
       -- control
@@ -261,9 +272,9 @@ emit instr
       RETURNCON0 con          -> [opcode, indexFromCon con]
 
       -- single opcode instructions
-      other                   -> [opcode]
+      _                       -> [opcode]
 
-
+emitMatch :: Int -> [Alt] -> [Int]
 emitMatch entrySize alts
   = assert (normalizedAlts alts) $ -- "LvmWrite.emitMatch: unnormalized alternatives"
     let (pats,iss) = unzipAlts alts
@@ -273,7 +284,7 @@ emitMatch entrySize alts
        ++ matches start (zip pats (map length altis))
        ++ concat altis       
     where
-      matches top []           = []
+      matches _ [] = []
       matches top ((pat,n):xs)
         = (case pat of
              PatCon con -> [indexFromCon con]
@@ -283,11 +294,13 @@ emitMatch entrySize alts
           ++ [if (n==0) then 0 else top] ++ matches (top+n) xs
 
 
+normalizedAlts :: [Alt] -> Bool
 normalizedAlts alts
   = case alts of
-      (Alt PatDefault is:rest) -> True
-      other                    -> False
+      Alt PatDefault _:_ -> True
+      _                  -> False
 
+unzipAlts :: [Alt] -> ([Pat], [[Instr]])
 unzipAlts alts
   = unzip (map (\(Alt pat expr) -> (pat,expr)) alts)
 
@@ -295,6 +308,7 @@ unzipAlts alts
 {--------------------------------------------------------------
   resolve instructions
 --------------------------------------------------------------}
+
 resolves :: ([Instr] -> a) -> [Instr] -> Emit a
 resolves f is
   = do{ ris <- mapM resolve is
@@ -329,8 +343,9 @@ resolve instr
       NEWCON2 con     -> resolveCon NEWCON2 con
       NEWCON3 con     -> resolveCon NEWCON3 con
 
-      other           -> return instr
+      _               -> return instr
 
+resolveAlts :: ([Alt] -> a) -> [Alt] -> Emit a
 resolveAlts f alts
   = do{ alts' <- sequence (map resolveAlt alts); return (f alts') }
 
@@ -340,69 +355,76 @@ resolveAlt (Alt pat is)
       ; resolves (Alt pat') is
       }
 
+resolvePat :: Pat -> Emit Pat
 resolvePat pat
   = case pat of
       PatCon con  -> resolveCon PatCon con
-      other       -> return pat
+      _           -> return pat
 
-resolveGlobal f (Global id _ arity)
-  = do{ idx <- findIndex DeclKindValue id
-      ; return (f (Global id idx arity))
+resolveGlobal :: (Global -> a) -> Global -> Emit a
+resolveGlobal f (Global x _ arity)
+  = do{ idx <- findIndex DeclKindValue x
+      ; return (f (Global x idx arity))
       }
 
-resolveCon f (Con id _ arity tag)
-  = do{ idx <- findIndex DeclKindCon id
-      ; return (f (Con id idx arity tag))
+resolveCon :: (Con -> a) -> Con -> Emit a
+resolveCon f (Con x _ arity tag)
+  = do{ idx <- findIndex DeclKindCon x
+      ; return (f (Con x idx arity tag))
       }
 
+resolveBytes :: (Index -> a) -> Bytes -> Emit a
 resolveBytes f bs
   = do{ idx <- emitBytes bs
       ; return (f idx)
       }
-
-
-
+      
 {--------------------------------------------------------------
   basic entities
 --------------------------------------------------------------}
 emitNamedBlock :: Id -> DeclKind -> [Int] -> [Custom] -> Emit Index
-emitNamedBlock id kind is custom
-  = do{ idxName <- emitName id
-      ; emitBlock (Just id) kind (block (encodeIdx idxName:is)) custom
+emitNamedBlock x kind is custom
+  = do{ idxName <- emitName x
+      ; emitBlock (Just x) kind (block (encodeIdx idxName:is)) custom
       }
 
 emitName :: Id -> Emit Index
-emitName id
-  = emitNameString (stringFromId id)
+emitName x
+  = emitNameString (stringFromId x)
 
 emitNameString :: String -> Emit Index
 emitNameString s
   = emitBlock Nothing DeclKindName (blockString s) []
 
+emitExternType :: String -> Emit Index
 emitExternType tp
   = emitBlock Nothing DeclKindExternType (blockString tp) []
 
-emitKind id
-  = emitBlock Nothing DeclKindKind (blockString (stringFromId id)) []
+emitKind :: Id -> Emit Index
+emitKind x
+  = emitBlock Nothing DeclKindKind (blockString (stringFromId x)) []
 
+emitBytes :: Bytes -> Emit Index
 emitBytes bs
   = emitBlock Nothing DeclKindBytes (blockBytes bs) []
 
+emitBlock :: Maybe Id -> DeclKind -> Bytes -> [Custom] -> Emit Index
 emitBlock mbId kind bs custom
   = emitBlockEx mbId kind kind bs custom
 
+emitBlockEx :: Maybe Id -> DeclKind -> DeclKind -> Bytes -> [Custom] -> Emit Index
 emitBlockEx mbId kindId kind bs custom
   = do{ bcustom <- emitCustoms custom
       ; kindenc <- encodeKind kind
       ; let bytes = mappend bs bcustom
             total = mappend (block [kindenc,encodeInt (bytesLength bytes)]) bytes
       ; assert ((bytesLength bytes `mod` 4) == 0) $ -- "LvmWrite.emitBlock: unaligned size"
-        emitPrimBlock (maybe Nothing (\id -> Just (id,kindId)) mbId) kind total
+        emitPrimBlock (maybe Nothing (\x -> Just (x,kindId)) mbId) kind total
       }
 
 encodeKind :: DeclKind -> Emit Int
-encodeKind (DeclKindCustom id)
-  = do{ idx <- emitKind id
+encodeKind (DeclKindCustom x)
+  = do{ idx <- emitKind x
       ; return (encodeIdx idx)
       }
 
@@ -425,10 +447,11 @@ emitCustom custom
       CustomInt i         -> return (encodeInt i)
       CustomNothing       -> return (encodeIdx 0)
       CustomBytes bs      -> do{ idx <- emitBytes bs; return (encodeIdx idx) }
-      CustomName id       -> do{ idx <- emitName id; return (encodeIdx idx) }
-      CustomLink id kind  -> do{ idx <- findIndex kind id; return (encodeIdx idx) }
+      CustomName x        -> do{ idx <- emitName x; return (encodeIdx idx) }
+      CustomLink x kind   -> do{ idx <- findIndex kind x; return (encodeIdx idx) }
       CustomDecl kind cs  -> do{ idx <- emitAnonymousCustom kind cs; return (encodeIdx idx) }
 
+emitAnonymousCustom :: DeclKind -> [Custom] -> Emit Index
 emitAnonymousCustom kind custom
   = emitBlock Nothing kind (block [encodeIdx 0]) custom
 
@@ -445,7 +468,7 @@ instance Functor Emit where
                                          (x,stx) -> (f x,stx))
 
 instance Monad Emit where
-  return x          = Emit (\env st -> (x,st))
+  return x          = Emit (\_   st -> (x,st))
   (Emit e) >>= f    = Emit (\env st -> case e env st of
                                          (x,stx) -> case f x of
                                                       Emit ef -> ef env stx)
@@ -456,19 +479,20 @@ runEmit (Emit e)
     in (x,reverse bbs)
 
 emitPrimBlock :: Maybe (Id,DeclKind) -> DeclKind -> Bytes -> Emit Index
-emitPrimBlock x kind bs
-  = Emit (\env st@(State count map bbs) ->
-            let (index,count',bbs') | sharable kind = case find count bs bbs of   --try to share records
+emitPrimBlock mpair kind bs
+  = Emit (\_ (State count m1 bbs) ->
+            let (index,count2,bbs2) | sharable kind = case find count bs bbs of   --try to share records
                                                         Nothing  -> (count+1,count+1,bs:bbs)
                                                         Just idx -> (idx,count,bbs)
                                     | otherwise     = (count+1,count+1,bs:bbs)
-                map'                = case x of
-                                        Just (id,kindid) -> insertMapWith id [(kindid,index)] ((kindid,index):) map
-                                        Nothing          -> map
-            in (index, State count' map' bbs')
+                m2                = case mpair of
+                                        Just (x,kindid) -> insertMapWith x [(kindid,index)] ((kindid,index):) m1
+                                        Nothing         -> m1
+            in (index, State count2 m2 bbs2)
          )
-sharable kind
-  = False
+
+sharable :: DeclKind -> Bool
+sharable _ = False
 {-
   = case kind of
       DeclKindBytes       -> True
@@ -479,18 +503,19 @@ sharable kind
       other               -> False
 -}
 
-find n x []       = assert (n==0) Nothing -- "LvmWrite.find: count too large"
+find :: Eq a => Int -> a -> [a] -> Maybe Int
+find n _ []       = assert (n==0) Nothing -- "LvmWrite.find: count too large"
 find n x (y:ys)   | x==y       = Just n
                   | otherwise  = (find $! (n-1)) x ys
 
 -- a nice lazy formulation, we can calculate all indices before writing the bytes.
 findIndex :: DeclKind -> Id -> Emit Index
-findIndex kind id 
+findIndex kind x 
   = Emit (\env st ->
-          (case lookupMap id env of
-             Nothing  -> error ("LvmWrite.findIndex: undeclared identifier: " ++ show (stringFromId id))
+          (case lookupMap x env of
+             Nothing  -> error ("LvmWrite.findIndex: undeclared identifier: " ++ show (stringFromId x))
              Just xs  -> case lookup kind xs of
-                           Nothing  -> error ("LvmWrite.findIndex: undeclared identifier (with the right declaration kind): " ++ show (stringFromId id))
+                           Nothing  -> error ("LvmWrite.findIndex: undeclared identifier (with the right declaration kind): " ++ show (stringFromId x))
                            Just idx -> (idx)
           , st))
 
@@ -507,16 +532,16 @@ blockString :: String -> Bytes
 blockString s
   = blockBytes (bytesFromString s)
 
+blockBytes :: Bytes -> Bytes
 blockBytes bs
   = let len = bytesLength bs
     in mconcat [bytesFromInt32 (encodeInt len), bs, padding len]
 
+padding :: Int -> Bytes
 padding n
   = let m = (div (n + 3) 4) * 4
     in bytesFromList (replicate (m - n) (byteFromInt8 0))
 
-encodeInt i
-  = (2*i)+1
-
-encodeIdx i
-  = (2*i)
+encodeInt, encodeIdx :: Int -> Int
+encodeInt i = (2*i)+1
+encodeIdx i = (2*i)
