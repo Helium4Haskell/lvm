@@ -23,44 +23,44 @@ import Lvm.Common.IdMap  ( IdMap, emptyMap, lookupMap, extendMap )
 import Lvm.Common.IdSet  ( IdSet, emptySet, elemSet, insertSet )
 import Lvm.Core.Data
 import Lvm.Core.Utils
-import Lvm.Core.Module
 
 ----------------------------------------------------------------
 -- Environment: name supply, id's in scope & renamed identifiers
 ----------------------------------------------------------------
 data Env  = Env NameSupply IdSet (IdMap Id)
 
+renameBinders :: Env -> [Id] -> (Env, [Id])
 renameBinders env bs
-  = let (env',bs') = foldl (\(env,ids) id -> renameBinder env id $ \env' id' -> (env',id':ids)) (env,[]) bs
+  = let (env',bs') = foldl (\(env1,ids) x1 -> renameBinder env1 x1 $ \env2 x2 -> (env2,x2:ids)) (env,[]) bs
     in  (env',reverse bs')
 
 renameLetBinder :: Env -> Id -> (Env -> Id -> a) -> a
-renameLetBinder env@(Env supply inscope renaming) id cont
-    = let (id',supply') = freshIdFromId id supply
-          inscope'      = insertSet id inscope
-          renaming'     = extendMap id id' renaming
-      in cont (Env supply' inscope' renaming') id'
+renameLetBinder (Env supply inscope renaming) x cont
+    = let (x2,supply') = freshIdFromId x supply
+          inscope'      = insertSet x inscope
+          renaming'     = extendMap x x2 renaming
+      in cont (Env supply' inscope' renaming') x2
 
 renameBinder :: Env -> Id -> (Env -> Id -> a) -> a
-renameBinder env@(Env supply set map) id cont
-  | elemSet id set
-      = renameLetBinder env id cont
+renameBinder env@(Env supply set m) x cont
+  | elemSet x set
+      = renameLetBinder env x cont
   | otherwise
-      = cont (Env supply (insertSet id set) map) id
+      = cont (Env supply (insertSet x set) m) x
 
 renameVar :: Env -> Id -> Id
-renameVar (Env supply set map) id
-  = case lookupMap id map of
-      Nothing  -> id
-      Just id' -> id'
+renameVar (Env _ _ m) x
+  = case lookupMap x m of
+      Nothing -> x
+      Just x2 -> x2
 
 splitEnv :: Env -> (Env,Env)
-splitEnv env@(Env supply set map)
+splitEnv (Env supply set m)
   = let (s0,s1) = splitNameSupply supply
-    in  (Env s0 set map,Env s1 set map)
+    in  (Env s0 set m,Env s1 set m)
 
 splitEnvs :: Env -> [Env]
-splitEnvs env@(Env supply set idmap)
+splitEnvs (Env supply set idmap)
   = map (\s -> Env s set idmap) (splitNameSupplies supply)
 
 
@@ -69,13 +69,14 @@ splitEnvs env@(Env supply set idmap)
 -- ie. no local variable shadows another variable
 ----------------------------------------------------------------
 coreNoShadow :: NameSupply -> CoreModule -> CoreModule
-coreNoShadow supply mod
-  = mapExprWithSupply (nsDeclExpr emptySet) supply mod
+coreNoShadow supply m
+  = mapExprWithSupply (nsDeclExpr emptySet) supply m
 
 coreRename :: NameSupply -> CoreModule -> CoreModule
-coreRename supply mod
-  = mapExprWithSupply (nsDeclExpr (globalNames mod)) supply mod
+coreRename supply m
+  = mapExprWithSupply (nsDeclExpr (globalNames m)) supply m
 
+nsDeclExpr :: IdSet -> NameSupply -> Expr -> Expr
 nsDeclExpr inscope supply expr
   = nsExpr (Env supply inscope emptyMap) expr
 
@@ -83,42 +84,44 @@ nsDeclExpr inscope supply expr
 nsExpr :: Env -> Expr -> Expr
 nsExpr env expr
   = case expr of
-      Note n expr       -> Note n (nsExpr env expr)
-      Let binds expr    -> nsBinds env binds $ \env' binds' ->
-                           Let binds' (nsExpr env' expr)
-      Match id alts     -> Match (renameVar env id) (nsAlts env alts)
-      Lam id expr       -> renameBinder env id $ \env' id' ->
-                           Lam id' (nsExpr env' expr)
+      Note n e          -> Note n (nsExpr env e)
+      Let binds e       -> nsBinds env binds $ \env' binds' ->
+                           Let binds' (nsExpr env' e)
+      Match x alts      -> Match (renameVar env x) (nsAlts env alts)
+      Lam x e           -> renameBinder env x $ \env2 x2 ->
+                           Lam x2 (nsExpr env2 e)
       Ap expr1 expr2    -> let (env1,env2) = splitEnv env
                            in  Ap (nsExpr env1 expr1) (nsExpr env2 expr2)
-      Var id            -> Var (renameVar env id)
+      Var x             -> Var (renameVar env x)
       Con (ConTag e a)  -> Con (ConTag (nsExpr env e) a)
-      other             -> expr
+      _                 -> expr
 
-
+nsBinds :: Env -> Binds -> (Env -> Binds -> a) -> a
 nsBinds env binds cont
   = case binds of
-      Strict (Bind id rhs)  -> nonrec Strict id rhs
-      NonRec (Bind id rhs)  -> nonrec NonRec id rhs
-      Rec recs              -> rec_
+      Strict (Bind x rhs)  -> nonrec Strict x rhs
+      NonRec (Bind x rhs)  -> nonrec NonRec x rhs
+      Rec _                -> rec_
   where
-    nonrec make id rhs
-      = renameLetBinder env id $ \env' id' ->
-        cont env' (make (Bind id' (nsExpr env rhs)))
+    nonrec make x1 rhs
+      = renameLetBinder env x1 $ \env' x2 ->
+        cont env' (make (Bind x2 (nsExpr env rhs)))
       
     rec_ 
-      = let (binds',env') = mapAccumBinds (\env id rhs -> renameLetBinder env id $ \env' id' -> (Bind id' rhs,env'))
+      = let (binds',env') = mapAccumBinds (\env1 x1 rhs -> renameLetBinder env1 x1 $ \env2 x2 -> (Bind x2 rhs,env2))
                                            env binds
-        in cont env' (zipBindsWith (\env id rhs -> Bind id (nsExpr env rhs)) (splitEnvs env') binds')
+        in cont env' (zipBindsWith (\env1 x1 rhs -> Bind x1 (nsExpr env1 rhs)) (splitEnvs env') binds')
 
-
+nsAlts :: Env -> Alts -> Alts
 nsAlts env alts
   = zipAltsWith nsAlt (splitEnvs env) alts
 
+nsAlt :: Env -> Pat -> Expr -> Alt
 nsAlt env pat expr
   = let (pat',env') = nsPat env pat
     in Alt pat' (nsExpr env' expr)
 
+nsPat :: Env -> Pat -> (Pat, Env)
 nsPat env pat
   = case pat of
       PatCon con ids -> let (env',ids') = renameBinders env ids

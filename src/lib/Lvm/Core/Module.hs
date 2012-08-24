@@ -156,7 +156,7 @@ declKindFromDecl decl
       DeclExtern{}   -> DeclKindExtern
       DeclCustom{}   -> declKind decl
       DeclImport{}   -> importKind (declAccess decl)
-      -- other          -> error "Module.kindFromDecl: unknown declaration"
+      -- _          -> error "Module.kindFromDecl: unknown declaration"
 
 shallowKindFromDecl :: Decl a -> DeclKind
 shallowKindFromDecl decl
@@ -167,20 +167,17 @@ shallowKindFromDecl decl
       DeclExtern{}   -> DeclKindExtern
       DeclCustom{}   -> declKind decl
       DeclImport{}   -> DeclKindImport
-      -- other          -> error "Module.shallowKindFromDecl: unknown declaration"
+      -- _          -> error "Module.shallowKindFromDecl: unknown declaration"
 
 modulePublic :: Bool -> (IdSet,IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
-modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) mod
-  = mod{ moduleDecls = map setPublic (moduleDecls mod) }
+modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
+  = m { moduleDecls = map setPublic (moduleDecls m) }
   where
     setPublic decl  | declPublic decl = decl{ declAccess = (declAccess decl){ accessPublic = True } }
                     | otherwise       = decl
     
     isExported decl elemIdSet =
-        let
-            access = declAccess decl
-            name   = declName   decl
-        in
+        let access = declAccess decl in
         if implicit then
             case decl of
                 DeclImport{} ->  False
@@ -190,13 +187,12 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
                         _          -> True
         else
             case access of
-                Imported{ importModule = id }
-                    | elemSet id exportMods               -> True
-                    | otherwise                           -> elemIdSet
+                Imported{ importModule = x }
+                    | elemSet x exportMods              -> True
+                    | otherwise                         -> elemIdSet
                 Defined{}
-                    | elemSet (moduleName mod) exportMods -> True
-                    | otherwise                           -> elemIdSet
-                other -> elemIdSet
+                    | elemSet (moduleName m) exportMods -> True
+                    | otherwise                         -> elemIdSet
     
     declPublic decl =
         let
@@ -219,14 +215,13 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
                                     DeclKindExtern -> isExported decl (elemSet name exports)
                                     DeclKindCon    -> isExported decl (elemSet name exportCons) 
                                     DeclKindModule -> isExported decl (elemSet name exportMods)
-                                    dk@(DeclKindCustom id)
+                                    dk@(DeclKindCustom _)
                                      | dk `elem` [customData, customTypeDecl] ->
                                          isExported decl (elemSet name exportData)
-                                    other          -> False
-            other           -> False
+                                    _          -> False
 
-    conTypeName (DeclCon{declCustoms=(tp:CustomLink id customData:rest)})  = id
-    conTypeName other  = dummyId
+    conTypeName (DeclCon{declCustoms=(_:CustomLink x _:_)}) = x
+    conTypeName _ = dummyId
 
 ----------------------------------------------------------------
 -- Pretty printing
