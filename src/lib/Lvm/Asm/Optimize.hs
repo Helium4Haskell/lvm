@@ -17,5 +17,4 @@ import Lvm.Asm.Inline ( asmInline )
   asmOptimize
 ---------------------------------------------------------------}
 asmOptimize :: AsmModule -> AsmModule
-asmOptimize mod
-  = asmInline mod
+asmOptimize = asmInline

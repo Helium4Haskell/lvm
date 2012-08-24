@@ -11,11 +11,7 @@
 
 module Lvm.Instr.Rewrite( instrRewrite )  where
 
-import Lvm.Instr.Data    ( Instr(..), Alt(..), Var(..)
-                , offsetFromVar
-                , arityFromGlobal, arityFromCon
-                , strictResult
-                )
+import Lvm.Instr.Data
 
 {---------------------------------------------------------------
   debugging
@@ -40,19 +36,20 @@ instrRewrite :: [Instr] -> [Instr]
 instrRewrite instrs
   = peephole (rewrites (dummies (rewrites (rewrites instrs))))
 
+rewrites :: [Instr] -> [Instr]
 rewrites instrs
   = case instrs of  
       -- TODO: the following three rules optimize things like (id x = x) but
       -- this can probably be better done on the code generation level
-      PUSHVAR (Var id 0 depth) : SLIDE 1 m d : is
+      PUSHVAR (Var _ 0 _) : SLIDE 1 m d : is
         | m >= 1
         -> rewrites (SLIDE 1 (m-1) (d-1) : is)
 
-      PUSHVAR (Var id0 1 d0) : PUSHVAR (Var id1 1 d1) : SLIDE 2 m d : is
+      PUSHVAR (Var _ 1 _) : PUSHVAR (Var _ 1 _) : SLIDE 2 m d : is
         | m >= 2
         -> rewrites (SLIDE 2 (m-2) (d-2) : is)
 
-      PUSHVAR (Var id0 2 d0) : PUSHVAR (Var id1 2 d1) : PUSHVAR (Var id2 2 d2) : SLIDE 3 m d : is
+      PUSHVAR (Var _ 2 _) : PUSHVAR (Var _ 2 _) : PUSHVAR (Var _ 2 _) : SLIDE 3 m d : is
         | m >= 3
         -> rewrites (SLIDE 3 (m-3) (d-3) : is)
            
@@ -88,7 +85,7 @@ rewrites instrs
         -> rewriteEval d (rewrites is') is
 
       -- merge slides
-      SLIDE n0 m0 d0 : SLIDE n1 m1 d1 : is
+      SLIDE n0 m0 d0 : SLIDE n1 m1 _ : is
         | n1 <= n0  -> rewrites (SLIDE n1 (m0+m1-(n0-n1)) d0 : is)
 
       -- essential rewrites
@@ -105,21 +102,20 @@ rewrites instrs
         -> [rewriteMatch MATCHINT alts is]
 
       -- default
-      instr:instrs  -> instr:rewrites instrs
+      instr:rest    -> instr:rewrites rest
       []            -> []
 
 
-rewriteMatch match alts is
-  = match (map (rewriteAlt is) alts)
+rewriteMatch :: ([Alt] -> a) -> [Alt] -> [Instr] -> a
+rewriteMatch match alts is = match (map (rewriteAlt is) alts)
 
-rewriteAlt instrs (Alt pat [])
-  = Alt pat []
-
+rewriteAlt :: [Instr] -> Alt -> Alt
 rewriteAlt instrs (Alt pat is)
-  = Alt pat (rewrites (is ++ instrs))
-
+   | null is   = Alt pat []
+   | otherwise = Alt pat (rewrites (is ++ instrs))
 
 -- rewrite PUSHCODE
+rewritePushCode :: Global -> [Instr] -> [Instr]
 rewritePushCode f instrs
   = case instrs of
       NEWAP n : is
@@ -128,32 +124,33 @@ rewritePushCode f instrs
         | arity >= n -> PUSHCODE f : PACKNAP var n : is
       SLIDE n m d: ENTER : is
         | arity == (n-1) && arity /= 0  -> SLIDE (n-1) m (d-1): ENTERCODE f : is
-      other
+      _
         -> PUSHCODE f  : instrs
   where
     arity = arityFromGlobal f
 
 -- rewrite EVAL
+rewriteEval :: Depth -> [Instr] -> [Instr] -> [Instr]
 rewriteEval d evalis is
   =  case evalis of
-       [PUSHVAR (Var id ofs d),SLIDE 1 0 d',ENTER]
-          -> rewrites ([EVALVAR (Var id (ofs-3) d)] ++ is)
-       [PUSHVAR (Var id ofs d),ENTER]
-          -> rewrites ([EVALVAR (Var id (ofs-3) d)] ++ is)
-       other
-          -> [EVAL d evalis] ++ rewrites is
+       [PUSHVAR (Var x ofs d1),SLIDE 1 0 _,ENTER]
+          -> rewrites ([EVALVAR (Var x (ofs-3) d1)] ++ is)
+       [PUSHVAR (Var x ofs dv),ENTER]
+          -> rewrites ([EVALVAR (Var x (ofs-3) dv)] ++ is)
+       _  -> [EVAL d evalis] ++ rewrites is
 
 {---------------------------------------------------------------
   peephole optimization
 ---------------------------------------------------------------}
-peephole instrs
-  = simplify shorten instrs
 
-dummies instrs
-  = simplify id instrs
+peephole :: [Instr] -> [Instr]
+peephole = simplify shorten
 
-simplify single instrs
-  = walk instrs
+dummies :: [Instr] -> [Instr]
+dummies = simplify id
+
+simplify :: (Instr -> Instr) -> [Instr] -> [Instr]
+simplify single = walk
   where
     walk instrs 
       = case instrs of
@@ -169,11 +166,11 @@ simplify single instrs
           NEWNAP 1 : is             -> walk is
 
           -- slide
-          SLIDE n 0 d : is          -> walk is
-          SLIDE 1 m d : RETURN : is -> walk (RETURN : is)
-          SLIDE n m d : RETURNCON con : is
+          SLIDE _ 0 _ : is          -> walk is
+          SLIDE 1 _ _ : RETURN : is -> walk (RETURN : is)
+          SLIDE n _ _ : RETURNCON con : is
                                     | arityFromCon con == n -> walk (RETURNCON con : is)
-          SLIDE 0 m d : RETURNINT i : is
+          SLIDE 0 _ _ : RETURNINT i : is
                                     -> walk (RETURNINT i : is)
 
           -- shorten sequences
@@ -187,6 +184,7 @@ simplify single instrs
     walkAlt (Alt pat is)
       = Alt pat (walk is)
 
+shorten :: Instr -> Instr
 shorten instr
   = case instr of
       PUSHVAR var   -> case offsetFromVar var of
@@ -195,29 +193,29 @@ shorten instr
                          2     -> PUSHVAR2
                          3     -> PUSHVAR3
                          4     -> PUSHVAR4
-                         other -> instr
+                         _     -> instr
 
       NEWAP n       -> case n of
                          2     -> NEWAP2
                          3     -> NEWAP3
                          4     -> NEWAP4
-                         other -> instr
+                         _     -> instr
 
       NEWNAP n      -> case n of
                          2     -> NEWNAP2
                          3     -> NEWNAP3
                          4     -> NEWNAP4
-                         other -> instr
+                         _     -> instr
 
       NEWCON con    -> case arityFromCon con of
                          0     -> NEWCON0 con
                          1     -> NEWCON1 con
                          2     -> NEWCON2 con
                          3     -> NEWCON3 con
-                         other -> instr
+                         _     -> instr
 
       RETURNCON con -> case arityFromCon con of
                          0     -> RETURNCON0 con
-                         other -> instr
+                         _     -> instr
 
-      other         -> instr
+      _             -> instr
