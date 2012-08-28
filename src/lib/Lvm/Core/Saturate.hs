@@ -16,30 +16,33 @@
 module Lvm.Core.Saturate( coreSaturate ) where
 
 import Data.List   ( mapAccumR )
-import Lvm.Common.Id     ( NameSupply, freshId, splitNameSupply, splitNameSupplies )
+import Lvm.Common.Id     ( Id, NameSupply, freshId, splitNameSupply, splitNameSupplies )
 import Lvm.Common.IdMap  ( IdMap, lookupMap, mapFromList )
 import Lvm.Core.Data
 import Lvm.Core.Utils
-import Lvm.Core.Module
 
 ----------------------------------------------------------------
 -- Environment: a name supply and a map from id to its arity
 ----------------------------------------------------------------
 data Env    = Env NameSupply (IdMap Int)
 
+uniqueId :: Env -> (Id, Env)
 uniqueId (Env supply arities)
-  = let (id,supply') = freshId supply
-    in  (id,Env supply' arities)
+  = let (x,supply') = freshId supply
+    in  (x,Env supply' arities)
 
-findArity id (Env supply arities)
-  = case lookupMap id arities of
+findArity :: Id -> Env -> Int
+findArity x (Env _ arities)
+  = case lookupMap x arities of
       Nothing -> 0
       Just n  -> n
 
+splitEnv :: Env -> (Env, Env)
 splitEnv (Env supply arities)
   = let (s0,s1) = splitNameSupply supply
     in  (Env s0 arities, Env s1 arities)
 
+splitEnvs :: Env -> [Env]
 splitEnvs (Env supply arities)
   = map (\s -> Env s arities) (splitNameSupplies supply)
 
@@ -47,10 +50,10 @@ splitEnvs (Env supply arities)
 -- coreSaturate
 ----------------------------------------------------------------
 coreSaturate :: NameSupply -> CoreModule -> CoreModule
-coreSaturate supply mod
-  = mapExprWithSupply (satDeclExpr arities) supply mod
+coreSaturate supply m
+  = mapExprWithSupply (satDeclExpr arities) supply m
   where
-    arities = mapFromList [(declName d,declArity d) | d <- moduleDecls mod, isDeclCon d || isDeclExtern d]
+    arities = mapFromList [(declName d,declArity d) | d <- moduleDecls m, isDeclCon d || isDeclExtern d]
 
 
 satDeclExpr :: IdMap Int -> NameSupply -> Expr -> Expr
@@ -63,26 +66,27 @@ satDeclExpr arities supply expr
 satExpr :: Env -> Expr -> Expr
 satExpr env expr
   = case expr of
-      Let binds expr
+      Let binds e
         -> let (env0,env1) = splitEnv env
-           in  Let (satBinds env0 binds) (satExpr env1 expr)
-      Match id alts
-        -> Match id (satAlts env alts)
-      Lam id expr
-        -> Lam id (satExpr env expr)
-      Note n expr
-        -> Note n (satExpr env expr)
-      other
+           in  Let (satBinds env0 binds) (satExpr env1 e)
+      Match x alts
+        -> Match x (satAlts env alts)
+      Lam x e
+        -> Lam x (satExpr env e)
+      Note n e
+        -> Note n (satExpr env e)
+      _
         -> let expr'  = satExprSimple env expr
            in addLam env  (requiredArgs env expr') expr'
 
-satBinds env binds
-  = zipBindsWith (\env id expr -> Bind id (satExpr env expr)) (splitEnvs env) binds
+satBinds :: Env -> Binds -> Binds
+satBinds = zipBindsWith (\env x expr -> Bind x (satExpr env expr)) . splitEnvs
 
-satAlts env alts
-  = zipAltsWith (\env pat expr -> Alt pat (satExpr env expr)) (splitEnvs env) alts
+satAlts :: Env -> Alts -> Alts
+satAlts = zipAltsWith (\env pat expr -> Alt pat (satExpr env expr)) . splitEnvs
 
 -- don't saturate Ap, Var and Con here
+satExprSimple :: Env -> Expr -> Expr
 satExprSimple env expr
   = case expr of
       Let _ _     -> satExpr env expr
@@ -91,23 +95,26 @@ satExprSimple env expr
       Ap e1 e2    -> let (env1,env2) = splitEnv env
                      in  Ap (satExprSimple env1 e1) (satExpr env2 e2)
       Note n e    -> Note n (satExprSimple env e)
-      other       -> expr
+      _           -> expr
 
 ----------------------------------------------------------------
 -- Add lambda's
 ----------------------------------------------------------------
+
+addLam :: (Num a, Enum a) => Env -> a -> Expr -> Expr
 addLam env n expr
-  = let (_,ids) = mapAccumR (\env i -> let (id,env') = uniqueId env in (env',id)) env [1..n]
+  = let (_,ids) = mapAccumR (\env2 _ -> let (x,env') = uniqueId env2 in (env',x)) env [1..n]
     in  foldr Lam (foldl Ap expr (map Var ids)) ids
 
+requiredArgs :: Env -> Expr -> Int
 requiredArgs env expr
   = case expr of
-      Let binds expr        -> 0
-      Match id alts         -> 0
-      Lam id expr           -> 0
-      Ap expr1 expr2        -> requiredArgs env expr1 - 1
-      Var id                -> findArity id env
-      Con (ConId id)        -> findArity id env
-      Con (ConTag e arity)  -> arity
-      Note n expr           -> requiredArgs env expr
-      other                 -> 0
+      Let _ _               -> 0
+      Match _ _             -> 0
+      Lam _ _               -> 0
+      Ap e1 _               -> requiredArgs env e1 - 1
+      Var x                 -> findArity x env
+      Con (ConId x)         -> findArity x env
+      Con (ConTag _ arity)  -> arity
+      Note _ e              -> requiredArgs env e
+      _                     -> 0

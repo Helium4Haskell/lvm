@@ -26,76 +26,81 @@
 ----------------------------------------------------------------
 module Lvm.Core.Normalize ( coreNormalize ) where
 
-import Lvm.Common.Id     ( NameSupply, splitNameSupply, splitNameSupplies, freshId )
+import Lvm.Common.Id     ( Id, NameSupply, splitNameSupply, splitNameSupplies, freshId )
 import Lvm.Common.IdSet  ( IdSet, elemSet )
 import Lvm.Core.Data
 import Lvm.Core.Utils
-import Lvm.Core.Module
 
 ----------------------------------------------------------------
 -- Environment: the name supply
 ----------------------------------------------------------------
 data Env   = Env NameSupply !IdSet {- instructions + externs -}
 
-uniqueId (Env supply directs)
-  = fst (freshId supply)
+uniqueId :: Env -> Id
+uniqueId (Env supply _) = fst (freshId supply)
 
+splitEnv :: Env -> (Env, Env)
 splitEnv (Env s d)
   = let (s0,s1) = splitNameSupply s in (Env s0 d, Env s1 d)
 
-splitEnvs (Env s d)
-  = map (\s -> Env s d) (splitNameSupplies s)
+splitEnvs :: Env -> [Env]
+splitEnvs (Env s d) = map (\s2 -> Env s2 d) (splitNameSupplies s)
 
-isDirect (Env s d) id
-  = elemSet id d
+isDirect :: Env -> Id -> Bool
+isDirect (Env _ d) x = elemSet x d
 
 ----------------------------------------------------------------
 -- coreNormalise
 ----------------------------------------------------------------
 coreNormalize :: NameSupply -> CoreModule -> CoreModule
-coreNormalize supply mod
-  = mapExprWithSupply (normDeclExpr primitives) supply mod
+coreNormalize supply m
+  = mapExprWithSupply (normDeclExpr primitives) supply m
   where
-    primitives  = externNames mod
+    primitives  = externNames m
 
-normDeclExpr directs supply expr
-  = normBind (Env supply directs) expr
-
+normDeclExpr :: IdSet -> NameSupply -> Expr -> Expr
+normDeclExpr directs supply = normBind (Env supply directs)
 
 ----------------------------------------------------------------
 -- Expression & bindings
 ----------------------------------------------------------------
+
+normExpr :: Env -> Expr -> Expr
 normExpr env expr
   = let (env1,env2) = splitEnv env
         expr'       = normBind env1 expr
     in case expr' of
-         Lam _ _  -> let id = uniqueId env2
-                     in (Let (NonRec (Bind id expr')) (Var id))
-         other    -> expr'
+         Lam _ _  -> let x = uniqueId env2
+                     in (Let (NonRec (Bind x expr')) (Var x))
+         _        -> expr'
 
 -- can return lambda's on top
 normBind :: Env -> Expr -> Expr
 normBind env expr
   = case expr of
-      Let binds expr    -> let (env1,env2) = splitEnv env
-                           in Let (normBinds env1 binds) (normExpr env2 expr)
-      Match id alts     -> Match id (normAlts env alts)
-      Lam id expr       -> Lam id (normBind env expr)
-      Note n expr       -> normBind env expr  -- de-annotate
-      Ap expr1 expr2    -> normAtomExpr env expr
-      other             -> expr
+      Let binds e       -> let (env1,env2) = splitEnv env
+                           in Let (normBinds env1 binds) (normExpr env2 e)
+      Match x alts      -> Match x (normAlts env alts)
+      Lam x e           -> Lam x (normBind env e)
+      Note _ e          -> normBind env e  -- de-annotate
+      Ap _ _            -> normAtomExpr env expr
+      _                 -> expr
 
-normBinds env binds
-  = zipBindsWith (\env id expr -> Bind id (normBind env expr)) (splitEnvs env) binds
+normBinds :: Env -> Binds -> Binds
+normBinds
+  = zipBindsWith (\env x expr -> Bind x (normBind env expr)) . splitEnvs
 
-normAlts env alts
-  = zipAltsWith (\env pat expr -> Alt pat (normExpr env expr)) (splitEnvs env) alts
+normAlts :: Env -> Alts -> Alts
+normAlts
+  = zipAltsWith (\env pat expr -> Alt pat (normExpr env expr)) . splitEnvs
 
+normAtomExpr :: Env -> Expr -> Expr
 normAtomExpr env expr
   = let (atom,f) = normAtom env expr
     in  (f atom)
 
 -- returns an atomic expression + a function that adds the right bindings
+normAtom :: Env -> Expr -> (Expr, Expr -> Expr)
 normAtom env expr
   = case expr of
       Match _ _         -> freshBinding
@@ -105,22 +110,22 @@ normAtom env expr
       -- atomic but otherwise the bindings get messed up (shadow7.core).
       -- we lift all bindings out and rely on asmInline to put them
       -- back again if possible.
-      Let binds expr    -> let (env1,env2) = splitEnv env
-                               (atom,f)    = normAtom env1 expr
+      Let binds e       -> let (env1,env2) = splitEnv env
+                               (atom,f)    = normAtom env1 e
                                -- (abinds,g)  = normAtomBinds env2 binds
                            in  (atom, Let (normBinds env2 binds) . f)
                                -- (abinds atom, f . g)
-      Ap expr1 expr2    -> let (env1,env2) = splitEnv env
-                               (atom,f)    = normAtom env1 expr1
-                               (arg,g)     = normArg  env2 expr2
+      Ap e1 e2          -> let (env1,env2) = splitEnv env
+                               (atom,f)    = normAtom env1 e1
+                               (arg,g)     = normArg  env2 e2
                            in (Ap atom arg, f . g)
-      Note n expr       -> normAtom env expr  -- de-annotate
-      other             -> (expr,id)
+      Note _ e          -> normAtom env e  -- de-annotate
+      _                 -> (expr,id)
   where
     freshBinding         = let (env1,env2) = splitEnv env
                                expr'       = normBind env1 expr
-                               id          = uniqueId env2
-                           in  (Var id, Let (NonRec (Bind id expr')))
+                               x           = uniqueId env2
+                           in  (Var x, Let (NonRec (Bind x expr')))
 
 -- normAtomBinds returns two functions: one that adds atomic
 -- let bindings and one that adds non-atomic bindings
@@ -134,17 +139,19 @@ normAtomBinds env binds
                               in (Bind id atom, (env2, f . g))
 -}
 -- just as an atomic expression but binds 'direct' applications (ie. externs & instructions)
+normArg :: Env -> Expr -> (Expr, Expr -> Expr)
 normArg env expr
   = let (env1,env2) = splitEnv env
         (atom,f)    = normAtom env1 expr
     in  if (isDirectAp env atom)
-         then let id = uniqueId env2
-              in  (Var id, f . Let (NonRec (Bind id atom)))
+         then let x = uniqueId env2
+              in  (Var x, f . Let (NonRec (Bind x atom)))
          else (atom,f)
 
+isDirectAp :: Env -> Expr -> Bool
 isDirectAp env expr
   = case expr of
-      Ap e1 e2  -> isDirectAp env e1
-      Note n e  -> isDirectAp env e
-      Var id    -> isDirect env id
-      other     -> False
+      Ap e1 _   -> isDirectAp env e1
+      Note _ e  -> isDirectAp env e
+      Var x     -> isDirect env x
+      _         -> False

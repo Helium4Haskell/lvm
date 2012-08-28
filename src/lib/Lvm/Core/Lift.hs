@@ -31,21 +31,23 @@ import Lvm.Core.Utils
 ----------------------------------------------------------------
 data Env  = Env IdSet (IdMap [Id])     -- primitives && the free variables to be passed as arguments
 
-elemFree (Env prim env) id
-  = elemMap id env
+elemFree :: Env -> Id -> Bool
+elemFree (Env _ env) x
+  = elemMap x env
 
 lookupFree :: Env -> Id -> [Id]
-lookupFree (Env prim env) id
-  = case lookupMap id env of
+lookupFree (Env _ env) x
+  = case lookupMap x env of
       Nothing -> []
       Just fv -> fv
 
 isPrimitive :: Env -> Id -> Bool
-isPrimitive (Env prim _) id
-  = elemSet id prim
+isPrimitive (Env prim _) x
+  = elemSet x prim
 
-extendFree (Env prim env) id fv
-  = Env prim (extendMap id fv env)
+extendFree :: Env -> Id -> [Id] -> Env
+extendFree (Env prim env) x fv
+  = Env prim (extendMap x fv env)
 
 ----------------------------------------------------------------
 -- coreLift
@@ -53,49 +55,48 @@ extendFree (Env prim env) id fv
 --      [coreNoShadow] there is no shadowing
 ----------------------------------------------------------------
 coreLift :: CoreModule -> CoreModule
-coreLift mod
-  = mapExpr (liftExpr (Env primitives emptyMap)) mod
+coreLift m
+  = mapExpr (liftExpr (Env primitives emptyMap)) m
   where
-    primitives  = externNames mod
+    primitives  = externNames m
 
 liftExpr :: Env -> Expr -> Expr
 liftExpr env expr
   = case expr of
-      Let binds expr
+      Let binds e
         -> let (binds',env') = liftBinds env binds
-           in Let binds' (liftExpr env' expr)
-      Match id alts
-        -> Match id (liftAlts env alts)
-      Lam id expr
-        -> Lam id (liftExpr env expr)
+           in Let binds' (liftExpr env' e)
+      Match x alts
+        -> Match x (liftAlts env alts)
+      Lam x e
+        -> Lam x (liftExpr env e)
       Ap expr1 expr2
         -> Ap (liftExpr env expr1) (liftExpr env expr2)
-      Var id
-        -> foldl' (\e v -> Ap e (Var v)) expr (lookupFree env id)
+      Var x
+        -> foldl' (\e v -> Ap e (Var v)) expr (lookupFree env x)
       Con (ConTag tag arity)
         -> Con (ConTag (liftExpr env tag) arity)
       Note n e
         -> Note n (liftExpr env e)
-      other
-        -> other
+      _
+        -> expr
 
+liftAlts :: Env -> Alts -> Alts
 liftAlts env = mapAlts (\pat expr -> Alt pat (liftExpr env expr))
-
 
 ----------------------------------------------------------------
 -- Lift binding groups
 ----------------------------------------------------------------
+
+liftBinds :: Env -> Binds -> (Binds, Env)
 liftBinds env binds
   = case binds of
       NonRec bind -> let ([bind'],env') = liftBindsRec env [bind]
                      in  (NonRec bind',env')      
       Rec recs    -> let (recs',env') = liftBindsRec env recs
                      in (Rec recs',env')
-      Strict (Bind id rhs)
-                  -> (Strict (Bind id (liftExpr env rhs)),env)
-  where
-    nonrec make bind = let ([bind'],env') = liftBindsRec env [bind]
-                       in  (make bind',env')
+      Strict (Bind x rhs)
+                  -> (Strict (Bind x (liftExpr env rhs)),env)
       
 
 
@@ -112,24 +113,23 @@ liftBindsRec env recs
         recs'  = zipWith (addLambdas env) fvs (zipWith Bind ids (map (liftExpr env') exprs))
     in (recs', env')
 
-
-addLambdas env fv bind@(Bind id (Note (FreeVar _) expr))  
+addLambdas :: Env -> [Id] -> Bind -> Bind
+addLambdas env fv bind@(Bind x (Note (FreeVar _) expr))  
   | isAtomExpr env expr = bind
 --   | isValueExpr expr    = Bind id (Note (FreeVar fvset) (Let (NonRec (Bind id (foldlStrict (\e v -> Ap e (Var v)) (Var id) fv))) (Var id)))
-  | otherwise           = Bind id (Note (FreeVar emptySet) (foldr Lam expr fv))
-  where
-    fvset = setFromList fv
+  | otherwise           = Bind x (Note (FreeVar emptySet) (foldr Lam expr fv))
 
-addLambdas env fv bind
+addLambdas _ _ _
   = error "CoreLift.addLambdas: no free variable annotation. Do coreFreeVar first?"
 
-insertLifted env ((Bind id expr),fv)
+insertLifted :: Env -> (Bind, [Id]) -> Env
+insertLifted env ((Bind x expr),fv)
   = if (isAtomExpr env expr) --  || isValueExpr expr)
      then env
-     else extendFree env id fv
+     else extendFree env x fv
 
-removeLifted env fv
-  = filter (\id -> not (elemFree env id)) fv
+removeLifted :: Env -> [Id] -> [Id]
+removeLifted env = filter (not . elemFree env)
 
 
 fixMutual :: [(Id,IdSet)] -> [(Id,IdSet)]
@@ -139,11 +139,11 @@ fixMutual fvmap
          then fvmap
          else fixMutual fvmap'
   where
-    addMutual (id,fv)
-      = (id, foldSet addLocalFree fv fv)
+    addMutual (x,fv)
+      = (x, foldSet addLocalFree fv fv)
 
-    addLocalFree id fv0
-      = case lookup id fvmap of
+    addLocalFree x fv0
+      = case lookup x fvmap of
           Just fv1  -> unionSet fv0 fv1
           Nothing   -> fv0
 
@@ -155,38 +155,28 @@ liftedFreeVar :: Env -> IdSet -> IdSet
 liftedFreeVar env fv
   = unionSet fv (setFromList (concat (map (lookupFree env) (listFromSet fv))))
 
-
-freeVar expr
-  = listFromSet (freeVarSet expr)
-
-freeVarSet (Note (FreeVar fv) expr)
-  = fv
-freeVarSet expr
-  = error "CoreLetSort.freeVar: no annotation. Do coreFreeVar first?"
+freeVarSet :: Expr -> IdSet
+freeVarSet (Note (FreeVar fv) _) = fv
+freeVarSet _ = error "CoreLetSort.freeVar: no annotation. Do coreFreeVar first?"
 
 ----------------------------------------------------------------
 -- is an expression atomic: i.e. can we generate code inplace
 ----------------------------------------------------------------
+
 isAtomExpr :: Env -> Expr -> Bool
 isAtomExpr env expr
   = case expr of
       Ap e1 e2  -> isAtomExpr env e1 && isAtomExpr env e2
-      Note n e  -> isAtomExpr env e
-      Var id    -> not (isPrimitive env id)
-      Con con   -> True
-      Lit lit   -> True
-      Let binds expr  
-                -> isAtomBinds env binds && isAtomExpr env expr
-      other     -> False
+      Note _ e  -> isAtomExpr env e
+      Var x     -> not (isPrimitive env x)
+      Con _     -> True
+      Lit _     -> True
+      Let binds e  -> isAtomBinds env binds && isAtomExpr env e
+      _         -> False
 
+isAtomBinds :: Env -> Binds -> Bool
 isAtomBinds env binds
   = case binds of
-      Strict bind           -> False
-      NonRec (Bind id expr) -> isAtomExpr env expr
-      Rec bindings          -> all (isAtomExpr env) (snd (unzipBinds bindings))
-
-isValueExpr expr
-  = case expr of
-      Note n e  -> isValueExpr e
-      Lam id e  -> False
-      other     -> True
+      Strict _             -> False
+      NonRec (Bind _ expr) -> isAtomExpr env expr
+      Rec bindings         -> all (isAtomExpr env) (snd (unzipBinds bindings))

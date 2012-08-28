@@ -25,11 +25,11 @@ import Lvm.Read  ( lvmReadFile )
   abstract declarations or constructors/externs/customs
 --------------------------------------------------------------}
 lvmImport :: (Id -> IO FilePath) -> (Module v) -> IO (Module v)
-lvmImport findModule mod
-  = do{ mods <- lvmImportModules findModule mod
-      ; let mods0 = lvmExpandModule mods (moduleName mod) 
+lvmImport findModule m
+  = do{ mods <- lvmImportModules findModule m
+      ; let mods0 = lvmExpandModule mods (moduleName m) 
             mods1 = lvmResolveImports mods0
-            mod1  = findMap (moduleName mod) mods1
+            mod1  = findMap (moduleName m) mods1
       ; return mod1{ moduleDecls = filter (not . isDeclImport) (moduleDecls mod1) }
       }
 
@@ -37,14 +37,14 @@ lvmImportDecls :: (Id -> IO FilePath) -> [Decl v] -> IO [[Decl v]]
 lvmImportDecls findModule importDecls =
     mapM
         (\importDecl -> do
-            mod <- lvmImport findModule $
+            m <- lvmImport findModule $
                 Module.Module
                     { Module.moduleName     = idFromString "Main"
                     , Module.moduleMajorVer = 0
                     , Module.moduleMinorVer = 0
                     , Module.moduleDecls    = [importDecl]
                     }
-            return (moduleDecls mod)
+            return (moduleDecls m)
         )
         importDecls
 
@@ -53,23 +53,23 @@ lvmImportDecls findModule importDecls =
     recursively read all imported modules
 --------------------------------------------------------------}
 lvmImportModules :: (Id -> IO FilePath) -> (Module v) -> IO (IdMap (Module v))
-lvmImportModules findModule mod
-  = readModuleImports findModule emptyMap (moduleName mod) mod
+lvmImportModules findModule m
+  = readModuleImports findModule emptyMap (moduleName m) m
     
 readModuleImports :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> (Module v) -> IO (IdMap (Module v))
-readModuleImports findModule loaded id mod
-  = foldM (readModule findModule) (insertMap id mod loaded) (imported mod)
+readModuleImports findModule loaded x m
+  = foldM (readModule findModule) (insertMap x m loaded) (imported m)
 
 readModule :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> IO (IdMap (Module v))
-readModule findModule loaded id
-  | elemMap id loaded  = return loaded
-  | otherwise          = do{ fname <- findModule id                        
-                           ; mod   <- lvmReadFile fname
-                           ; readModuleImports findModule loaded id (filterPublic mod)
-                           }
+readModule findModule loaded x
+  | elemMap x loaded  = return loaded
+  | otherwise         = do{ fname <- findModule x                        
+                          ; m     <- lvmReadFile fname
+                          ; readModuleImports findModule loaded x (filterPublic m)
+                          }
 
-imported mod
-  = [importModule (declAccess d) | d <- moduleDecls mod, isDeclImport d]
+imported :: Module v -> [Id]
+imported m = [importModule (declAccess d) | d <- moduleDecls m, isDeclImport d]
 
 {--------------------------------------------------------------
   lvmExpandModule loaded modname: 
@@ -80,13 +80,14 @@ lvmExpandModule :: IdMap (Module v) -> Id -> IdMap (Module v)
 lvmExpandModule loaded modname
   = mapMap expand loaded
   where
-    expand mod  | moduleName mod == modname  = expandModule loaded mod
-                | otherwise                  = mod
+    expand m | moduleName m == modname  = expandModule loaded m
+             | otherwise                = m
 
 expandModule :: IdMap (Module v) -> Module v -> Module v
-expandModule loaded mod
-  = mod{ moduleDecls = concatMap (expandDecl loaded (moduleName mod)) (moduleDecls mod) }
+expandModule loaded m
+  = m{ moduleDecls = concatMap (expandDecl loaded (moduleName m)) (moduleDecls m) }
 
+expandDecl :: IdMap (Module a) -> Id -> Decl a -> [Decl a]
 expandDecl loaded modname DeclImport{declAccess = access@(Imported{importModule = imodname,importKind = DeclKindModule})}
   = case lookupMap imodname loaded of
       Nothing   -> error ("LvmImport.expandDecl: import module is not loaded: " ++ stringFromId modname)
@@ -97,8 +98,7 @@ expandDecl loaded modname DeclImport{declAccess = access@(Imported{importModule 
     importDecl decl
       = decl{ declAccess = access{importName = declName decl, importKind = declKindFromDecl decl} }
 
-expandDecl loaded modname decl
-  = [decl]
+expandDecl _ _ decl = [decl]
 
 {---------------------------------------------------------------
 lvmResolveImports:
@@ -110,14 +110,14 @@ lvmResolveImports :: IdMap (Module v) -> IdMap (Module v)
 lvmResolveImports mods = foldl' resolveImports mods (listFromMap mods)
 
 resolveImports :: IdMap (Module v) -> (Id,Module v) -> IdMap (Module v)
-resolveImports loaded (modid,mod)
-  = foldl' (resolveImport [] modid) loaded (filter isDeclImport (moduleDecls mod))
+resolveImports loaded (modid, m)
+  = foldl' (resolveImport [] modid) loaded (filter isDeclImport (moduleDecls m))
 
 resolveImport :: [Id] -> Id -> IdMap (Module v) -> Decl v -> IdMap (Module v)
-resolveImport visited modid loaded x@(DeclImport id access@(Imported public imodid impid kind major minor) customs)
+resolveImport visited modid loaded imp@(DeclImport x access@(Imported _ imodid impid kind _ _) _)
   | elem modid visited = error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
   | otherwise = 
-    let mod = findMap modid loaded in 
+    let m = findMap modid loaded in 
     case lookupMap imodid loaded of
       Nothing   -> error ("LvmImport.resolveImport: import module is not loaded: " ++ stringFromId imodid)
       Just imod -> case lookupDecl impid kind (moduleDecls imod) of
@@ -126,19 +126,22 @@ resolveImport visited modid loaded x@(DeclImport id access@(Imported public imod
                                []  -> case filter isDeclImport ds of
                                         []  -> notfound imodid impid
                                         [d] -> let loaded' = resolveImport (modid:visited) imodid loaded d
-                                               in resolveImport (imodid:visited) modid loaded' x
-                                        ds  -> ambigious imodid impid
-                               [d] -> update mod{ moduleDecls = d{declName=id,declAccess = access} : (moduleDecls mod)}
-                               ds  -> ambigious imodid impid
+                                               in resolveImport (imodid:visited) modid loaded' imp
+                                        _   -> ambigious imodid impid
+                               [d] -> update m { moduleDecls = d{declName=x,declAccess = access} : (moduleDecls m)}
+                               _   -> ambigious imodid impid
   where
-    lookupDecl impid kind decls
-      = [d | d <- decls, declName d==impid && declKindFromDecl d == kind]
+    update m = updateMap modid m loaded
+resolveImport _ _ _ _ = error "resolveImport: not DeclImport"
 
-    update mod'
-      = updateMap modid mod' loaded
+lookupDecl :: Id -> DeclKind -> [Decl a] -> [Decl a]
+lookupDecl impid kind decls =
+   [d | d <- decls, declName d==impid && declKindFromDecl d == kind]
         
-    notfound imodid impid
-      = error ("LvmImport.resolveImport: unresolved identifier: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
+notfound :: Id -> Id -> a
+notfound imodid impid = 
+   error ("LvmImport.resolveImport: unresolved identifier: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
 
-    ambigious imodid impid
-      = error ("LvmImport.resolveImport: ambigious import record: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
+ambigious :: Id -> Id -> a
+ambigious imodid impid = 
+   error ("LvmImport.resolveImport: ambigious import record: " ++ stringFromId imodid ++ "." ++ stringFromId impid)

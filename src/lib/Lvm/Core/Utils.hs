@@ -20,7 +20,6 @@ module Lvm.Core.Utils
    ) where
 
 import Lvm.Core.Data
-import Lvm.Common.Byte   ( Bytes )
 import Lvm.Common.Id     ( Id, NameSupply, mapWithSupply )
 import Lvm.Core.Module
 import Lvm.Common.IdSet  ( IdSet, emptySet, setFromList )
@@ -28,6 +27,7 @@ import Lvm.Common.IdSet  ( IdSet, emptySet, setFromList )
 ----------------------------------------------------------------
 -- Binders functions
 ----------------------------------------------------------------
+
 listFromBinds :: Binds -> [Bind]
 listFromBinds binds
   = case binds of
@@ -36,50 +36,50 @@ listFromBinds binds
       Rec recs    -> recs
       
 binders :: [Bind] -> [Id]
-binders binds
-  = map (\(Bind id rhs) -> id) (binds)
+binders = map (\(Bind x _) -> x)
 
 unzipBinds :: [Bind] -> ([Id],[Expr])
-unzipBinds binds
-  = unzip (map (\(Bind id rhs) -> (id,rhs)) (binds))
+unzipBinds = unzip . map (\(Bind x rhs) -> (x,rhs))
 
 mapBinds :: (Id -> Expr -> Bind) -> Binds -> Binds
 mapBinds f binds
   = case binds of
-      NonRec (Bind id rhs)
-        -> NonRec (f id rhs)
-      Strict (Bind id rhs)
-        -> Strict (f id rhs)
+      NonRec (Bind x rhs)
+        -> NonRec (f x rhs)
+      Strict (Bind x rhs)
+        -> Strict (f x rhs)
       Rec recs
-        -> Rec (map (\(Bind id rhs) -> f id rhs) recs)
+        -> Rec (map (\(Bind x rhs) -> f x rhs) recs)
 
 mapAccumBinds :: (a -> Id -> Expr -> (Bind,a)) -> a -> Binds -> (Binds,a)
 mapAccumBinds f x binds
   = case binds of
-      NonRec (Bind id rhs)
-        -> let (bind,y) = f x id rhs
-           in  (NonRec bind, y)
-      Strict (Bind id rhs)
-        -> let (bind,y) = f x id rhs
-           in  (Strict bind, y)
+      NonRec (Bind y rhs)
+        -> let (bind,z) = f x y rhs
+           in  (NonRec bind, z)
+      Strict (Bind y rhs)
+        -> let (bind,z) = f x y rhs
+           in  (Strict bind, z)
       Rec recs
-        -> let (recs',z) = mapAccum (\x (Bind id rhs) -> f x id rhs) x recs
+        -> let (recs',z) = mapAccum (\a (Bind y rhs) -> f a y rhs) x recs
            in  (Rec recs',z)
 
 mapAccum               :: (a -> b -> (c,a)) -> a -> [b] -> ([c],a)
-mapAccum f s []         = ([],s)
+mapAccum _ s []         = ([],s)
 mapAccum f s (x:xs)     = (y:ys,s'')
                          where (y,s' )  = f s x
                                (ys,s'') = mapAccum f s' xs
 
 
 zipBindsWith :: (a -> Id -> Expr -> Bind) -> [a] -> Binds -> Binds
-zipBindsWith f (x:xs) (Strict (Bind id rhs))
-  = Strict (f x id rhs)
-zipBindsWith f (x:xs) (NonRec (Bind id rhs))
-  = NonRec (f x id rhs)
+zipBindsWith f (x:_) (Strict (Bind y rhs))
+  = Strict (f x y rhs)
+zipBindsWith f (x:_) (NonRec (Bind y rhs))
+  = NonRec (f x y rhs)
 zipBindsWith f xs (Rec recs)
-  = Rec (zipWith (\x (Bind id rhs) -> f x id rhs) xs recs)
+  = Rec (zipWith (\x (Bind y rhs) -> f x y rhs) xs recs)
+zipBindsWith _ _ _ 
+  = error "zipBindsWith"
 
 ----------------------------------------------------------------
 -- Alternatives functions
@@ -87,8 +87,8 @@ zipBindsWith f xs (Rec recs)
 patBinders :: Pat -> IdSet
 patBinders pat
   = case pat of
-      PatCon id ids -> setFromList ids
-      other         -> emptySet
+      PatCon _ ids -> setFromList ids
+      _            -> emptySet
 
 
 mapAlts :: (Pat -> Expr -> Alt) -> Alts -> Alts
@@ -104,12 +104,11 @@ zipAltsWith f xs alts
 --
 ----------------------------------------------------------------
 mapExprWithSupply :: (NameSupply -> Expr -> Expr) -> NameSupply -> CoreModule -> CoreModule
-mapExprWithSupply f supply mod
-  = mod{ moduleDecls = mapWithSupply fvalue supply (moduleDecls mod) }
+mapExprWithSupply f supply m
+  = m { moduleDecls = mapWithSupply fvalue supply (moduleDecls m) }
   where
-    fvalue supply decl@(DeclValue{}) = decl{ valueValue = f supply (valueValue decl)}
-    fvalue supply decl               = decl
+    fvalue sup decl@(DeclValue{}) = decl{ valueValue = f sup (valueValue decl)}
+    fvalue _   decl               = decl
 
 mapExpr :: (Expr -> Expr) -> CoreModule -> CoreModule
-mapExpr f mod
-  = mapValues f mod
+mapExpr = mapValues

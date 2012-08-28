@@ -25,10 +25,12 @@ import Debug.Trace
 -- coreFreeVar
 -- Annotate let bound expression with their free variables
 ----------------------------------------------------------------
-coreFreeVar :: CoreModule -> CoreModule
-coreFreeVar mod
-  = mapExpr (fvDeclExpr (globalNames mod)) mod
 
+coreFreeVar :: CoreModule -> CoreModule
+coreFreeVar m
+  = mapExpr (fvDeclExpr (globalNames m)) m
+
+fvDeclExpr :: IdSet -> Expr -> Expr
 fvDeclExpr globals expr
   = let (expr',fv) = fvExpr globals expr
     in if (isEmptySet fv)
@@ -36,8 +38,7 @@ fvDeclExpr globals expr
         else trace ("warning: CoreFreeVar.fvDeclExpr: top-level binding with free variables: "
                       ++ show (listFromSet fv)) (Note (FreeVar fv) expr')
 
-
-
+fvBindExpr :: IdSet -> Expr -> (Expr, IdSet)
 fvBindExpr globals expr
   = let (expr',fv) = fvExpr globals expr
     in  (Note (FreeVar fv) expr',fv)
@@ -45,32 +46,32 @@ fvBindExpr globals expr
 fvExpr :: IdSet -> Expr -> (Expr,IdSet)
 fvExpr globals expr
   = case expr of
-      Let binds expr
-        -> let (expr',fv)       = fvExpr globals expr
+      Let binds e
+        -> let (expr',fv)       = fvExpr globals e
                (binds',fvbinds) = fvBinds globals binds
            in (Let binds' expr', diffSet (unionSet fvbinds fv) (setFromList (binders (listFromBinds binds))))
-      Lam id expr
-        -> let (expr',fv) = fvExpr globals expr
-           in  (Lam id expr',deleteSet id fv)
-      Match id alts
+      Lam x e
+        -> let (expr',fv) = fvExpr globals e
+           in  (Lam x expr',deleteSet x fv)
+      Match x alts
         -> let (alts',fvalts) = fvAlts globals alts
-           in  (Match id alts',insertSet id fvalts)
-      Ap expr1 expr2
-        -> let (expr1',fv1)   = fvExpr globals expr1
-               (expr2',fv2)   = fvExpr globals expr2
+           in  (Match x alts',insertSet x fvalts)
+      Ap e1 e2
+        -> let (expr1',fv1)   = fvExpr globals e1
+               (expr2',fv2)   = fvExpr globals e2
            in  (Ap expr1' expr2', unionSet fv1 fv2)
-      Var id
-        -> if (elemSet id globals)
+      Var x
+        -> if (elemSet x globals)
             then (expr,emptySet)
-            else (expr,insertSet id emptySet)
+            else (expr,insertSet x emptySet)
       Con (ConTag tag arity)
         -> let (tag',fv) = fvExpr globals tag
            in (Con (ConTag tag' arity),fv)
-      Note n expr
-        -> let (expr',fv) = fvExpr globals expr
+      Note n e
+        -> let (expr',fv) = fvExpr globals e
            in  (Note n expr',fv)
-      other
-        -> (other,emptySet)
+      _
+        -> (expr,emptySet)
 
 
 fvAlts :: IdSet -> Alts -> (Alts,IdSet)
@@ -83,23 +84,23 @@ fvAlts globals alts
 fvBinds :: IdSet -> Binds -> (Binds,IdSet)
 fvBinds globals binds
   = case binds of
-      NonRec (Bind id expr)
-        -> nonrec NonRec id expr
-      Strict (Bind id expr)
-        -> nonrec Strict id expr
-      other 
-        -> let binds' = mapBinds (\id rhs -> Bind id (fst (fvBindExpr globals rhs))) binds
-               fvs    = unionSets (map (\(Bind id rhs) -> freeVar rhs) (listFromBinds binds'))
+      NonRec (Bind x expr)
+        -> nonrec NonRec x expr
+      Strict (Bind x expr)
+        -> nonrec Strict x expr
+      _ 
+        -> let binds' = mapBinds (\x rhs -> Bind x (fst (fvBindExpr globals rhs))) binds
+               fvs    = unionSets (map (\(Bind _ rhs) -> freeVar rhs) (listFromBinds binds'))
            in  (binds',fvs)
   where
-    nonrec make id expr
+    nonrec make x expr
       = let (expr',fv) = fvBindExpr globals expr
-        in if (elemSet id fv)
+        in if (elemSet x fv)
             then error "CoreFreeVar.fvBinds: non-recursive binding refers to itself? (do CoreNoShadow first?)"
-            else (make (Bind id expr'),fv)
+            else (make (Bind x expr'),fv)
 
-
+freeVar :: Expr -> IdSet
 freeVar expr
   = case expr of
-      Note (FreeVar fv) expr  -> fv
-      other                   -> error "CoreFreeVar.freeVar: no free variable annotation"
+      Note (FreeVar fv) _  -> fv
+      _                    -> error "CoreFreeVar.freeVar: no free variable annotation"

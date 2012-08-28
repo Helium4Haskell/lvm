@@ -12,7 +12,7 @@
 module Lvm.Core.RemoveDead( coreRemoveDead ) where
 
 import qualified Data.Set as Set
-import Lvm.Core.Utils
+import Data.Set (Set)
 import Lvm.Common.Id       ( Id, idFromString )
 import Lvm.Common.IdSet    ( IdSet, emptySet, elemSet, insertSet, setFromList, unionSet )
 import Lvm.Core.Data
@@ -45,13 +45,13 @@ declIdentity decl
 -- A proper analysis would find all reachable declaratins.
 ----------------------------------------------------------------
 coreRemoveDead :: CoreModule -> CoreModule
-coreRemoveDead mod
-  = mod{ moduleDecls = filter (isUsed used) (moduleDecls mod) }
+coreRemoveDead m
+  = m { moduleDecls = filter (isUsed used) (moduleDecls m) }
   where
     -- Retain main$ even though it is private and not used
     -- It cannot be public because it would be imported and clash
     -- in other modules
-    used  = foldl' usageDecl alwaysUsed (moduleDecls mod)
+    used  = foldl' usageDecl alwaysUsed (moduleDecls m)
 
     alwaysUsed = Set.fromList $ map (\name -> (DeclKindValue,idFromString name)) $
                  ["main$","main"]
@@ -73,71 +73,79 @@ usageDecl used decl
     in case decl of
          DeclValue{} -> let usedExpr = usageValue usedCustoms (valueValue decl)
                             usedEnc  = case (valueEnc decl) of
-                                        Just id  -> Set.insert (DeclKindValue,id) usedExpr
+                                        Just x  -> Set.insert (DeclKindValue,x) usedExpr
                                         Nothing  -> usedExpr
                          in usedEnc
-         other       -> usedCustoms
+         _           -> usedCustoms
 
 usageCustoms :: Used -> [Custom] -> Used
 usageCustoms = foldl' usageCustom
 
+usageCustom :: Set (DeclKind, Id) -> Custom -> Set (DeclKind, Id)
 usageCustom used custom
   = case custom of
-      CustomLink  id kind       -> Set.insert (kind,id) used
-      CustomDecl  kind customs  -> usageCustoms used customs
-      other                     -> used
+      CustomLink x kind     -> Set.insert (kind,x) used
+      CustomDecl _ customs  -> usageCustoms used customs
+      _                     -> used
 
 ----------------------------------------------------------------
 -- Find used declarations in expressions
 ----------------------------------------------------------------
-usageValue used expr
-  = usageExpr emptySet used expr
 
+usageValue :: Used -> Expr -> Used
+usageValue = usageExpr emptySet
 
+usageExprs :: IdSet -> Used -> [Expr] -> Used
 usageExprs = foldl' . usageExpr
 
 usageExpr :: IdSet -> Used -> Expr -> Used
 usageExpr locals used expr
  = case expr of
-      Let binds expr  -> let used'   = usageBinds locals used binds 
+      Let binds e     -> let used'   = usageBinds locals used binds 
                              locals' = unionSet locals (setFromList (binders (listFromBinds binds)))
-                         in usageExpr locals' used' expr
-      Lam id expr     -> usageExpr (insertSet id locals) used expr
-      Match id alts   -> usageAlts locals (usageVar locals used id) alts
-      Ap expr1 expr2  -> usageExpr locals (usageExpr locals used expr1) expr2
-      Var id          -> usageVar locals used id
+                         in usageExpr locals' used' e
+      Lam x e         -> usageExpr (insertSet x locals) used e
+      Match x alts    -> usageAlts locals (usageVar locals used x) alts
+      Ap e1 e2        -> usageExpr locals (usageExpr locals used e1) e2
+      Var x           -> usageVar locals used x
       Con con         -> usageCon locals used con
-      Note n expr     -> usageExpr locals used expr
-      Lit lit         -> used
+      Note _ e        -> usageExpr locals used e
+      Lit _           -> used
 
-usageVar locals used id
-  | elemSet id locals = used
-  | otherwise         = Set.insert (DeclKindValue,id) used
+usageVar :: IdSet -> Set (DeclKind, Id) -> Id -> Set (DeclKind, Id)
+usageVar locals used x
+  | elemSet x locals = used
+  | otherwise        = Set.insert (DeclKindValue,x) used
 
+usageCon :: IdSet -> Set (DeclKind, Id) -> Con Expr -> Set (DeclKind, Id)
 usageCon locals used con
   = case con of
-      ConId id          -> Set.insert (DeclKindCon,id) used
-      ConTag tag arity  -> usageExpr locals used tag
+      ConId x      -> Set.insert (DeclKindCon,x) used
+      ConTag tag _ -> usageExpr locals used tag
 
+usageBinds :: IdSet -> Used -> Binds -> Used
 usageBinds locals used binds 
   = case binds of
-      NonRec (Bind id rhs)  -> usageExpr locals used rhs
-      Strict (Bind id rhs)  -> usageExpr locals used rhs
-      Rec binds             -> let (ids,rhss) = unzipBinds binds
-                                   locals'    = unionSet locals (setFromList ids)
-                               in usageExprs locals' used rhss
+      NonRec (Bind _ rhs)  -> usageExpr locals used rhs
+      Strict (Bind _ rhs)  -> usageExpr locals used rhs
+      Rec bs               -> let (ids,rhss) = unzipBinds bs
+                                  locals'    = unionSet locals (setFromList ids)
+                              in usageExprs locals' used rhss
   
-      
+
+usageAlts :: IdSet -> Set (DeclKind, Id) -> [Alt] -> Set (DeclKind, Id)
 usageAlts = foldl' . usageAlt
 
+usageAlt :: IdSet -> Set (DeclKind, Id) -> Alt -> Used
 usageAlt locals used (Alt pat expr)
   = case pat of
       PatCon con ids  -> let locals' = unionSet locals (setFromList ids)
-                             used'   = usageConPat locals used con
+                             used'   = usageConPat used con
                          in usageExpr locals' used' expr
-      other           -> usageExpr locals used expr
-
-usageConPat locals used con
+      _               -> usageExpr locals used expr
+      
+usageConPat :: Set (DeclKind, Id) -> Con t -> Set (DeclKind, Id)
+usageConPat used con
   = case con of
-      ConId id          -> Set.insert (DeclKindCon,id) used
-      ConTag tag arity  -> used
+      ConId x    -> Set.insert (DeclKindCon,x) used
+      ConTag _ _ -> used
