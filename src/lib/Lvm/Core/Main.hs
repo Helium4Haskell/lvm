@@ -12,18 +12,19 @@
 module Main where
 
 import System.Environment      ( getArgs )
-import Text.PrettyPrint.Leijen ( putDoc, pretty )
+import Text.PrettyPrint.Leijen ( pretty )
 
 import Lvm.Path
-import Lvm.Common.Id         ( newNameSupply, stringFromId )
+import Lvm.Common.Id         ( Id, newNameSupply, stringFromId )
 
-import Lvm.Core.Module ( modulePublic )
+import Lvm.Core.Module ( Module, modulePublic )
 import Lvm.Core.Parse  ( coreParseExport )
 import Lvm.Core.Parser ( parseModule )       -- new core syntax
 
                                         -- parse text into Core
 import Lvm.Core.RemoveDead( coreRemoveDead ) -- remove dead declarations
 import Lvm.Core.ToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
+import Lvm.Core.Data (Expr)
 
 import Lvm.Asm.Optimize( asmOptimize )       -- optimize Asm (ie. local inlining)
 import Lvm.Asm.ToLvm   ( asmToLvm )          -- translate Asm to Lvm instructions
@@ -36,10 +37,11 @@ import Lvm.Data (LvmModule)
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
-message s
-   = return () 
-  -- = putStr s
 
+message :: Monad m => a -> m ()
+message _ = return ()
+
+main :: IO ()
 main
   = do{ args <- getArgs
       ; if length args == 1 then 
@@ -48,10 +50,11 @@ main
            putStrLn "Usage: coreasm <module>" 
       }
 
-findModule paths id
-  = searchPath paths ".lvm" (stringFromId id)
+findModule :: [String] -> Id -> IO String
+findModule paths = searchPath paths ".lvm" . stringFromId
 
 
+findSrc :: [String] -> String -> IO (Either String String)
 findSrc path src
   = do{ res <- searchPathMaybe path ".core" src
       ; case res of
@@ -62,36 +65,38 @@ findSrc path src
                            }
       }
 
+parse :: [String] -> String -> IO (Module Expr, String)
 parse path src
   = do{ res <- findSrc path src 
       ; case res of
           Left source -> do{ messageLn ("parsing")
-                           ; (mod, implExps, es) <- coreParseExport source
-                           ; messageDoc "parsed"  (pretty mod)
+                           ; (m, implExps, es) <- coreParseExport source
+                           ; messageDoc "parsed"  (pretty m)
                            ; messageLn ("resolving imports")
-                           ; chasedMod  <- lvmImport (findModule path) mod
+                           ; chasedMod  <- lvmImport (findModule path) m
                            ; messageLn ("making exports public")
                            ; let publicmod = modulePublic implExps es chasedMod
                            ; return (publicmod,source)
                            }
           Right source ->do{ messageLn ("parsing")
-                           ; mod <- parseModule source
-                           ; messageDoc "parsed"  (pretty mod)
+                           ; m <- parseModule source
+                           ; messageDoc "parsed"  (pretty m)
                            ; messageLn ("resolving imports")
-                           ; chasedMod  <- lvmImport (findModule path) mod
+                           ; chasedMod  <- lvmImport (findModule path) m
                            ; return (chasedMod,source)
                            }
       }                       
 
+compile :: String -> IO ()
 compile src
   = do{ lvmPath        <- getLvmPath
       ; let path = "." : lvmPath
       ; messageLn ("search path: " ++ show (map showFile path))
       
-      ; (mod,source) <- parse path src
+      ; (m,source) <- parse path src
       
       ; messageLn ("remove dead declarations")
-      ; let coremod = coreRemoveDead mod
+      ; let coremod = coreRemoveDead m
 
       ; nameSupply  <- newNameSupply
       ; messageLn ("generating code")
@@ -111,28 +116,31 @@ compile src
       ; messageLn   "\ndone."
       }
 
-
+dump :: String -> IO ()
 dump src
   = do{ path        <- getLvmPath
       ; messageLn ("search path: " ++ show (map showFile path))
       ; source      <- searchPath path ".lvm" src
       ; messageLn ("reading   : " ++ showFile source)
-      ; mod         <- lvmReadFile source
-      ; messageDoc "module" (pretty mod)
-      ; coremod    <- lvmImport (findModule path) mod
+      ; m           <- lvmReadFile source
+      ; messageDoc "module" (pretty m)
+      ; coremod    <- lvmImport (findModule path) m
       ; messageDoc "resolved module" (pretty (coremod :: LvmModule))
       }
 
+messageLn :: Monad m => t -> m ()
 messageLn s    
   = do{ message s; message "\n" }
+  
+messageDoc :: (Show a, Monad m) => String -> a -> m ()
 messageDoc h d 
   = do{ message (unlines $ ["",line, h, line])
        ; message (show d)
        }
 
-line           
-  = replicate 40 '-'
+line :: String
+line = replicate 40 '-'
 
-showFile fname
-  = map (\c -> if (c == '\\') then '/' else c) fname
+showFile :: String -> String
+showFile = map (\c -> if (c == '\\') then '/' else c)
 

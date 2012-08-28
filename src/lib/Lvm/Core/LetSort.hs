@@ -18,7 +18,7 @@ module Lvm.Core.LetSort( coreLetSort ) where
 import qualified Data.Graph as G
 import qualified Data.Tree  as G
 import Lvm.Common.Id       ( Id )
-import Lvm.Common.IdSet    ( elemSet, foldSet )
+import Lvm.Common.IdSet    ( IdSet, elemSet, foldSet )
 import Lvm.Core.Data
 import Lvm.Core.Utils
 
@@ -30,54 +30,54 @@ import Lvm.Core.Utils
 -- transform a @Rec@ bindings into the smallest @NonRec@ and @Rec@ bindings.
 ----------------------------------------------------------------
 coreLetSort :: CoreModule -> CoreModule
-coreLetSort mod
-  = mapExpr lsExpr mod
+coreLetSort = mapExpr lsExpr
 
 lsExpr :: Expr -> Expr
 lsExpr expr
   = case expr of
-      Let (Strict (Bind id rhs)) expr
-        -> Let (Strict (Bind id (lsExpr rhs))) (lsExpr expr)
-      Let binds expr
+      Let (Strict (Bind x rhs)) e
+        -> Let (Strict (Bind x (lsExpr rhs))) (lsExpr e)
+      Let binds e
         -> let bindss = sortBinds binds
-           in foldr Let (lsExpr expr) bindss
-      Match id alts
-        -> Match id (lsAlts alts)
-      Lam id expr
-        -> Lam id (lsExpr expr)
-      Ap expr1 expr2
-        -> Ap (lsExpr expr1) (lsExpr expr2)
+           in foldr Let (lsExpr e) bindss
+      Match x alts
+        -> Match x (lsAlts alts)
+      Lam x e
+        -> Lam x (lsExpr e)
+      Ap e1 e2
+        -> Ap (lsExpr e1) (lsExpr e2)
       Con (ConTag tag arity)
         -> Con (ConTag (lsExpr tag) arity)
-      Note n expr
-        -> Note n (lsExpr expr)
-      other
-        -> other
+      Note n e
+        -> Note n (lsExpr e)
+      _
+        -> expr
 
-lsAlts alts
-  = mapAlts (\pat expr -> Alt pat (lsExpr expr)) alts
+lsAlts :: Alts -> Alts
+lsAlts = mapAlts (\pat -> Alt pat . lsExpr)
 
 ----------------------------------------------------------------
 -- topological sort let bindings
 ----------------------------------------------------------------
 sortBinds :: Binds -> [Binds]
 sortBinds (Rec bindsrec)
-  = let binds  = map (\(Bind id rhs) -> (id,rhs)) bindsrec
+  = let binds  = map (\(Bind x rhs) -> (x,rhs)) bindsrec
         names  = zip (map fst binds) [0..]
         edges  = concat (map (depends names) binds)
         sorted = topSort (length names-1) edges
         binds'  = map (map (binds!!)) sorted
-        binds'' = map (map (\(id,expr) -> (id,lsExpr expr))) binds'
+        binds'' = map (map (\(x,expr) -> (x,lsExpr expr))) binds'
     in  map toBinding binds'' -- foldr sortLets (lsExpr expr) binds''
 sortBinds binds
-  = [mapBinds (\id expr -> Bind id (lsExpr expr)) binds]
+  = [mapBinds (\x expr -> Bind x (lsExpr expr)) binds]
 
 -- topological sort
 topSort :: G.Vertex -> [G.Edge] -> [[G.Vertex]]
 topSort n = map G.flatten . G.scc . G.buildG (0, n)
 
-toBinding [(id,rhs)]
-  | not (elemSet id (freeVar rhs)) = NonRec (Bind id rhs)
+toBinding :: [(Id, Expr)] -> Binds
+toBinding [(x,rhs)]
+  | not (elemSet x (freeVar rhs)) = NonRec (Bind x rhs)
 toBinding binds
   = Rec (map (uncurry Bind) binds)
 
@@ -96,6 +96,7 @@ depends names (v,expr)
                       Just i  -> (index,i):ds
                       Nothing -> ds
 
+freeVar :: Expr -> IdSet
 freeVar expr
   = case expr of
       Note (FreeVar fv) _ -> fv
