@@ -53,7 +53,7 @@ namesRef :: IORef Names
 namesRef = unsafePerformIO (newIORef emptyNames)
 
 emptyNames :: Names
-emptyNames = Names 0 (IntMap.empty)
+emptyNames = Names 0 IntMap.empty
 
 idFromString :: String -> Id
 idFromString = idFromStringEx (0::Int)
@@ -69,7 +69,7 @@ idFromStringEx ns name
 
 stringFromId :: Id -> String
 stringFromId x@(Id i)
-  | isUniq i  = "." ++ show (extractUniq i)
+  | isUniq i  = '.' : show (extractUniq i)
   | otherwise = unsafePerformIO $
                 do{ names <- readIORef namesRef
                   ; case lookupId x names of
@@ -114,9 +114,7 @@ freshId supply@(NameSupply ref)
                        })
 
 mapWithSupply :: (NameSupply -> a -> b) -> NameSupply -> [a] -> [b]
-mapWithSupply f supply xs
-  = zipWith f (splitNameSupplies supply) xs
-
+mapWithSupply f = zipWith f . splitNameSupplies
 
 ----------------------------------------------------------------
 -- Bit masks used within an Id
@@ -129,7 +127,7 @@ mapWithSupply f supply xs
 --    | 7 F F F | F F     |  unique number of unique id
 ----------------------------------------------------------------
 dummyId :: Id
-dummyId           = Id (0x7FFFFFF1)
+dummyId           = Id 0x7FFFFFF1
 
 shiftSort, maxSort :: Int32
 shiftSort         = 0x00000002
@@ -192,7 +190,7 @@ isUniq = odd
 -- The core of the symbol table: lookupId and insertName
 ----------------------------------------------------------------
 instance Eq Id where
-  (Id i1) == (Id i2)  = (i1 == i2)
+  Id i1 == Id i2 = i1 == i2
 
 instance Ord Id where
   -- i1      <= i2       = stringFromId i2 <= stringFromId i2
@@ -267,9 +265,9 @@ hash name
 
 -- simple hash function that performs quite good in practice
 hashx :: String -> Int32
-hashx name = foldl' gobble 0 name
+hashx = foldl' gobble 0
   where
-    gobble n c    = n*65599 + (fromIntegral . fromEnum) c
+    gobble n c = n*65599 + fromIntegral (fromEnum c)
 
 -----------------------------------------------------------------------------
 {-

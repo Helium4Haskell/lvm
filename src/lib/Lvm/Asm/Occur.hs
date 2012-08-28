@@ -22,7 +22,7 @@ import Lvm.Asm.Data
 type Occ  = IdMap Int
 
 addOcc :: Id -> Occ -> Occ
-addOcc x = insertMapWith x 1 (\n -> n+1)
+addOcc x = insertMapWith x 1 (+1)
 
 delOcc :: Id -> IdMap Int -> IdMap Int
 delOcc = deleteMap

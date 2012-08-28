@@ -90,19 +90,16 @@ patBinders pat
       PatCon _ ids -> setFromList ids
       _            -> emptySet
 
-
 mapAlts :: (Pat -> Expr -> Alt) -> Alts -> Alts
-mapAlts f alts
-  = map (\(Alt pat expr) -> f pat expr) alts
+mapAlts f = map (\(Alt pat expr) -> f pat expr)
 
 zipAltsWith :: (a -> Pat -> Expr -> Alt) -> [a] -> Alts -> Alts
-zipAltsWith f xs alts
-  = zipWith (\x (Alt pat expr) -> f x pat expr) xs alts
-
+zipAltsWith f = zipWith (\x (Alt pat expr) -> f x pat expr)
 
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
+
 mapExprWithSupply :: (NameSupply -> Expr -> Expr) -> NameSupply -> CoreModule -> CoreModule
 mapExprWithSupply f supply m
   = m { moduleDecls = mapWithSupply fvalue supply (moduleDecls m) }

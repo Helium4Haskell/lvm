@@ -33,7 +33,7 @@ coreFreeVar m
 fvDeclExpr :: IdSet -> Expr -> Expr
 fvDeclExpr globals expr
   = let (expr',fv) = fvExpr globals expr
-    in if (isEmptySet fv)
+    in if isEmptySet fv
         then Note (FreeVar fv) expr'
         else trace ("warning: CoreFreeVar.fvDeclExpr: top-level binding with free variables: "
                       ++ show (listFromSet fv)) (Note (FreeVar fv) expr')
@@ -61,7 +61,7 @@ fvExpr globals expr
                (expr2',fv2)   = fvExpr globals e2
            in  (Ap expr1' expr2', unionSet fv1 fv2)
       Var x
-        -> if (elemSet x globals)
+        -> if elemSet x globals
             then (expr,emptySet)
             else (expr,insertSet x emptySet)
       Con (ConTag tag arity)
@@ -78,7 +78,7 @@ fvAlts :: IdSet -> Alts -> (Alts,IdSet)
 fvAlts globals alts
   = let alts' = mapAlts (\pat expr -> let (expr',fv)   = fvExpr globals expr                                          
                                       in  Alt pat (Note (FreeVar fv) expr')) alts
-        fvs   = unionSets (map (\(Alt pat expr) -> diffSet (freeVar expr) (patBinders pat)) (alts'))
+        fvs   = unionSets (map (\(Alt pat expr) -> diffSet (freeVar expr) (patBinders pat)) alts')
     in  (alts',fvs)
 
 fvBinds :: IdSet -> Binds -> (Binds,IdSet)
@@ -95,7 +95,7 @@ fvBinds globals binds
   where
     nonrec make x expr
       = let (expr',fv) = fvBindExpr globals expr
-        in if (elemSet x fv)
+        in if elemSet x fv
             then error "CoreFreeVar.fvBinds: non-recursive binding refers to itself? (do CoreNoShadow first?)"
             else (make (Bind x expr'),fv)
 

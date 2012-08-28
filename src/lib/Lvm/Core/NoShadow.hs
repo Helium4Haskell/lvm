@@ -18,6 +18,7 @@
 ----------------------------------------------------------------
 module Lvm.Core.NoShadow( coreNoShadow, coreRename ) where
 
+import Data.Maybe
 import Lvm.Common.Id     ( Id, freshIdFromId, NameSupply, splitNameSupply, splitNameSupplies )
 import Lvm.Common.IdMap  ( IdMap, emptyMap, lookupMap, extendMap )
 import Lvm.Common.IdSet  ( IdSet, emptySet, elemSet, insertSet )
@@ -50,9 +51,7 @@ renameBinder env@(Env supply set m) x cont
 
 renameVar :: Env -> Id -> Id
 renameVar (Env _ _ m) x
-  = case lookupMap x m of
-      Nothing -> x
-      Just x2 -> x2
+  = fromMaybe x (lookupMap x m)
 
 splitEnv :: Env -> (Env,Env)
 splitEnv (Env supply set m)
@@ -69,16 +68,13 @@ splitEnvs (Env supply set idmap)
 -- ie. no local variable shadows another variable
 ----------------------------------------------------------------
 coreNoShadow :: NameSupply -> CoreModule -> CoreModule
-coreNoShadow supply m
-  = mapExprWithSupply (nsDeclExpr emptySet) supply m
+coreNoShadow = mapExprWithSupply (nsDeclExpr emptySet)
 
 coreRename :: NameSupply -> CoreModule -> CoreModule
-coreRename supply m
-  = mapExprWithSupply (nsDeclExpr (globalNames m)) supply m
+coreRename supply m = mapExprWithSupply (nsDeclExpr (globalNames m)) supply m
 
 nsDeclExpr :: IdSet -> NameSupply -> Expr -> Expr
-nsDeclExpr inscope supply expr
-  = nsExpr (Env supply inscope emptyMap) expr
+nsDeclExpr inscope supply = nsExpr (Env supply inscope emptyMap)
 
 
 nsExpr :: Env -> Expr -> Expr
@@ -113,8 +109,7 @@ nsBinds env binds cont
         in cont env' (zipBindsWith (\env1 x1 rhs -> Bind x1 (nsExpr env1 rhs)) (splitEnvs env') binds')
 
 nsAlts :: Env -> Alts -> Alts
-nsAlts env alts
-  = zipAltsWith nsAlt (splitEnvs env) alts
+nsAlts = zipAltsWith nsAlt . splitEnvs
 
 nsAlt :: Env -> Pat -> Expr -> Alt
 nsAlt env pat expr

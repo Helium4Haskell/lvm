@@ -12,6 +12,7 @@
 module Lvm.Instr.Resolve( instrResolve ) where
 
 import Control.Exception ( assert )
+import Data.Maybe
 import Lvm.Common.IdMap   ( IdMap, emptyMap, lookupMap, extendMap )
 import Lvm.Common.Id
 import Lvm.Instr.Data
@@ -26,10 +27,9 @@ type Base           = Depth
 
 find :: Id -> IdMap a -> a
 find x env
-  = case lookupMap x env of
-     Nothing    -> error ("InstrResolve.find: unknown identifier " ++ show x)
-     Just d     -> d
-
+  = fromMaybe (error msg) (lookupMap x env)
+ where
+   msg = "InstrResolve.find: unknown identifier " ++ show x
 
 instance Functor Resolve where
   fmap f (R r)      = R (\ctx -> case r ctx of (x,d) -> (f x,d))
@@ -209,7 +209,7 @@ resolveAlts :: ([Alt] -> a) -> [Alt] -> Resolve [a]
 resolveAlts match alts
   = do{ pop 1
       ; d     <- depth
-      ; alts' <- sequence (map (alternative d . resolveAlt) alts)
+      ; alts' <- mapM (alternative d . resolveAlt) alts
       ; return [match alts']
       }
 
@@ -230,7 +230,7 @@ resolveAlt (Alt pat [])
 
 resolveAlt (Alt pat is)
   = do{ is' <- resolves is
-      ; return (Alt pat (is'))
+      ; return (Alt pat is')
       }
 
 effect :: Instr -> Resolve ()
@@ -258,7 +258,7 @@ effect instr
       GETSIZE          -> do{ pop 1; push 1 }
       UPDFIELD         -> do{ pop 3; push 1 }
 
-      RETURNCON con    -> do{ pop (arityFromCon con) }          -- it is the last instruction!
+      RETURNCON con    -> pop (arityFromCon con)        -- it is the last instruction!
 
       PUSHCODE _       -> push 1
       PUSHINT _        -> push 1

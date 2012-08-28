@@ -12,6 +12,7 @@
 module Lvm.Read( lvmReadFile, lvmRead ) where
 
 import Prelude hiding (Read)
+import Control.Monad
 import Data.Array
 import Lvm.Common.Id       ( stringFromId, idFromString, newNameSupply, freshId )
 import Lvm.Common.IdMap
@@ -57,9 +58,8 @@ lvmReadFile fname
       ; return (lvmRead ns fname bs)
       }
 
-lvmRead :: NameSupply -> FilePath -> [Byte] -> (Module v) 
-lvmRead ns fname bs
-  = runRead readModule ns fname bs
+lvmRead :: NameSupply -> FilePath -> [Byte] -> Module v
+lvmRead = runRead readModule 
 
 readModule :: Read v (Module v,[Record v])
 readModule
@@ -85,12 +85,12 @@ readRecords :: Int -> [Record v] -> Read v [Record v]
 readRecords total acc
   = do{ x     <- readRaw
       ; len   <- readint
-      ; if (x == recFooter)
+      ; if x == recFooter
          then do{ total' <- readint
                 ; readGuard (total==total') "readRecords" "footer doesn't match with header"
                 ; return (reverse acc)
                 }
-        else if (isInt x) 
+        else if isInt x
          then do{ let tag = decodeInt x 
                 ; rec_ <- case tag of
                           0     -> readName len
@@ -151,7 +151,7 @@ readImport len
 readKindIdx :: Read v DeclKind
 readKindIdx
   = do{ xkind <- readRaw
-      ; if (isInt xkind)
+      ; if isInt xkind
          then return (toEnum (decodeInt xkind))
          else do{ kindid <- resolveKindIdx (decodeIdx xkind)
                 ; return (DeclKindCustom kindid)
@@ -261,9 +261,9 @@ readAccess
 readCustom :: Read v Custom
 readCustom
   = do{ x <- readRaw
-      ; if (isInt x) 
+      ; if isInt x
          then return (CustomInt (decodeInt x))
-        else if (decodeIdx x == 0)
+        else if decodeIdx x == 0
          then return CustomNothing
          else resolve (decodeIdx x) recToCustom
       }
@@ -283,7 +283,7 @@ readCustom
 readNameIdx :: String -> Read v Id
 readNameIdx parent
   = do{ idx <- readIdx (parent ++ ".name")
-      ; if (idx == 0)
+      ; if idx == 0
          then readFreshId
          else resolve idx (\rec_ -> case rec_ of 
                               RecName x  -> x
@@ -293,7 +293,7 @@ readNameIdx parent
 readCustomNameIdx :: Read v (Maybe Id)
 readCustomNameIdx
   = do{ idx <- readIdx "custom name"
-      ; if (idx==0)
+      ; if idx==0
          then return Nothing
          else do{ x1 <- resolve idx (\rec_ -> case rec_ of 
                                                RecName x2  -> x2
@@ -304,10 +304,9 @@ readCustomNameIdx
 
 resolveKindIdx :: Index -> Read v Id
 resolveKindIdx idx
-  = do{ resolve idx (\rec_ -> case rec_ of 
-                              RecKind x  -> x
-                              _       -> error "LvmRead.resolveKindIdx: invalid kind index")
-      }
+  = resolve idx (\rec_ -> case rec_ of 
+                          RecKind x  -> x
+                          _       -> error "LvmRead.resolveKindIdx: invalid kind index")
 
 readModuleIdx :: Read v (Id, Int, Int)
 readModuleIdx 
@@ -341,7 +340,7 @@ readNameString idx
 readEnclosing :: Read a (Maybe Id)
 readEnclosing
   = do{ idx  <- readIdx "enclosing"
-      ; if (idx == 0) 
+      ; if idx == 0
           then return Nothing
           else resolve idx (\rec_ -> case rec_ of
                                      RecDecl d  | isDeclValue d || isDeclAbstract d -> Just (declName d)
@@ -354,7 +353,7 @@ readEnclosing
 readint :: Read v Int
 readint 
   = do{ i <- readRaw
-      ; readGuard (isInt i) "readint" ("expecting integer but found index")
+      ; readGuard (isInt i) "readint" "expecting integer but found index"
       ; return (decodeInt i)
       }
 readIdx :: String -> Read v Int
@@ -365,8 +364,8 @@ readIdx name
       }
 
 isInt, isIdx :: Int -> Bool
-isInt i = odd i
-isIdx i = even i
+isInt = odd
+isIdx = even
 
 decodeInt, decodeIdx :: Int -> Int
 decodeInt i = (i-1) `div` 2
@@ -387,7 +386,7 @@ data    State     = State ![Byte] !NameSupply
 unRead :: Read a b -> Env a -> State -> Result b
 unRead (Read r)   = r
 
-runRead :: Read v (a,[(Record v)]) -> NameSupply -> FilePath -> [Byte]-> a
+runRead :: Read v (a,[Record v]) -> NameSupply -> FilePath -> [Byte]-> a
 runRead (Read r) ns fname bs
   = let (Result (x,rs) _) = r (Env fname (listArray (1,length rs) rs)) (State bs ns)
     in x
@@ -418,8 +417,7 @@ readFreshId
   = Read (\_ (State bs ns) -> let (x,ns') = freshId ns in Result x (State bs ns'))
   
 readGuard :: Bool -> String -> String -> Read v ()
-readGuard test fun msg
-  = if (test) then return () else readError fun msg
+readGuard test fun = unless test . readError fun
 
 readError :: String -> String -> Read v a
 readError fun msg

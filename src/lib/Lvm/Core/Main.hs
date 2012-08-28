@@ -69,19 +69,19 @@ parse :: [String] -> String -> IO (Module Expr, String)
 parse path src
   = do{ res <- findSrc path src 
       ; case res of
-          Left source -> do{ messageLn ("parsing")
+          Left source -> do{ messageLn "parsing"
                            ; (m, implExps, es) <- coreParseExport source
                            ; messageDoc "parsed"  (pretty m)
-                           ; messageLn ("resolving imports")
+                           ; messageLn "resolving imports"
                            ; chasedMod  <- lvmImport (findModule path) m
-                           ; messageLn ("making exports public")
+                           ; messageLn "making exports public"
                            ; let publicmod = modulePublic implExps es chasedMod
                            ; return (publicmod,source)
                            }
-          Right source ->do{ messageLn ("parsing")
+          Right source ->do{ messageLn "parsing"
                            ; m <- parseModule source
                            ; messageDoc "parsed"  (pretty m)
-                           ; messageLn ("resolving imports")
+                           ; messageLn "resolving imports"
                            ; chasedMod  <- lvmImport (findModule path) m
                            ; return (chasedMod,source)
                            }
@@ -95,11 +95,11 @@ compile src
       
       ; (m,source) <- parse path src
       
-      ; messageLn ("remove dead declarations")
+      ; messageLn "remove dead declarations"
       ; let coremod = coreRemoveDead m
 
       ; nameSupply  <- newNameSupply
-      ; messageLn ("generating code")
+      ; messageLn "generating code"
       ; let asmmod  = coreToAsm nameSupply coremod
             asmopt  = asmOptimize asmmod
             lvmmod  = asmToLvm  asmopt
@@ -109,7 +109,7 @@ compile src
 --      ; messageDoc "assembler (optimized)"    (asmPretty asmopt)
       ; messageDoc "instructions" (pretty lvmmod)
 
-      ; let target  = (reverse (dropWhile (/='.') (reverse source)) ++ "lvm")
+      ; let target  = reverse (dropWhile (/='.') (reverse source)) ++ "lvm"
       ; messageLn  ("writing    : " ++ showFile target)
       ; lvmWriteFile target lvmmod
 
@@ -134,7 +134,7 @@ messageLn s
   
 messageDoc :: (Show a, Monad m) => String -> a -> m ()
 messageDoc h d 
-  = do{ message (unlines $ ["",line, h, line])
+  = do{ message (unlines ["",line, h, line])
        ; message (show d)
        }
 
@@ -142,5 +142,4 @@ line :: String
 line = replicate 40 '-'
 
 showFile :: String -> String
-showFile = map (\c -> if (c == '\\') then '/' else c)
-
+showFile = map (\c -> if c == '\\' then '/' else c)

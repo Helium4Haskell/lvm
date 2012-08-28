@@ -36,6 +36,7 @@ import qualified Data.IntMap as IntMap
 import Lvm.Common.Id( Id, intFromId, idFromInt
          , NameSupply, splitNameSupply
          )
+import Control.Arrow (first)
 
 ----------------------------------------------------------------
 -- IdMap
@@ -43,7 +44,7 @@ import Lvm.Common.Id( Id, intFromId, idFromInt
 newtype IdMap a = IdMap (IntMap.IntMap a)
 
 emptyMap :: IdMap a
-emptyMap = IdMap (IntMap.empty)
+emptyMap = IdMap IntMap.empty
 
 singleMap :: Id -> a -> IdMap a
 singleMap x a = insertMap x a emptyMap
@@ -106,10 +107,10 @@ findMap x = fromMaybe (error msg) . lookupMap x
 
 listFromMap :: IdMap a -> [(Id,a)]
 listFromMap (IdMap idmap)
-  = map (\(i,x) -> (idFromInt i,x)) (IntMap.toList idmap)
+  = map (first idFromInt) (IntMap.toList idmap)
 
 mapFromList :: [(Id,a)] -> IdMap a
-mapFromList = IdMap . IntMap.fromList . map (\(x,y) -> (intFromId x,y))
+mapFromList = IdMap . IntMap.fromList . map (first intFromId)
 
 diffMap :: IdMap a -> IdMap a -> IdMap a
 diffMap (IdMap map1) (IdMap map2)
@@ -123,10 +124,10 @@ unionMap (IdMap map1) (IdMap map2)
 
 unionMapWith :: (a->a->a) -> IdMap a -> IdMap a -> IdMap a
 unionMapWith f (IdMap map1) (IdMap map2)
-  = IdMap (IntMap.unionWith (\x y -> f x y) map1 map2)
+  = IdMap (IntMap.unionWith f map1 map2)
 
 unionlMap :: IdMap a -> IdMap a -> IdMap a
-unionlMap (IdMap map1) (IdMap map2) = IdMap (IntMap.union map1 map2)
+unionlMap (IdMap map1) (IdMap map2) = IdMap (map1 `IntMap.union` map2)
 
 unionMaps :: [IdMap a] -> IdMap a
 unionMaps = foldr unionMap emptyMap

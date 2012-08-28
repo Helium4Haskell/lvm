@@ -273,8 +273,8 @@ ppExternName libName extName
       Decorate name -> text "decorate" <+> ppQual name
       Ordinal i     -> ppQual (show i)
   where
-    ppQual name   = (if (null libName) then empty
-                                       else ppConId (idFromString libName) <> char '.' )
+    ppQual name   = (if null libName then empty
+                                     else ppConId (idFromString libName) <> char '.' )
                     <> ppVarId (idFromString name)
 
 ppExternType :: CallConv -> String -> Doc
@@ -291,10 +291,10 @@ ppAttrs = ppAttrsEx False
 
 ppAttrsEx :: Bool -> Decl a -> Doc
 ppAttrsEx hideImp decl
-  = if (null (declCustoms decl) && not (accessPublic (declAccess decl)))
+  = if null (declCustoms decl) && not (accessPublic (declAccess decl))
      then empty
      else text ":" <+> ppAccess (declAccess decl) 
-          <+> (if (not hideImp) then ppImportAttr (declAccess decl) else empty) 
+          <+> (if not hideImp then ppImportAttr (declAccess decl) else empty) 
           <> pretty (declCustoms decl)
 
 ppAccess :: Access -> Doc

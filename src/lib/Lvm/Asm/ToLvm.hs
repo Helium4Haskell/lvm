@@ -52,9 +52,9 @@ cgExpr env expr
   = case expr of
       -- optimized schemes
       Eval id1 (Note (Occur Once) e1) (Match id2 alts)  | id1 == id2 && whnf env e1
-                        -> [ATOM (cgExpr env e1)] ++ cgMatch env alts
+                        -> ATOM (cgExpr env e1) : cgMatch env alts
       Eval id1 (Note (Occur Once) e1) (Match id2 alts)  | id1 == id2 
-                        -> [EVAL 0 [ATOM (cgExpr env e1),ENTER]] ++ cgMatch env alts
+                        -> EVAL 0 [ATOM (cgExpr env e1),ENTER] : cgMatch env alts
       Eval x e1 e2     | whnf env e1
                         -> [ATOM (cgExpr env e1),VAR x] ++ cgExpr env e2
       Eval id1 e1 (Ap id2 []) | id1 == id2
@@ -67,7 +67,7 @@ cgExpr env expr
       Match x alts      -> cgVar env x ++ cgMatch env alts
       Prim x args       -> cgPrim env x args
       Note _ e          -> cgExpr env e
-      atom              -> (cgAtom env atom)
+      atom              -> cgAtom env atom
 
 {---------------------------------------------------------------
  let bindings
@@ -157,7 +157,7 @@ cgAlt env (Alt pat expr)
       PatLit (LitInt i) 
           -> Instr.Alt (Instr.PatInt i) [ATOM (cgExpr env expr)]
       PatVar x         
-          -> Instr.Alt (Instr.PatDefault) [ATOM ([PARAM x] ++ cgExpr env expr)]
+          -> Instr.Alt Instr.PatDefault [ATOM (PARAM x : cgExpr env expr)]
       _             
           -> error "AsmToCode.cgAlt: unknown pattern"
 
@@ -172,7 +172,7 @@ cgAltTag env (Alt pat expr)
              in Instr.Alt (Instr.PatTag tag arity)
                        [ATOM (map PARAM (reverse params) ++ cgExpr env expr)]
       PatVar x         
-          -> Instr.Alt (Instr.PatDefault) [ATOM ([PARAM x] ++ cgExpr env expr)]
+          -> Instr.Alt Instr.PatDefault [ATOM (PARAM x : cgExpr env expr)]
       _             
           -> error "AsmToCode.cgAltTag: invalid pattern"
 
@@ -185,15 +185,15 @@ cgPrim env x args
   = case lookupInstr x env of
       Nothing    -> case lookupGlobal x env of
                       Nothing    -> error ("AsmToCode.cgPrim: unknown primitive " ++ show x)
-                      Just arity -> if (arity /= length args)
+                      Just arity -> if arity /= length args
                                      then error ("AsmToCode.cgPrim: unsaturated primitive " ++ show x)
                                      else result (CALL (Global x 0 arity))
       Just instr
          | isCATCH instr -> case args of
                             [handler,atom] -> let y = idFromString "@catch@" in
                                               cgAtom env handler ++ 
-                                              [CATCH [EVAL 0 ((cgAtom env atom)++[ENTER]),VAR y]]
-                            _              -> error ("AsmToCode.cgPrim: CATCH expects 2 arguments")
+                                              [CATCH [EVAL 0 (cgAtom env atom ++[ENTER]),VAR y]]
+                            _              -> error "AsmToCode.cgPrim: CATCH expects 2 arguments"
          | otherwise -> result instr
   where
     result instr  = [ATOM (cgArgs env args ++ [instr])]
@@ -226,7 +226,7 @@ cgAtom' env atom
                   -> [EVAL 0 [ATOM (cgExpr env e1), ENTER], VAR x] ++ cgAtom' env e2
 
 
-      _           -> error ("AsmToCode.cgAtom: non-atomic expression encountered")
+      _           -> error "AsmToCode.cgAtom: non-atomic expression encountered"
 
 cgArgs :: Env -> [Atom] -> [Instr]
 cgArgs env args
@@ -303,7 +303,7 @@ conFromId x argcount env
 tagArityFromId :: Id -> Arity -> Env -> (Tag, Arity)
 tagArityFromId x argcount env
   = case lookupMap x (consMap env) of
-      Just (tag,arity)  -> if (arity /= argcount)
+      Just (tag,arity)  -> if arity /= argcount
                             then error ("AsmToCode.conFromId: unsaturated constructor " ++ show x)
                             else (tag,arity)
       Nothing           -> error ("AsmToCode.conFromId: undeclared constructor " ++ show x)

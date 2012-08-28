@@ -15,13 +15,11 @@ module Lvm.Core.Data
    , Alts, Alt(..), Pat(..), Literal(..), Con(..)
    ) where
 
-import Lvm.Common.Byte   ( Bytes )
 import Lvm.Common.Id     ( Id )
 import Lvm.Core.Module
-import Lvm.Common.IdSet  ( IdSet )
 import Text.PrettyPrint.Leijen
-import Lvm.Common.Byte         ( stringFromBytes )
-import Lvm.Common.IdSet        ( listFromSet )
+import Lvm.Common.Byte         ( Bytes, stringFromBytes )
+import Lvm.Common.IdSet        ( IdSet, listFromSet )
 import Lvm.Core.PrettyId ( ppId, ppVarId, ppConId )
 
 ----------------------------------------------------------------
@@ -86,7 +84,7 @@ ppExpr p expr
       Lit lit     -> pretty lit
       Note n e  -> 
          case n of
-            FreeVar fv -> align (text "{" <+> sep (map (ppVarId ) (listFromSet fv)) <+> text "}"
+            FreeVar fv -> align (text "{" <+> sep (map ppVarId (listFromSet fv)) <+> text "}"
                              <$> ppExpr p e)
   where
     prec p'  | p' >= p   = id
@@ -132,7 +130,7 @@ instance Pretty Alt where
 instance Pretty Pat where 
    pretty pat = 
       case pat of
-         PatCon con ids -> hsep (pretty con : map (ppVarId) ids)
+         PatCon con ids -> hsep (pretty con : map ppVarId ids)
          PatLit lit  -> pretty lit
          PatDefault  -> text "_"
 

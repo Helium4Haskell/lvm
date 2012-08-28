@@ -16,6 +16,7 @@
 module Lvm.Core.Saturate( coreSaturate ) where
 
 import Data.List   ( mapAccumR )
+import Data.Maybe
 import Lvm.Common.Id     ( Id, NameSupply, freshId, splitNameSupply, splitNameSupplies )
 import Lvm.Common.IdMap  ( IdMap, lookupMap, mapFromList )
 import Lvm.Core.Data
@@ -33,9 +34,7 @@ uniqueId (Env supply arities)
 
 findArity :: Id -> Env -> Int
 findArity x (Env _ arities)
-  = case lookupMap x arities of
-      Nothing -> 0
-      Just n  -> n
+  = fromMaybe 0 (lookupMap x arities)
 
 splitEnv :: Env -> (Env, Env)
 splitEnv (Env supply arities)
@@ -44,7 +43,7 @@ splitEnv (Env supply arities)
 
 splitEnvs :: Env -> [Env]
 splitEnvs (Env supply arities)
-  = map (\s -> Env s arities) (splitNameSupplies supply)
+  = map (`Env` arities) (splitNameSupplies supply)
 
 ----------------------------------------------------------------
 -- coreSaturate
@@ -57,8 +56,7 @@ coreSaturate supply m
 
 
 satDeclExpr :: IdMap Int -> NameSupply -> Expr -> Expr
-satDeclExpr arities supply expr
-  = satExpr (Env supply arities) expr
+satDeclExpr arities supply = satExpr (Env supply arities)
 
 ----------------------------------------------------------------
 -- saturate expressions

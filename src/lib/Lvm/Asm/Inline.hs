@@ -16,6 +16,7 @@ import Lvm.Core.Module   ( mapValues )
 
 import Lvm.Asm.Data
 import Lvm.Asm.Occur ( asmOccur )
+import Data.Maybe
 
 {---------------------------------------------------------------
   Inline environment maps identifiers to their definition
@@ -58,12 +59,12 @@ inlineExpr env expr
       -- inline-able let! binding?
       Eval x (Note (Occur Once) e1) e2  
                     -> let e1' = inlineExpr env e1 -- de-annotate
-                       in if (firstuse x e2)
+                       in if firstuse x e2
                            -- firstuse is true, we can inline immediately
                            then let env' = extendMap x (Eval x e1' (Ap x [])) env  -- NOTE: should we use a fresh id?
                                 in inlineExpr env' e2
                            else let e2'  = inlineExpr env e2
-                                in if (firstuse x e2')
+                                in if firstuse x e2'
                                     -- firstuse became true after inlining! re-inline this definition again (is this too expensive?)
                                     then let env' = extendMap x (Eval x e1' (Ap x [])) emptyMap  -- NOTE: should we use a fresh id?
                                          in inlineExpr env' e2'
@@ -86,9 +87,7 @@ inlineExpr env expr
                                     Eval x (Note (Occur Once) e) (Match x (inlineAlts env alts))
                          Nothing -> Match x (inlineAlts env alts)
 
-      Ap x []       -> case lookupMap x env of
-                         Just e   -> e
-                         Nothing  -> Ap x []
+      Ap x []       -> fromMaybe (Ap x []) (lookupMap x env)
       Ap x args     -> let args0 = inlineExprs env args
                        in case lookupMap x env of
                             Just e   -> case e of
@@ -178,7 +177,7 @@ first x c expr
       Match _ _     -> False
       Prim _ args   -> firsts x False args
       Ap y args    | null args && y == x -> True
-                   | not (null args)      -> firsts x c ([Ap y []] ++ args)
+                   | not (null args)     -> firsts x c (Ap y [] : args)
       Con _ args    -> firsts x c args
       Note _ e      -> first x c e
       _             -> c

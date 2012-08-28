@@ -12,12 +12,14 @@
 module Lvm.Write( lvmWriteFile, lvmToBytes ) where
 
 import Control.Exception (assert)
+import Control.Monad
 import Lvm.Common.Id       ( Id, stringFromId )
 import Lvm.Common.IdMap    ( IdMap, emptyMap, insertMapWith, lookupMap )
 import System.Exit   ( exitWith, ExitCode(..))
 import Lvm.Common.Byte
 import Lvm.Instr.Data
 import Lvm.Data
+import Data.Maybe
 
 {--------------------------------------------------------------
   Magic numbers
@@ -77,7 +79,7 @@ emitLvmModule m
   allocation of named blocks first and than emit to fix this.
 --------------------------------------------------------------}
 flags :: Access -> Int
-flags access    = if (accessPublic access) then 1 else 0
+flags access = if accessPublic access then 1 else 0
 
 isImported :: Decl v -> Bool
 isImported decl
@@ -101,7 +103,7 @@ emitDecl decl
 
 emitDValue :: Decl [Instr] -> Emit Index
 emitDValue (DeclValue x access mbEnc instrs custom)
-  = do{ idxEnc  <- maybe (return 0) (\y -> findIndex DeclKindValue y) mbEnc
+  = do{ idxEnc  <- maybe (return 0) (findIndex DeclKindValue) mbEnc
       ; idxCode <- emitInstrs instrs
       ; emitNamedBlock x DeclKindValue [encodeInt (flags access), encodeInt arity
                                         ,encodeIdx idxEnc, encodeIdx idxCode] custom
@@ -210,9 +212,9 @@ emit instr
       RESULT _                -> illegal
 
       -- structured instructions
-      MATCH alts              -> [opcode] ++ emitMatch 3 alts
-      MATCHCON alts           -> [opcode] ++ emitMatch 2 alts
-      MATCHINT alts           -> [opcode] ++ emitMatch 2 alts
+      MATCH alts              -> opcode : emitMatch 3 alts
+      MATCHCON alts           -> opcode : emitMatch 2 alts
+      MATCHINT alts           -> opcode : emitMatch 2 alts
       SWITCHCON _             -> todo
 
       EVAL _ is               -> let scrut = emits is
@@ -291,7 +293,7 @@ emitMatch entrySize alts
              PatInt i   -> [i]
              PatTag t a -> [t,a]
              PatDefault -> [])
-          ++ [if (n==0) then 0 else top] ++ matches (top+n) xs
+          ++ [if n==0 then 0 else top] ++ matches (top+n) xs
 
 
 normalizedAlts :: [Alt] -> Bool
@@ -332,7 +334,7 @@ resolve instr
       RETURNCON con   -> resolveCon RETURNCON con
       ALLOCCON con    -> resolveCon ALLOCCON con
       NEWCON con      -> resolveCon NEWCON con
-      PACKCON con var -> resolveCon (\c -> PACKCON c var) con
+      PACKCON con var -> resolveCon (`PACKCON` var) con
 
       PUSHBYTES bs _  -> resolveBytes (PUSHBYTES bs) bs
 
@@ -346,8 +348,7 @@ resolve instr
       _               -> return instr
 
 resolveAlts :: ([Alt] -> a) -> [Alt] -> Emit a
-resolveAlts f alts
-  = do{ alts' <- sequence (map resolveAlt alts); return (f alts') }
+resolveAlts f = liftM f . mapM resolveAlt
 
 resolveAlt :: Alt -> Emit Alt
 resolveAlt (Alt pat is)
@@ -409,8 +410,7 @@ emitBytes bs
   = emitBlock Nothing DeclKindBytes (blockBytes bs) []
 
 emitBlock :: Maybe Id -> DeclKind -> Bytes -> [Custom] -> Emit Index
-emitBlock mbId kind bs custom
-  = emitBlockEx mbId kind kind bs custom
+emitBlock mbId kind = emitBlockEx mbId kind kind
 
 emitBlockEx :: Maybe Id -> DeclKind -> DeclKind -> Bytes -> [Custom] -> Emit Index
 emitBlockEx mbId kindId kind bs custom
@@ -452,8 +452,8 @@ emitCustom custom
       CustomDecl kind cs  -> do{ idx <- emitAnonymousCustom kind cs; return (encodeIdx idx) }
 
 emitAnonymousCustom :: DeclKind -> [Custom] -> Emit Index
-emitAnonymousCustom kind custom
-  = emitBlock Nothing kind (block [encodeIdx 0]) custom
+emitAnonymousCustom kind
+  = emitBlock Nothing kind (block [encodeIdx 0])
 
 
 {--------------------------------------------------------------
@@ -514,10 +514,10 @@ findIndex kind x
   = Emit (\env st ->
           (case lookupMap x env of
              Nothing  -> error ("LvmWrite.findIndex: undeclared identifier: " ++ show (stringFromId x))
-             Just xs  -> case lookup kind xs of
-                           Nothing  -> error ("LvmWrite.findIndex: undeclared identifier (with the right declaration kind): " ++ show (stringFromId x))
-                           Just idx -> (idx)
+             Just xs  -> fromMaybe (error msg) (lookup kind xs)
           , st))
+ where
+   msg = "LvmWrite.findIndex: undeclared identifier (with the right declaration kind): " ++ show (stringFromId x)
 
 
 
@@ -539,9 +539,9 @@ blockBytes bs
 
 padding :: Int -> Bytes
 padding n
-  = let m = (div (n + 3) 4) * 4
+  = let m = div (n + 3) 4 * 4
     in bytesFromList (replicate (m - n) (byteFromInt8 0))
 
 encodeInt, encodeIdx :: Int -> Int
 encodeInt i = (2*i)+1
-encodeIdx i = (2*i)
+encodeIdx i = 2*i

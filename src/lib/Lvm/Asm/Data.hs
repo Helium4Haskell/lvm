@@ -15,11 +15,10 @@ module Lvm.Asm.Data
    , Lit(..), Alt(..), Pat(..), Con(..)
    ) where
 
-import Lvm.Common.Byte   ( Bytes )
 import Lvm.Common.Id     ( Id )
 import Lvm.Core.Module
 import Text.PrettyPrint.Leijen
-import Lvm.Common.Byte         ( stringFromBytes )
+import Lvm.Common.Byte         ( Bytes, stringFromBytes )
 
 {---------------------------------------------------------------
   Asm modules
@@ -76,8 +75,7 @@ instance Pretty Expr where
    pretty = ppExprWith id
 
 ppArg :: Expr -> Doc
-ppArg expr
-  = ppExprWith parens expr
+ppArg = ppExprWith parens
 
 ppExprWith :: (Doc -> Doc) -> Expr -> Doc
 ppExprWith pars expr
@@ -87,7 +85,7 @@ ppExprWith pars expr
       Eval x e e'    -> pars $ align $ hang 7 (text "let!" <+> pretty x <+> text "=" </> pretty e) 
                                        <$> nest 3 (text "in" <+> pretty e')
       Match x alts   -> pars $ align $ hang 2 (text "match" <+> pretty x <+> text "with" <$> vcat (map pretty alts))
-      Prim x args    -> pars $ text "prim" <> char '[' <> (pretty x) <+> hsep (map ppArg args) <> char ']'
+      Prim x args    -> pars $ text "prim" <> char '[' <> pretty x <+> hsep (map ppArg args) <> char ']'
       Ap x []        -> pretty x
       Ap x args      -> pars $ pretty x <+> hsep (map ppArg args)
       Con con []     -> pretty con

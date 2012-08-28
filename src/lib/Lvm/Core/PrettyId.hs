@@ -31,7 +31,7 @@ ppString s
 
 ppEscapeId :: (Char -> Bool) -> Char -> Id -> Doc
 ppEscapeId isValid c x
-  = if (not (isReserved x) && firstOk && ordinary)
+  = if not (isReserved x) && firstOk && ordinary
      then text name
      else char c <> text (concatMap escapeId name) <> char ' '
   where
@@ -70,7 +70,7 @@ isReserved = (`elemSet` reserved)
   
 reserved :: IdSet
 reserved
-  = setFromList $ map idFromString $
+  = setFromList $ map idFromString
     ["module","where"
     ,"import","abstract","extern"
     ,"custom","val","con"

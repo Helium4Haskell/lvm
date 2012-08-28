@@ -96,22 +96,22 @@ pdecl
       ; special "="
       ; free <- option [] (curlies (many varid))
       ; expr <- pexpr
-      ; let body = if (null free) then expr else Note (FreeVar (setFromList free)) expr
+      ; let body = if null free then expr else Note (FreeVar (setFromList free)) expr
       ; return (Bind name (foldr Lam body args))
       }
 
 plet :: Parser ([Bind] -> Expr -> Expr)
 plet
   = do{ reserved "val"
-      ; return (\binds body -> foldr (\bind x -> Let (NonRec bind) x) body binds)
+      ; return $ flip $ foldr (Let . NonRec)
       }
   <|>
     do{ special "!"
-      ; return (\binds body -> foldr (\bind x -> Let (Strict bind) x) body binds)
+      ; return $ flip $ foldr (Let . Strict)
       }
   <|>
     do{ optional (reserved "rec")
-      ; return (\binds body -> Let (Rec binds) body)
+      ; return (Let . Rec)
       }
 
 fexpr :: Parser Expr
@@ -188,7 +188,7 @@ lcurly    = special "{"
 rcurly    = special "}"
 
 sepTermBy1 :: Parser a -> Parser () -> Parser [a]
-sepTermBy1 p sep = sepEndBy1 p sep
+sepTermBy1 = sepEndBy1
 
 termBy :: Parser a -> Parser () -> Parser [a]
 termBy p sep = many (do{ x <- p; sep; return x })

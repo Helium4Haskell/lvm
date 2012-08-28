@@ -17,7 +17,7 @@
 module Lvm.Core.Lift ( coreLift ) where
 
 import Data.List (foldl') 
-
+import Data.Maybe
 import Lvm.Common.Id      ( Id )
 import Lvm.Common.IdMap   ( IdMap, elemMap, extendMap, lookupMap, emptyMap )
 import Lvm.Common.IdSet   ( IdSet, elemSet, listFromSet, emptySet, foldSet
@@ -37,13 +37,10 @@ elemFree (Env _ env) x
 
 lookupFree :: Env -> Id -> [Id]
 lookupFree (Env _ env) x
-  = case lookupMap x env of
-      Nothing -> []
-      Just fv -> fv
+  = fromMaybe [] (lookupMap x env)
 
 isPrimitive :: Env -> Id -> Bool
-isPrimitive (Env prim _) x
-  = elemSet x prim
+isPrimitive (Env prim _) = (`elemSet` prim)
 
 extendFree :: Env -> Id -> [Id] -> Env
 extendFree (Env prim env) x fv
@@ -123,8 +120,8 @@ addLambdas _ _ _
   = error "CoreLift.addLambdas: no free variable annotation. Do coreFreeVar first?"
 
 insertLifted :: Env -> (Bind, [Id]) -> Env
-insertLifted env ((Bind x expr),fv)
-  = if (isAtomExpr env expr) --  || isValueExpr expr)
+insertLifted env (Bind x expr,fv)
+  = if isAtomExpr env expr --  || isValueExpr expr)
      then env
      else extendFree env x fv
 
@@ -135,7 +132,7 @@ removeLifted env = filter (not . elemFree env)
 fixMutual :: [(Id,IdSet)] -> [(Id,IdSet)]
 fixMutual fvmap
   = let fvmap' = map addMutual fvmap
-    in  if (size fvmap' == size fvmap)
+    in  if size fvmap' == size fvmap
          then fvmap
          else fixMutual fvmap'
   where
@@ -153,7 +150,7 @@ fixMutual fvmap
 
 liftedFreeVar :: Env -> IdSet -> IdSet
 liftedFreeVar env fv
-  = unionSet fv (setFromList (concat (map (lookupFree env) (listFromSet fv))))
+  = unionSet fv (setFromList (concatMap (lookupFree env) (listFromSet fv)))
 
 freeVarSet :: Expr -> IdSet
 freeVarSet (Note (FreeVar fv) _) = fv

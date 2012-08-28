@@ -53,7 +53,7 @@ coreRemoveDead m
     -- in other modules
     used  = foldl' usageDecl alwaysUsed (moduleDecls m)
 
-    alwaysUsed = Set.fromList $ map (\name -> (DeclKindValue,idFromString name)) $
+    alwaysUsed = Set.fromList $ map (\name -> (DeclKindValue,idFromString name))
                  ["main$","main"]
     
 ----------------------------------------------------------------
@@ -61,7 +61,7 @@ coreRemoveDead m
 ----------------------------------------------------------------
 isUsed :: Used -> CoreDecl -> Bool
 isUsed used decl
-  = (accessPublic (declAccess decl) || Set.member (declIdentity decl) used) 
+  = accessPublic (declAccess decl) || Set.member (declIdentity decl) used
 
 
 ----------------------------------------------------------------
@@ -72,7 +72,7 @@ usageDecl used decl
   = let usedCustoms = usageCustoms used (declCustoms decl)
     in case decl of
          DeclValue{} -> let usedExpr = usageValue usedCustoms (valueValue decl)
-                            usedEnc  = case (valueEnc decl) of
+                            usedEnc  = case valueEnc decl of
                                         Just x  -> Set.insert (DeclKindValue,x) usedExpr
                                         Nothing  -> usedExpr
                          in usedEnc

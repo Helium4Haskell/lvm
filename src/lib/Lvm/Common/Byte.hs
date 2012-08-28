@@ -46,7 +46,7 @@ instance Show Bytes where
   show bs     = show (listFromBytes bs)
 
 instance Eq Bytes where
-  bs1 == bs2  = (listFromBytes bs1) == (listFromBytes bs2)
+  bs1 == bs2  = listFromBytes bs1 == listFromBytes bs2
 
 {----------------------------------------------------------------
   conversion to bytes
@@ -67,11 +67,11 @@ stringFromBytes
 
 bytesFromInt32 :: Int -> Bytes    -- 4 byte big-endian encoding
 bytesFromInt32 i
-  = let n0 = if i < 0 then (max32+i+1) else i
+  = let n0 = if i < 0 then max32+i+1 else i
         n1 = div n0 256
         n2 = div n1 256
         n3 = div n2 256
-        xs = map (byteFromInt8 . (flip mod) 256) [n3,n2,n1,n0]
+        xs = map (byteFromInt8 . flip mod 256) [n3,n2,n1,n0]
     in bytesFromList xs
 
 max32 :: Int 
@@ -147,12 +147,10 @@ int32FromByte4 n0 n1 n2 n3
 
 
 stringFromByteList :: [Byte] -> String
-stringFromByteList bs
-  = map (toEnum . fromEnum) bs
+stringFromByteList = map (toEnum . fromEnum)
 
 bytesFromByteList :: [Byte] -> Bytes
-bytesFromByteList bs
-  = bytesFromList bs
+bytesFromByteList = bytesFromList
 
 readByteList :: FilePath -> IO [Byte]
 readByteList path 

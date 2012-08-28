@@ -24,7 +24,7 @@ import Lvm.Read  ( lvmReadFile )
   lvmImport: replace all import declarations with
   abstract declarations or constructors/externs/customs
 --------------------------------------------------------------}
-lvmImport :: (Id -> IO FilePath) -> (Module v) -> IO (Module v)
+lvmImport :: (Id -> IO FilePath) -> Module v -> IO (Module v)
 lvmImport findModule m
   = do{ mods <- lvmImportModules findModule m
       ; let mods0 = lvmExpandModule mods (moduleName m) 
@@ -34,29 +34,25 @@ lvmImport findModule m
       }
 
 lvmImportDecls :: (Id -> IO FilePath) -> [Decl v] -> IO [[Decl v]]
-lvmImportDecls findModule importDecls =
-    mapM
-        (\importDecl -> do
-            m <- lvmImport findModule $
-                Module.Module
-                    { Module.moduleName     = idFromString "Main"
-                    , Module.moduleMajorVer = 0
-                    , Module.moduleMinorVer = 0
-                    , Module.moduleDecls    = [importDecl]
-                    }
-            return (moduleDecls m)
-        )
-        importDecls
+lvmImportDecls findModule = mapM $ \importDecl -> do
+   m <- lvmImport findModule
+       Module.Module
+           { Module.moduleName     = idFromString "Main"
+           , Module.moduleMajorVer = 0
+           , Module.moduleMinorVer = 0
+           , Module.moduleDecls    = [importDecl]
+           }
+   return (moduleDecls m)
 
 {--------------------------------------------------------------
   lvmImportModules: 
     recursively read all imported modules
 --------------------------------------------------------------}
-lvmImportModules :: (Id -> IO FilePath) -> (Module v) -> IO (IdMap (Module v))
+lvmImportModules :: (Id -> IO FilePath) -> Module v -> IO (IdMap (Module v))
 lvmImportModules findModule m
   = readModuleImports findModule emptyMap (moduleName m) m
     
-readModuleImports :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> (Module v) -> IO (IdMap (Module v))
+readModuleImports :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> Module v -> IO (IdMap (Module v))
 readModuleImports findModule loaded x m
   = foldM (readModule findModule) (insertMap x m loaded) (imported m)
 
@@ -115,7 +111,7 @@ resolveImports loaded (modid, m)
 
 resolveImport :: [Id] -> Id -> IdMap (Module v) -> Decl v -> IdMap (Module v)
 resolveImport visited modid loaded imp@(DeclImport x access@(Imported _ imodid impid kind _ _) _)
-  | elem modid visited = error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
+  | modid `elem` visited = error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
   | otherwise = 
     let m = findMap modid loaded in 
     case lookupMap imodid loaded of
@@ -128,7 +124,7 @@ resolveImport visited modid loaded imp@(DeclImport x access@(Imported _ imodid i
                                         [d] -> let loaded' = resolveImport (modid:visited) imodid loaded d
                                                in resolveImport (imodid:visited) modid loaded' imp
                                         _   -> ambigious imodid impid
-                               [d] -> update m { moduleDecls = d{declName=x,declAccess = access} : (moduleDecls m)}
+                               [d] -> update m { moduleDecls = d{declName=x,declAccess = access} : moduleDecls m}
                                _   -> ambigious imodid impid
   where
     update m = updateMap modid m loaded

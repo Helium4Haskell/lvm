@@ -21,6 +21,7 @@ module Lvm.Instr.Data ( Instr(..)
             ) where
 
 import Data.Char     ( toUpper )
+import Data.Maybe
 import Lvm.Common.Id       ( Id, dummyId )
 import Lvm.Common.Byte     ( Bytes, mempty, stringFromBytes )
 import Text.PrettyPrint.Leijen
@@ -316,25 +317,23 @@ ppBytes = dquotes . string . stringFromBytes
 -- Instruction instances
 ----------------------------------------------------------------
 instance Enum Instr where
-  fromEnum  instr     = enumFromInstr instr
-  toEnum _            = error "Code.toEnum: undefined for instructions"
+  fromEnum = enumFromInstr
+  toEnum _ = error "Code.toEnum: undefined for instructions"
 
 instance Eq Instr where
-  instr1 == instr2    = (fromEnum instr1 == fromEnum instr2)
+  instr1 == instr2    = fromEnum instr1 == fromEnum instr2
 
 instance Ord Instr where
   compare instr1 instr2  = compare (fromEnum instr1) (fromEnum instr2)
-
 
 ----------------------------------------------------------------
 -- Instruction names
 ----------------------------------------------------------------
 instrFromName :: String -> Instr
 instrFromName name
-  = case lookup (map toUpper name) instrNames of
-      Nothing -> error ("Code.instrFromName: unknown instruction name: " ++ name)
-      Just i  -> i
+  = fromMaybe (error msg) (lookup (map toUpper name) instrNames)
   where
+    msg = "Code.instrFromName: unknown instruction name: " ++ name
     instrNames
       = [ ("CATCH", CATCH [])
         , ("RAISE", RAISE)
@@ -405,14 +404,14 @@ strictResult instr   = instr `elem` strictList
 ----------------------------------------------------------------
 instrFromOpcode :: Int -> Instr
 instrFromOpcode i
-  | i >= length instrTable  = error ("Instr.instrFromOpcode: illegal opcode")
+  | i >= length instrTable  = error "Instr.instrFromOpcode: illegal opcode"
   | otherwise               = instrTable !! i
 
 opcodeFromInstr :: Instr -> Int
 opcodeFromInstr instr
   = walk 0 instrTable
   where
-    walk _   []     = error ("Instr.opcodeFromInstr: no opcode defined for this instruction")
+    walk _   []     = error "Instr.opcodeFromInstr: no opcode defined for this instruction"
     walk opc (i:is) | instr == i  = opc
                     | otherwise   = (walk $! (opc+1)) is
 

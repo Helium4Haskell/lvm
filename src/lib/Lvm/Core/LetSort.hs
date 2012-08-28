@@ -21,7 +21,8 @@ import Lvm.Common.Id       ( Id )
 import Lvm.Common.IdSet    ( IdSet, elemSet, foldSet )
 import Lvm.Core.Data
 import Lvm.Core.Utils
-
+import Data.Maybe
+import Control.Arrow (second)
 
 ----------------------------------------------------------------
 -- coreLetSort
@@ -63,10 +64,10 @@ sortBinds :: Binds -> [Binds]
 sortBinds (Rec bindsrec)
   = let binds  = map (\(Bind x rhs) -> (x,rhs)) bindsrec
         names  = zip (map fst binds) [0..]
-        edges  = concat (map (depends names) binds)
+        edges  = concatMap (depends names) binds
         sorted = topSort (length names-1) edges
         binds'  = map (map (binds!!)) sorted
-        binds'' = map (map (\(x,expr) -> (x,lsExpr expr))) binds'
+        binds'' = map (map (second lsExpr)) binds'
     in  map toBinding binds'' -- foldr sortLets (lsExpr expr) binds''
 sortBinds binds
   = [mapBinds (\x expr -> Bind x (lsExpr expr)) binds]
@@ -88,10 +89,8 @@ depends :: [(Id,Vertex)] -> (Id,Expr) -> [(Vertex,Vertex)]
 depends names (v,expr)
   = foldSet depend [] (freeVar expr)
   where
-    index     = case lookup v names of
-                  Just i  -> i
-                  Nothing -> error "CoreLetSort.depends: id not in let group??"
-
+    index = fromMaybe (error msg) (lookup v names)
+    msg   = "CoreLetSort.depends: id not in let group??"
     depend x ds   = case lookup x names of
                       Just i  -> (index,i):ds
                       Nothing -> ds

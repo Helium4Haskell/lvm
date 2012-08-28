@@ -13,6 +13,7 @@ module Lvm.Core.Parse
     ( coreParse, coreParseExport, coreParseExpr, coreParseType
     ) where
 
+import Control.Monad
 import Prelude hiding (lex)
 import Text.ParserCombinators.Parsec hiding (satisfy)
 import Lvm.Common.Byte   ( Bytes, bytesFromString )
@@ -35,13 +36,11 @@ coreParseExport = coreParseModule parseModuleExport
 coreParseModule :: TokenParser a -> FilePath -> IO a
 coreParseModule parser fname =
     do{ input  <- readFile fname
-      ; res <- case runParser parser () fname (layout (lexer (1,1) input)) of
+      ; case runParser parser () fname (layout (lexer (1,1) input)) of
           Left err
             -> ioError (userError ("parse error: " ++ show err))
           Right res
             -> return res
-      --; (putStrLn.show) res
-      ; return res
       }
 
 coreParseAny :: TokenParser a -> String -> String -> a
@@ -52,10 +51,10 @@ coreParseAny parser fname input =
     }
 
 coreParseExpr :: String -> String -> Expr
-coreParseExpr fname input = coreParseAny pexpr fname input
+coreParseExpr = coreParseAny pexpr
 
 coreParseType :: String -> String -> Type
-coreParseType fname input = addForall (coreParseAny ptypeFun fname input)
+coreParseType fname = addForall . coreParseAny ptypeFun fname
 
 ----------------------------------------------------------------
 -- Basic parsers
@@ -89,26 +88,26 @@ parseModuleExport =
       ; lexeme LexEOF
 
       ; return $
-            ( case exports of
-                Nothing ->
-                    let es = (emptySet,emptySet,emptySet,emptySet,emptySet)
-                    in
-                    ( modulePublic
-                        True
-                        es
-                        (Module moduleId 0 0 (concat declss))
-                    , True
-                    , es
-                    )
-                Just es ->
-                    ( modulePublic
-                        False
-                        es
-                        (Module moduleId 0 0 (concat declss))
-                    , False
-                    , es
-                    )
-            )
+            case exports of
+              Nothing ->
+                  let es = (emptySet,emptySet,emptySet,emptySet,emptySet)
+                  in
+                  ( modulePublic
+                      True
+                      es
+                      (Module moduleId 0 0 (concat declss))
+                  , True
+                  , es
+                  )
+              Just es ->
+                  ( modulePublic
+                      False
+                      es
+                      (Module moduleId 0 0 (concat declss))
+                  , False
+                  , es
+                  )
+            
       }
 
 ----------------------------------------------------------------
@@ -295,17 +294,15 @@ ptopDeclType x
   = do{ (tp,_) <- ptypeDecl
       ; lexeme LexSEMI
       ; x2  <- variable
-      ; if (x /= x2)
-         then fail
+      ; when (x /= x2) $ fail
             (  "identifier for type signature "
             ++ stringFromId x
             ++ " doesn't match the definition"
             ++ stringFromId x2
             )
-         else return ()
       ; (access,custom,expr) <- pbindTopRhs
       ; return (DeclValue x access Nothing expr 
-                ([customType tp] ++ custom))
+                (customType tp : custom))
       }
 
 ptopDeclDirect :: Id -> TokenParser (Decl Expr)
@@ -362,18 +359,18 @@ pdata
   = do{ lexeme LexDATA
       ; x   <- typeid
       ; args <- many typevarid
-      ; let kind     = foldr KFun KStar (map (const KStar) args)
+      ; let kind     = foldr (KFun . const KStar) KStar args
             datadecl = DeclCustom x private customData [customKind kind]
       ; do{ lexeme LexASG
           ; let t1  = foldl TAp (TCon x) (map TVar args)
           ; cons <- sepBy1 (pconDecl t1) (lexeme LexBAR)
-          ; let con tag (cid,t2) = (DeclCon cid private (arityFromType t2) tag 
+          ; let con tag (cid,t2) = DeclCon cid private (arityFromType t2) tag 
                                       [customType t2, 
-                                       CustomLink x customData])
+                                       CustomLink x customData]
           ; return (datadecl:zipWith con [0..] cons)
           }
       <|> {- empty data types -}
-        do{ return [datadecl] }
+        return [datadecl]
       }
 
 pconDecl :: Type -> TokenParser (Id,Type)
@@ -394,7 +391,7 @@ ptypeTopDecl
       ; args <- many typevarid
       ; lexeme LexASG
       ; tp   <- ptype
-      ; let kind  = foldr KFun KStar (map (const KStar) args)
+      ; let kind  = foldr (KFun . const KStar) KStar args
             tpstr = unwords $  stringFromId x 
                             :  map stringFromId args
                             ++ ["=", show tp]
@@ -433,7 +430,7 @@ paccess
 pcustoms :: TokenParser [Custom]
 pcustoms
   = do{ lexeme LexLBRACKET
-      ; customs <- pcustom `sepBy` (lexeme LexCOMMA)
+      ; customs <- pcustom `sepBy` lexeme LexCOMMA
       ; lexeme LexRBRACKET
       ; return customs
       }
@@ -443,7 +440,7 @@ pcustom
   =   do{ i <- lexInt; return (CustomInt (fromInteger i)) }
   <|> do{ s <- lexString; return (CustomBytes (bytesFromString s)) }
   <|> do{ x <- variable <|> constructor; return (CustomName x) }
-  <|> do{ lexeme LexNOTHING; return (CustomNothing) }
+  <|> do{ lexeme LexNOTHING; return CustomNothing }
   <|> do{ lexeme LexCUSTOM 
         ; kind <- pdeclKind
         ; do{ x   <- customid
@@ -534,8 +531,8 @@ listExpr
       ; return (foldr cons nil exprs)
       }
   where
-    cons x xs   = Ap (Ap (Con (ConId (idFromString ":"))) x) xs
-    nil         = Con (ConId (idFromString "[]"))
+    cons = Ap . Ap (Con (ConId (idFromString ":")))
+    nil  = Con (ConId (idFromString "[]"))
 
 parenExpr :: TokenParser Expr
 parenExpr
@@ -555,7 +552,7 @@ parenExpr
                     ; return (Con (ConTag tag (fromInteger arity)))
                     }
                 <|>
-                  do{ exprs <- pexpr `sepBy` (lexeme LexCOMMA)
+                  do{ exprs <- pexpr `sepBy` lexeme LexCOMMA
                     ; case exprs of
                         [expr]  -> return expr
                         _       -> let con = Con (ConTag (Lit (LitInt 0)) (length exprs))
@@ -670,7 +667,7 @@ ppatLit
 
 ppatTuple :: TokenParser Pat
 ppatTuple
-  = do{ ids <- bindid `sepBy` (lexeme LexCOMMA)
+  = do{ ids <- bindid `sepBy` lexeme LexCOMMA
       ; return (PatCon (ConTag 0 (length ids)) ids)
       }
 
@@ -843,8 +840,8 @@ semiBraces p  = braces (semiList p)
 commaParens p = parens (sepBy p (lexeme LexCOMMA))
 
 braces, parens :: TokenParser a -> TokenParser a
-braces p      = between (lexeme LexLBRACE) (lexeme LexRBRACE) p
-parens p      = between (lexeme LexLPAREN) (lexeme LexRPAREN) p
+braces = between (lexeme LexLBRACE) (lexeme LexRBRACE)
+parens = between (lexeme LexLPAREN) (lexeme LexRPAREN)
 
 -- terminated or seperated
 semiList1 :: TokenParser a -> TokenParser [a]
@@ -925,22 +922,15 @@ qualifiedCon
 
 typeid :: TokenParser Id
 typeid
-  = do{ x <- identifier lexCon
-      ; return x -- (setSortId SortType id)
-      }
+  = identifier lexCon -- (setSortId SortType id)
   <?> "type"
 
 typevarid :: TokenParser Id
 typevarid
-  = do{ x <- identifier lexId
-      ; return x -- (setSortId SortType id)
-      }
+  = identifier lexId -- (setSortId SortType id)
 
 identifier :: TokenParser String -> TokenParser Id
-identifier p
-  = do{ s <- p
-      ; return (idFromString s)
-      }
+identifier = liftM idFromString
 
 ----------------------------------------------------------------
 -- Basic parsers

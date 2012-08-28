@@ -16,6 +16,7 @@ module Lvm.Path
    ) where
 
 import Data.List
+import Data.Maybe
 import System.Directory
 import System.Environment
 
@@ -25,12 +26,12 @@ import System.Environment
 
 searchPath :: [String] -> String -> String -> IO String
 searchPath path ext name = 
-    fmap (maybe (fail ("could not find " ++ show nameext)) id)
+    fmap (fromMaybe (fail ("could not find " ++ show nameext)))
          (searchPathMaybe path ext name)
   where
     nameext
-      | isPrefixOf (reverse ext) (reverse name)  = name
-      | otherwise  = name ++ ext
+      | ext `isSuffixOf` name = name
+      | otherwise             = name ++ ext
         
 searchPathMaybe :: [String] -> String -> String -> IO (Maybe String)
 searchPathMaybe  path ext name
@@ -50,8 +51,8 @@ searchPathMaybe  path ext name
       | otherwise         = dir ++ "/" ++ nameext
 
     nameext
-      | isPrefixOf (reverse ext) (reverse name)  = name
-      | otherwise  = name ++ ext
+      | ext `isSuffixOf` name = name
+      | otherwise             = name ++ ext
 
 getLvmPath :: IO [String]
 getLvmPath
@@ -65,7 +66,7 @@ splitPath = walk [] ""
   where
     walk ps p xs
       = case xs of
-          []             -> if (null p)
+          []             -> if null p
                              then reverse ps
                              else reverse (reverse p:ps)
           (';':cs)       -> walk (reverse p:ps) "" cs

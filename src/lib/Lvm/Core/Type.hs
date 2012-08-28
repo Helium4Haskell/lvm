@@ -126,8 +126,8 @@ ppKind level kind
       | level <= levelFromKind kind   = (levelFromKind kind,id)
       | otherwise                     = (0,parens)
 
-    ppHi k  = ppKind (if klevel<=0 then 0 else klevel+1) k
-    ppEq k  = ppKind klevel k
+    ppHi = ppKind (if klevel<=0 then 0 else klevel+1)
+    ppEq = ppKind klevel
 
 levelFromType :: Type -> Int
 levelFromType tp

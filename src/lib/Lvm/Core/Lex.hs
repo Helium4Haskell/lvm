@@ -44,7 +44,7 @@ isReserved name
 
 reservedNames :: Set String
 reservedNames
-  = fromList $
+  = fromList
     [ "module", "where"
     , "import", "abstract", "extern"
     , "custom", "val", "con"
@@ -65,10 +65,10 @@ reservedNames
 -----------------------------------------------------------
 
 integerOrFloat :: Parser (Either Integer Double)
-integerOrFloat  = lexeme (intOrFloat) <?> "number"
+integerOrFloat  = lexeme intOrFloat <?> "number"
 
 integer :: Parser Integer
-integer         = lexeme int        <?> "integer"
+integer         = lexeme int <?> "integer"
 
 intOrFloat :: Parser (Either Integer Double)
 intOrFloat      = do{ char '0'
@@ -102,7 +102,7 @@ fractExponent n = do{ fract <- try fraction -- "try" due to ".." as in "[1..6]"
                     }
                 <|>
                   do{ expo <- exponent'
-                    ; return ((fromInteger n)*expo)
+                    ; return (fromInteger n * expo)
                     }
 
 fraction :: Parser Double
@@ -192,7 +192,7 @@ lowerid
     do{ c  <- lower
       ; cs <- many idchar
       ; let name = c:cs
-      ; if (isReserved name)
+      ; if isReserved name
          then unexpected ("reserved word " ++ show name)
          else return name
       }
@@ -218,7 +218,7 @@ extchar
 
 extletter :: Parser Char
 extletter
-  = satisfy (\c -> isGraphic c && not (elem c "\\."))
+  = satisfy (\c -> isGraphic c && notElem c "\\.")
 
 extescape :: Parser (Maybe Char)
 extescape
@@ -245,7 +245,7 @@ stringchar      =   do{ c <- stringletter; return (Just c) }
                 <?> "string character"
             
 stringletter :: Parser Char
-stringletter    = satisfy (\c -> c==' ' || (isGraphic c && not (elem c "\"\\")))
+stringletter    = satisfy (\c -> c==' ' || (isGraphic c && notElem c "\"\\"))
 
 stringescape :: Parser (Maybe Char)
 stringescape    = do{ char '\\'
@@ -276,8 +276,8 @@ charesc :: Parser Char
 charesc         = choice (map parseEsc escMap)
                 where
                   parseEsc (c,code) = do{ char c; return code }
-                  escMap            = zip ("abfnrstv\\\"\'.") 
-                                          ("\a\b\f\n\r \t\v\\\"\'.")
+                  escMap            = zip "abfnrstv\\\"\'."
+                                          "\a\b\f\n\r \t\v\\\"\'."
 
 
 -----------------------------------------------------------
@@ -323,14 +323,14 @@ blockcomment
 
 incomment :: Parser ()
 incomment 
-    =   do{ try (string "-}")                   }
+    =   try (string "-}")
     <|> do{ blockcomment;             incomment }
     <|> do{ skipMany1 contentchar;    incomment }
     <|> do{ void (oneOf commentchar); incomment }
     <?> "end of comment"  
     where
       commentchar     = "-{}"
-      contentchar     = white <|> satisfy (\c -> isGraphic c && not (elem c commentchar))
+      contentchar     = white <|> satisfy (\c -> isGraphic c && notElem c commentchar)
 
 
 -----------------------------------------------------------

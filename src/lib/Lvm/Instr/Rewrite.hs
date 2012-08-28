@@ -134,10 +134,10 @@ rewriteEval :: Depth -> [Instr] -> [Instr] -> [Instr]
 rewriteEval d evalis is
   =  case evalis of
        [PUSHVAR (Var x ofs d1),SLIDE 1 0 _,ENTER]
-          -> rewrites ([EVALVAR (Var x (ofs-3) d1)] ++ is)
+          -> rewrites (EVALVAR (Var x (ofs-3) d1) : is)
        [PUSHVAR (Var x ofs dv),ENTER]
-          -> rewrites ([EVALVAR (Var x (ofs-3) dv)] ++ is)
-       _  -> [EVAL d evalis] ++ rewrites is
+          -> rewrites (EVALVAR (Var x (ofs-3) dv) : is)
+       _  -> EVAL d evalis : rewrites is
 
 {---------------------------------------------------------------
   peephole optimization

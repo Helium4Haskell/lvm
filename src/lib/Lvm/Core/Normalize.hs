@@ -44,7 +44,7 @@ splitEnv (Env s d)
   = let (s0,s1) = splitNameSupply s in (Env s0 d, Env s1 d)
 
 splitEnvs :: Env -> [Env]
-splitEnvs (Env s d) = map (\s2 -> Env s2 d) (splitNameSupplies s)
+splitEnvs (Env s d) = map (`Env` d) (splitNameSupplies s)
 
 isDirect :: Env -> Id -> Bool
 isDirect (Env _ d) x = elemSet x d
@@ -143,7 +143,7 @@ normArg :: Env -> Expr -> (Expr, Expr -> Expr)
 normArg env expr
   = let (env1,env2) = splitEnv env
         (atom,f)    = normAtom env1 expr
-    in  if (isDirectAp env atom)
+    in  if isDirectAp env atom
          then let x = uniqueId env2
               in  (Var x, f . Let (NonRec (Bind x atom)))
          else (atom,f)

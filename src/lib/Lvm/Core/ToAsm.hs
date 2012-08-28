@@ -59,14 +59,14 @@ exprToTop m
 asmDecl :: IdSet -> Decl Expr -> [Decl Asm.Top]
 asmDecl prim (DeclValue x acc enc expr custom)
   = let (pars,(lifted,asmexpr)) = asmTop prim expr
-    in (DeclValue x acc enc (Asm.Top pars asmexpr) custom) : concatMap (asmLifted prim x) lifted
+    in DeclValue x acc enc (Asm.Top pars asmexpr) custom : concatMap (asmLifted prim x) lifted
 asmDecl _ decl
   = [unsafeCoerce decl]
 
 asmLifted :: IdSet -> Id -> Bind -> [Decl Asm.Top]
 asmLifted prim enc (Bind x expr)
   = let (pars,(lifted,asmexpr)) = asmTop prim expr
-    in  (DeclValue x (Defined False) (Just enc) (Asm.Top pars asmexpr) []) 
+    in  DeclValue x (Defined False) (Just enc) (Asm.Top pars asmexpr) []
         : concatMap (asmLifted prim x) lifted
 
 asmTop :: IdSet -> Expr -> ([Id], ([Bind], Asm.Expr))
@@ -124,14 +124,14 @@ asmLet :: IdSet -> Binds -> ([Bind], Asm.Expr) -> ([Bind], Asm.Expr)
 asmLet prim binds (lifted,asmexpr)
   = case binds of
       NonRec (Bind x expr)
-                -> if (isAtomic prim expr)
+                -> if isAtomic prim expr
                     then (lifted, Asm.Let x (asmAtom expr []) asmexpr)
                     else (Bind x expr:lifted,asmexpr)
       Strict (Bind x rhs)
                 -> let (liftedrhs,asmrhs) = asmExpr prim rhs
                    in  (lifted ++ liftedrhs,Asm.Eval x asmrhs asmexpr)
       Rec bs    -> let (lifted',binds') = foldr asmRec (lifted,[]) bs
-                   in if (null binds')
+                   in if null binds'
                        then (lifted',asmexpr)
                        else (lifted',Asm.LetRec binds' asmexpr)
   where
