@@ -1,0 +1,77 @@
+name:                   Lvm
+version:                1.7
+synopsis:               Daan Leijen's Lazy Virtual Machine (LVM).
+homepage:               todo
+description:
+
+  todo
+
+category:               todo
+copyright:              (c) 2012
+license:                GPL
+license-file:           LICENSE.txt
+author:                 todo
+maintainer:             helium@cs.uu.nl
+stability:              provisional
+extra-source-files:     CREDITS.txt
+build-type:             Simple
+cabal-version:          >= 1.10.1.0
+tested-with:            GHC == 7.0.2, GHC == 7.0.3, GHC == 7.4.1
+
+source-repository head
+  type:     svn
+  location: todo
+
+--------------------------------------------------------------------------------
+
+Executable coreasm
+  Build-Depends:     base >= 3 && < 5, array, containers, directory, parsec, wl-pprint
+  ghc-options:       -Wall
+  default-language:  Haskell98
+  hs-source-dirs:    .
+  Main-is:           Lvm/Core/Main.hs
+
+Library
+  Build-Depends:     base >= 3 && < 5, array, containers, directory, parsec, wl-pprint
+  ghc-options:       -Wall
+  default-language:  Haskell98
+  hs-source-dirs:    .
+  Exposed-modules:
+     Lvm.Asm.Data
+     Lvm.Asm.Inline
+     Lvm.Asm.Occur
+     Lvm.Asm.Optimize
+     Lvm.Asm.ToLvm
+     Lvm.Common.Byte
+     Lvm.Common.Id
+     Lvm.Common.IdMap
+     Lvm.Common.IdSet
+     Lvm.Core.Data
+     Lvm.Core.FreeVar
+     Lvm.Core.LetSort
+     Lvm.Core.Lex
+     Lvm.Core.Lexer
+     Lvm.Core.Lift
+     Lvm.Core.Module
+     Lvm.Core.NoShadow
+     Lvm.Core.Normalize
+     Lvm.Core.Parse
+     Lvm.Core.Parser
+     Lvm.Core.PrettyId
+     Lvm.Core.RemoveDead
+     Lvm.Core.Saturate
+     Lvm.Core.ToAsm
+     Lvm.Core.Type
+     Lvm.Core.Utils
+     Lvm.Data
+     Lvm.Import
+     Lvm.Instr.Data
+     Lvm.Instr.Resolve
+     Lvm.Instr.Rewrite
+     Lvm.Path
+     Lvm.Read
+     Lvm.Write
+
+
+--------------------------------------------------------------------------------
+
