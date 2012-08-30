@@ -36,7 +36,9 @@ coreParseExport = coreParseModule parseModuleExport
 coreParseModule :: TokenParser a -> FilePath -> IO a
 coreParseModule parser fname =
     do{ input  <- readFile fname
-      ; case runParser parser () fname (layout (lexer (1,1) input)) of
+      ; let ts = layout (lexer (1,1) input)
+      -- ; writeFile "tokens.txt" $ unlines (map show ts)
+      ; case runParser parser () fname ts of
           Left err
             -> ioError (userError ("parse error: " ++ show err))
           Right res
@@ -82,7 +84,7 @@ parseModuleExport =
       ; exports <- pexports
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
-      ; declss <- semiList (wrap (ptopDecl <|> pabstract <|> pextern <|> pCustomDecl)
+      ; declss <- semiList (wrap (ptopDecl <|> pconDecl <|> pabstract <|> pextern <|> pCustomDecl)
                             <|> pdata <|> pimport <|> ptypeTopDecl)
       ; lexeme LexRBRACE
       ; lexeme LexEOF
@@ -281,8 +283,32 @@ pimportCon mid
       }
 
 ----------------------------------------------------------------
+-- constructor declarations
+----------------------------------------------------------------
+
+pconDecl :: TokenParser CoreDecl
+pconDecl = do
+   lexeme LexCON
+   x <- constructor
+   (access,custom) <- pAttributes
+   lexeme LexASG
+   (tag, arity) <- pConInfo
+   return $ DeclCon x access arity tag custom
+
+-- constructor info: #(tag, arity)
+pConInfo :: TokenParser (Tag, Arity)
+pConInfo = do
+   lexeme (LexOp "#")
+   parens $ do
+      x <- lexInt
+      lexeme LexCOMMA
+      y <- lexInt
+      return (fromInteger x, fromInteger y)
+
+----------------------------------------------------------------
 -- value declarations
 ----------------------------------------------------------------
+
 ptopDecl :: TokenParser CoreDecl
 ptopDecl
   = do{ x <- variable
@@ -363,7 +389,7 @@ pdata
             datadecl = DeclCustom x private customData [customKind kind]
       ; do{ lexeme LexASG
           ; let t1  = foldl TAp (TCon x) (map TVar args)
-          ; cons <- sepBy1 (pconDecl t1) (lexeme LexBAR)
+          ; cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
           ; let con tag (cid,t2) = DeclCon cid private (arityFromType t2) tag 
                                       [customType t2, 
                                        CustomLink x customData]
@@ -373,8 +399,8 @@ pdata
         return [datadecl]
       }
 
-pconDecl :: Type -> TokenParser (Id,Type)
-pconDecl tp
+pconstructor :: Type -> TokenParser (Id,Type)
+pconstructor tp
   = do{ x   <- constructor
       ; args <- many ptypeAtom
       ; return (x,foldr TFun tp args)
@@ -434,6 +460,7 @@ pcustoms
       ; lexeme LexRBRACKET
       ; return customs
       }
+  <|> return []
 
 pcustom :: TokenParser Custom
 pcustom
@@ -495,7 +522,7 @@ pexpr
       ; (defid,alts) <- palts
       ; case alts of
           [Alt PatDefault rhs] -> return (Let (NonRec (Bind defid (Var x))) rhs)
-          _                   -> return (Let (NonRec (Bind defid (Var x))) (Match defid alts))
+          _                    -> return (Let (NonRec (Bind defid (Var x))) (Match defid alts))
       }
   <|> 
     do{ lexeme LexLETSTRICT
@@ -843,7 +870,7 @@ braces, parens :: TokenParser a -> TokenParser a
 braces = between (lexeme LexLBRACE) (lexeme LexRBRACE)
 parens = between (lexeme LexLPAREN) (lexeme LexRPAREN)
 
--- terminated or seperated
+-- terminated or separated
 semiList1 :: TokenParser a -> TokenParser [a]
 semiList1 p
     = do{ x <- p

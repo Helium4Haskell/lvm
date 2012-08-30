@@ -74,7 +74,7 @@ ppExpr p expr
   = case expr of
    --   (Let (Strict (Bind id1 expr)) (Match id2 alts)) | id1 == id2
    --               -> prec 0 $ hang 2 (text "case" <+> ppExpr 0 expr <+> text "of" <+> ppId id1 <$> ppAlts alts)
-      Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <+> text "{" <$> pretty  as
+      Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <+> text "{" <$> indent 2 (pretty as)
                               <+> text "}")
       Let bs x    -> prec 0 $ align (ppLetBinds bs (text "in" <+> ppExpr 0 x))
       Lam x e     -> prec 0 $ text "\\" <> ppVarId x <+> ppLams "->" (</>)  e
@@ -120,7 +120,7 @@ instance Pretty Bind where
 
 instance Pretty Alt where
    pretty (Alt pat expr) =
-      nest 4 (text "|" <+> pretty pat <+> text "->" </> ppExpr 0 expr)
+      nest 4 (pretty pat <+> text "->" </> ppExpr 0 expr <> semi)
    prettyList = vcat . map pretty
 
 ----------------------------------------------------------------

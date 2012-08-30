@@ -23,7 +23,7 @@ import Data.List (foldl')
 -- The layout rule
 -----------------------------------------------------------
 layout :: [Token] -> [Token]
-layout  = lay [] . addLayout
+layout  = doubleSemi . lay [] . addLayout
 
 
 data Context   = CtxLay Int
@@ -99,7 +99,10 @@ addLay (l,_) (t@(pos,lexeme):ts)
                              (u@(pos',_):us)
                                 -> (pos',Layout (ctx (snd pos'))) : u : addLay pos' us
 
-
+doubleSemi :: [Token] -> [Token]
+doubleSemi (t@(_, LexSEMI):(_, LexSEMI):rest) = doubleSemi (t:rest)
+doubleSemi (t:ts) = t:doubleSemi ts
+doubleSemi []     = []
 
 -----------------------------------------------------------
 -- Lexer
@@ -168,6 +171,7 @@ data Lexeme     = LexUnknown Char
                 | LexPRIVATE
                 | LexPUBLIC
                 | LexDEFAULT
+                | LexCON
                 
                 | LexABSTRACT
                 | LexINSTR
@@ -208,6 +212,7 @@ lexer pos ('t':'y':'p':'e':cs)      | nonId cs    = (pos,LexTYPE) : nextinc lexe
 lexer pos ('m':'o':'d':'u':'l':'e':cs)      | nonId cs = (pos,LexMODULE) : nextinc lexer pos 6 cs
 lexer pos ('i':'m':'p':'o':'r':'t':cs)      | nonId cs = (pos,LexIMPORT) : nextinc lexer pos 6 cs
 -- not standard
+lexer pos ('c':'o':'n':cs)                  | nonId cs = (pos,LexCON)    : nextinc lexer pos 3 cs
 lexer pos ('w':'i':'t':'h':cs)              | nonId cs = (pos,LexWITH)   : nextinc lexer pos 4 cs
 lexer pos ('m':'a':'t':'c':'h':cs)          | nonId cs = (pos,LexMATCH)   : nextinc lexer pos 5 cs
 lexer pos ('c':'c':'a':'l':'l':cs)          | nonId cs = (pos,LexCCALL)   : nextinc lexer pos 5 cs
@@ -261,6 +266,7 @@ lexer pos ('"':cs)              = lexString (incpos pos 1) (pos,"") cs
 lexer pos ('0':cs)              = lexZero pos cs
 
 lexer pos xs@(':':_)            = lexWhile isSymbol LexConOp pos pos xs
+lexer pos ('$':xs@(c:_))        | isLower c || c == '_'  = let np = incpos pos 1 in lexWhile isLetter LexId np np xs
 lexer pos xs@(c:cs)             | isLower c || c == '_'  = lexWhile isLetter LexId pos pos xs
                                 | isUpper c              = lexConOrQual pos xs
                                 | isSpace c              = next lexer pos c cs

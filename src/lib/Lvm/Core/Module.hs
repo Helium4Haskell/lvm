@@ -242,9 +242,10 @@ instance Pretty a => Pretty (Decl a) where
                             <$> text "=" <+> text "#(" <> pretty (conTag decl) <> 
                                              text ","  <> pretty (declArity decl) <> text ")"
          DeclCustom{}    -> text "custom" <+> pretty (declKind decl) <+> ppId (declName decl) <+> ppAttrs decl
-         DeclExtern{}    -> text "extern" <+> ppVarId (declName decl) <+> ppAttrs decl
-                            <$> text "=" <> pretty (externLink decl) <> pretty (externCall decl)
-                            <+> ppExternName (externLib decl) (externName decl) <+> pretty (declArity decl)
+         DeclExtern{}    -> text "extern" 
+                               <> pretty (externLink decl) <> pretty (externCall decl)
+                               <+> ppVarId (declName decl) -- <+> ppAttrs decl
+                            <+> ppExternName (externLib decl) (externName decl) -- <+> pretty (declArity decl)
                             <+> ppExternType (externCall decl) (externType decl)
          DeclAbstract{}  -> text "abstract" <+> ppVarId (declName decl) <+> ppNoImpAttrs decl
                             <$> text "=" <+> ppImported (declAccess decl) <+> pretty (declArity decl)
@@ -262,14 +263,14 @@ instance Pretty LinkConv where
 instance Pretty CallConv where
    pretty callConv =
       case callConv of
-         CallInstr -> text " instruction"
+         CallInstr -> text " instrcall"
          CallStd   -> text " stdcall"
          CallC     -> empty
 
 ppExternName :: String -> ExternName -> Doc
 ppExternName libName extName
   = case extName of
-      Plain name    -> ppQual name
+      Plain name    -> dquotes (ppQual name)
       Decorate name -> text "decorate" <+> ppQual name
       Ordinal i     -> ppQual (show i)
   where
@@ -280,7 +281,7 @@ ppExternName libName extName
 ppExternType :: CallConv -> String -> Doc
 ppExternType callConv tp
   = text "::" <+> case callConv of
-                    CallInstr -> text tp
+                    CallInstr -> ppString tp
                     _         -> ppString tp
 
 ppNoImpAttrs :: Decl a -> Doc
