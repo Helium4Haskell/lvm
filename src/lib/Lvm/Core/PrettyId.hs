@@ -17,23 +17,23 @@ import Lvm.Common.Id       ( Id, stringFromId, idFromString )
 import Lvm.Common.IdSet    ( IdSet, setFromList, elemSet )
 
 ppId :: Id -> Doc
-ppId = ppEscapeId isAlpha '$'
+ppId = ppEscapeId isAlpha (\x -> "''" ++ x ++ "''") -- ('$':)
 
 ppVarId :: Id -> Doc
-ppVarId = ppEscapeId isLower '$'
+ppVarId = ppEscapeId isLower (\x -> "''" ++ x ++ "''") -- ('$':)
 
 ppConId :: Id -> Doc
-ppConId = ppEscapeId isUpper '@'
+ppConId = ppEscapeId isUpper ('@':)
 
 ppString :: String -> Doc
 ppString s
   = dquotes (text (concatMap escape s))
 
-ppEscapeId :: (Char -> Bool) -> Char -> Id -> Doc
-ppEscapeId isValid c x
+ppEscapeId :: (Char -> Bool) -> (String -> String) -> Id -> Doc
+ppEscapeId isValid esc x
   = if not (isReserved x) && firstOk && ordinary
      then text name
-     else char c <> text (concatMap escapeId name) <> char ' '
+     else text (esc (concatMap escapeId name)) <> char ' '
   where
     name     = stringFromId x
     firstOk  = case name of

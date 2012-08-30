@@ -239,8 +239,8 @@ instance Pretty a => Pretty (Decl a) where
          DeclValue{}     -> ppVarId (declName decl) <+> ppAttrs decl 
                             <$> text "=" <+> pretty (valueValue decl)
          DeclCon{}       -> text "con" <+> ppConId (declName decl) <+> ppAttrs decl 
-                            <$> text "=" <+> text "#(" <> pretty (conTag decl) <> 
-                                             text ","  <> pretty (declArity decl) <> text ")"
+                            <$> text "=" <+> parens (char '@' <> pretty (conTag decl) <> 
+                                             comma  <> pretty (declArity decl))
          DeclCustom{}    -> text "custom" <+> pretty (declKind decl) <+> ppId (declName decl) <+> ppAttrs decl
          DeclExtern{}    -> text "extern" 
                                <> pretty (externLink decl) <> pretty (externCall decl)
@@ -281,7 +281,7 @@ ppExternName libName extName
 ppExternType :: CallConv -> String -> Doc
 ppExternType callConv tp
   = text "::" <+> case callConv of
-                    CallInstr -> ppString tp
+                    CallInstr -> pretty tp
                     _         -> ppString tp
 
 ppNoImpAttrs :: Decl a -> Doc

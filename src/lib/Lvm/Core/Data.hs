@@ -94,7 +94,7 @@ instance Pretty a => Pretty (Con a) where
    pretty con =
       case con of
          ConId x          -> ppConId x
-         ConTag tag arity -> text "#(" <> pretty tag <> char ',' <> pretty arity <> text ")"
+         ConTag tag arity -> parens (char '@' <> pretty tag <> comma <> pretty arity)
  
 ----------------------------------------------------------------
 --
@@ -111,7 +111,8 @@ ppLetBinds binds doc
   = case binds of
       NonRec bind -> nest 4 (text "let" <+> pretty bind) <$> doc
       Strict bind -> nest 5 (text "let!" <+> pretty bind) <$> doc
-      Rec recs    -> nest 8 (text "let rec" <+> pretty recs) <$> doc
+      -- Rec recs    -> nest 8 (text "let rec" <+> pretty recs) <$> doc
+      Rec recs    -> nest 4 (text "let" <+> pretty recs) <$> doc -- let rec not parsable
 
 instance Pretty Bind where
    pretty (Bind x expr) =

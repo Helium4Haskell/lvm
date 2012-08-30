@@ -297,13 +297,12 @@ pconDecl = do
 
 -- constructor info: #(tag, arity)
 pConInfo :: TokenParser (Tag, Arity)
-pConInfo = do
-   lexeme (LexOp "#")
-   parens $ do
-      x <- lexInt
-      lexeme LexCOMMA
-      y <- lexInt
-      return (fromInteger x, fromInteger y)
+pConInfo = parens $ do
+   lexeme LexAT
+   tag   <- lexInt <?> "tag" 
+   lexeme LexCOMMA
+   arity <- lexInt <?> "arity"
+   return (fromInteger tag, fromInteger arity)
 
 ----------------------------------------------------------------
 -- value declarations
@@ -522,7 +521,8 @@ pexpr
       ; (defid,alts) <- palts
       ; case alts of
           [Alt PatDefault rhs] -> return (Let (NonRec (Bind defid (Var x))) rhs)
-          _                    -> return (Let (NonRec (Bind defid (Var x))) (Match defid alts))
+          _ | x == defid       -> return (Match defid alts)
+            | otherwise        -> return (Let (NonRec (Bind defid (Var x))) (Match defid alts))
       }
   <|> 
     do{ lexeme LexLETSTRICT
@@ -721,8 +721,8 @@ pextern
       ; x  <- varid
       ; m <- lexString <|> return (stringFromId x)
       ; (mname,name) <- pExternName m
-      ; (TString tp,arity)  <- do{ lexeme LexCOLCOL; ptypeString } -- ptypeDecl
-      ; return (DeclExtern x private arity tp linkConv callConv mname name [])
+      ; (tp,arity)  <- ptypeDecl
+      ; return (DeclExtern x private arity (show tp) linkConv callConv mname name [])
       }
   <|>
     do{ lexeme LexINSTR
