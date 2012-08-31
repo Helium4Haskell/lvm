@@ -17,7 +17,7 @@ module Lvm.Core.FreeVar( coreFreeVar ) where
 import Lvm.Common.IdSet( IdSet, emptySet, isEmptySet
             , listFromSet, setFromList
             , elemSet, insertSet, unionSets, unionSet, deleteSet, diffSet )
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Core.Utils
 import Debug.Trace
 
@@ -28,7 +28,7 @@ import Debug.Trace
 
 coreFreeVar :: CoreModule -> CoreModule
 coreFreeVar m
-  = mapExpr (fvDeclExpr (globalNames m)) m
+  = fmap (fvDeclExpr (globalNames m)) m
 
 fvDeclExpr :: IdSet -> Expr -> Expr
 fvDeclExpr globals expr

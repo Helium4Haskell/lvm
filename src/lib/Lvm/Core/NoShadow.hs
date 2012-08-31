@@ -22,7 +22,7 @@ import Data.Maybe
 import Lvm.Common.Id     ( Id, freshIdFromId, NameSupply, splitNameSupply, splitNameSupplies )
 import Lvm.Common.IdMap  ( IdMap, emptyMap, lookupMap, extendMap )
 import Lvm.Common.IdSet  ( IdSet, emptySet, elemSet, insertSet )
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Core.Utils
 
 ----------------------------------------------------------------

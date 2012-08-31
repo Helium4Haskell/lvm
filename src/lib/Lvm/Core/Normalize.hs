@@ -28,7 +28,7 @@ module Lvm.Core.Normalize ( coreNormalize ) where
 
 import Lvm.Common.Id     ( Id, NameSupply, splitNameSupply, splitNameSupplies, freshId )
 import Lvm.Common.IdSet  ( IdSet, elemSet )
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Core.Utils
 
 ----------------------------------------------------------------

@@ -15,11 +15,11 @@ module Lvm.Core.Utils
    , mapAccumBinds, zipBindsWith
    , patBinders
    , mapAlts, zipAltsWith
-   , mapExprWithSupply, mapExpr
+   , mapExprWithSupply
    , mapAccum
    ) where
 
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Common.Id     ( Id, NameSupply, mapWithSupply )
 import Lvm.Core.Module
 import Lvm.Common.IdSet  ( IdSet, emptySet, setFromList )
@@ -106,6 +106,3 @@ mapExprWithSupply f supply m
   where
     fvalue sup decl@(DeclValue{}) = decl{ valueValue = f sup (valueValue decl)}
     fvalue _   decl               = decl
-
-mapExpr :: (Expr -> Expr) -> CoreModule -> CoreModule
-mapExpr = mapValues

@@ -11,13 +11,12 @@
 
 module Lvm.Core.ToAsm( coreToAsm ) where
 
-import Control.Exception ( assert )
+import Control.Exception  ( assert )
 import Lvm.Common.Id      ( Id, idFromString, NameSupply, splitNameSupplies )
 import Lvm.Common.IdSet   ( IdSet, elemSet )
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Core.Utils
 import qualified Lvm.Asm.Data as Asm
-import Unsafe.Coerce
 
 import Lvm.Core.NoShadow   ( coreRename )      -- rename local variables
 import Lvm.Core.Saturate   ( coreSaturate )    -- saturate constructors, instructions and externs
@@ -25,13 +24,6 @@ import Lvm.Core.Normalize  ( coreNormalize )   -- normalize core, ie. atomic arg
 import Lvm.Core.FreeVar    ( coreFreeVar )     -- attach free variable information at let bindings
 import Lvm.Core.LetSort    ( coreLetSort )     -- find smallest recursive let binding groups
 import Lvm.Core.Lift       ( coreLift )        -- lambda-lift, ie. make free variables arguments
-
-{-
-import Standard    ( trace )
-import CorePretty  ( corePretty )
-
-traceCore core  = trace (show (corePretty core)) core
--}
 
 {---------------------------------------------------------------
   coreToAsm: translate Core expressions into Asm expressions
@@ -57,11 +49,12 @@ exprToTop m
 ---------------------------------------------------------------}
 
 asmDecl :: IdSet -> Decl Expr -> [Decl Asm.Top]
-asmDecl prim (DeclValue x acc enc expr custom)
-  = let (pars,(lifted,asmexpr)) = asmTop prim expr
-    in DeclValue x acc enc (Asm.Top pars asmexpr) custom : concatMap (asmLifted prim x) lifted
-asmDecl _ decl
-  = [unsafeCoerce decl]
+asmDecl prim decl =
+   case decl of 
+      DeclValue x acc enc expr custom -> 
+         let (pars,(lifted,asmexpr)) = asmTop prim expr
+         in DeclValue x acc enc (Asm.Top pars asmexpr) custom : concatMap (asmLifted prim (declName decl)) lifted
+      _ -> [fmap (error "asmDecl") decl]
 
 asmLifted :: IdSet -> Id -> Bind -> [Decl Asm.Top]
 asmLifted prim enc (Bind x expr)

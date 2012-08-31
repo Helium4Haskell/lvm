@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import Lvm.Common.Id       ( Id, idFromString )
 import Lvm.Common.IdSet    ( IdSet, emptySet, elemSet, insertSet, setFromList, unionSet )
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Core.Utils
 import Lvm.Core.Module
 import Data.List (foldl')

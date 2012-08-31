@@ -9,7 +9,7 @@
 
 --  $Id$
 
-module Lvm.Core.Data 
+module Lvm.Core.Expr 
    ( CoreModule, CoreDecl
    , Expr(..), Note(..), Binds(..), Bind(..)
    , Alts, Alt(..), Pat(..), Literal(..), Con(..)

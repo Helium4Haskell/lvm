@@ -12,7 +12,6 @@ module Lvm.Asm.Occur( asmOccur ) where
 
 import Lvm.Common.Id     ( Id )
 import Lvm.Common.IdMap  ( IdMap, emptyMap, insertMapWith, unionMapWith, deleteMap, lookupMap )
-import Lvm.Core.Module ( mapValues )
 import Lvm.Asm.Data
 
 {---------------------------------------------------------------
@@ -46,7 +45,7 @@ occur x occ
   the number of syntactic occurrences.
 ---------------------------------------------------------------}
 asmOccur :: AsmModule -> AsmModule
-asmOccur = mapValues occTop
+asmOccur = fmap occTop
 
 occTop :: Top -> Top
 occTop (Top x expr)

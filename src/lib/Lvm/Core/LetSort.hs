@@ -19,7 +19,7 @@ import qualified Data.Graph as G
 import qualified Data.Tree  as G
 import Lvm.Common.Id       ( Id )
 import Lvm.Common.IdSet    ( IdSet, elemSet, foldSet )
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Core.Utils
 import Data.Maybe
 import Control.Arrow (second)
@@ -31,7 +31,7 @@ import Control.Arrow (second)
 -- transform a @Rec@ bindings into the smallest @NonRec@ and @Rec@ bindings.
 ----------------------------------------------------------------
 coreLetSort :: CoreModule -> CoreModule
-coreLetSort = mapExpr lsExpr
+coreLetSort = fmap lsExpr
 
 lsExpr :: Expr -> Expr
 lsExpr expr

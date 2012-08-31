@@ -12,7 +12,6 @@ module Lvm.Asm.Inline (asmInline) where
 
 import Lvm.Common.Id       ( Id )
 import Lvm.Common.IdMap    ( IdMap, emptyMap, extendMap, deleteMap, lookupMap )
-import Lvm.Core.Module   ( mapValues )
 
 import Lvm.Asm.Data
 import Lvm.Asm.Occur ( asmOccur )
@@ -30,7 +29,7 @@ removeIds = flip (foldr deleteMap)
   asmInline
 ---------------------------------------------------------------}
 asmInline :: AsmModule -> AsmModule
-asmInline = mapValues inlineTop . asmOccur
+asmInline = fmap inlineTop . asmOccur
 
 inlineTop :: Top -> Top
 inlineTop (Top params expr)

@@ -17,7 +17,7 @@ module Lvm.Core.Module( Module(..)
              , Access(..), ExternName(..), CallConv(..), LinkConv(..)
              
              , globalNames, externNames, filterPublic
-             , mapDecls, mapValues
+             , mapDecls
              , customDeclKind, customData, customTypeDecl
              , modulePublic
              , declKindFromDecl, shallowKindFromDecl, makeDeclKind -- , hasDeclKind
@@ -25,7 +25,6 @@ module Lvm.Core.Module( Module(..)
              , public, private
              ) where
 
-import Unsafe.Coerce
 import Lvm.Common.Byte    ( Bytes, stringFromBytes )
 import Lvm.Common.Id  
 import Lvm.Common.IdSet   ( IdSet, setFromList, elemSet )
@@ -223,6 +222,29 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
     conTypeName _ = dummyId
 
 ----------------------------------------------------------------
+-- Functors
+----------------------------------------------------------------
+
+instance Functor Module where
+   fmap f m = m { moduleDecls = map (fmap f) (moduleDecls m) }
+
+instance Functor Decl where
+   fmap f decl = 
+      case decl of
+         DeclValue x ac m v cs -> 
+            DeclValue x ac m (f v) cs
+         DeclAbstract x ac ar cs -> 
+            DeclAbstract x ac ar cs
+         DeclCon x ac ar t cs    -> 
+            DeclCon x ac ar t cs
+         DeclExtern x ac ar et el ec elib en cs -> 
+            DeclExtern x ac ar et el ec elib en cs
+         DeclCustom x ac k cs -> 
+            DeclCustom x ac k cs
+         DeclImport x ac cs   -> 
+            DeclImport x ac cs
+
+----------------------------------------------------------------
 -- Pretty printing
 ----------------------------------------------------------------
 
@@ -414,13 +436,3 @@ externNames m
 mapDecls :: (Decl v -> Decl w) -> Module v -> Module w
 mapDecls f m
   = m { moduleDecls = map f (moduleDecls m) }
-
-mapValues :: (v -> w) -> Module v -> Module w
-mapValues f
-  = mapDecls (mapDeclValue f)
-
-mapDeclValue :: (v->w) -> Decl v -> Decl w
-mapDeclValue f decl 
-  = case decl of
-      DeclValue{} -> decl{ valueValue = f (valueValue decl) }
-      _           -> unsafeCoerce decl

@@ -9,54 +9,29 @@
 
 --  $Id$
 
-module Lvm.Core.Parse
-    ( coreParse, coreParseExport, coreParseExpr, coreParseType
-    ) where
+module Lvm.Core.Parse (parseModuleExport, parseModule) where
 
 import Control.Monad
 import Prelude hiding (lex)
 import Text.ParserCombinators.Parsec hiding (satisfy)
 import Lvm.Common.Byte   ( Bytes, bytesFromString )
 import Lvm.Common.IdSet
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Core.Utils
-import Lvm.Core.Lexer
+import Lvm.Core.Lexer (Token, Lexeme(..))
 import Lvm.Core.Type
 import Data.List (foldl') 
 
-----------------------------------------------------------------
--- Parse a Core source file
-----------------------------------------------------------------
-coreParse :: FilePath -> IO CoreModule
-coreParse = coreParseModule parseModule
+parseModuleExport :: FilePath -> [Token] -> IO (CoreModule, Bool, (IdSet,IdSet,IdSet,IdSet,IdSet))
+parseModuleExport fname ts =
+   case runParser pmodule () fname ts of
+      Left err
+        -> ioError (userError ("parse error: " ++ show err))
+      Right res
+        -> return res
 
-coreParseExport :: FilePath -> IO (CoreModule, Bool, (IdSet,IdSet,IdSet,IdSet,IdSet))
-coreParseExport = coreParseModule parseModuleExport
-
-coreParseModule :: TokenParser a -> FilePath -> IO a
-coreParseModule parser fname =
-    do{ input  <- readFile fname
-      ; let ts = layout (lexer (1,1) input)
-      ; writeFile "tokens.txt" $ unlines (map show ts)
-      ; case runParser parser () fname ts of
-          Left err
-            -> ioError (userError ("parse error: " ++ show err))
-          Right res
-            -> return res
-      }
-
-coreParseAny :: TokenParser a -> String -> String -> a
-coreParseAny parser fname input =
-    case runParser parser () fname (lexer (1,1) input) of {
-        Left  err -> error ("\n" ++ fname ++ ": " ++ show err);
-        Right res -> res;
-    }
-
-coreParseExpr :: String -> String -> Expr
-coreParseExpr = coreParseAny pexpr
-
-coreParseType :: String -> String -> Type
-coreParseType fname = addForall . coreParseAny ptypeFun fname
+parseModule :: FilePath -> [Token] -> IO CoreModule
+parseModule fname = liftM (\(m, _, _) -> m) . parseModuleExport fname
 
 ----------------------------------------------------------------
 -- Basic parsers
@@ -71,14 +46,8 @@ wrap :: TokenParser a -> TokenParser [a]
 wrap p
   = do{ x <- p; return [x] }
 
-parseModule :: TokenParser CoreModule
-parseModule =
-    do{ (m, _, _) <- parseModuleExport
-      ; return m
-      }
-
-parseModuleExport :: TokenParser (CoreModule, Bool, (IdSet,IdSet,IdSet,IdSet,IdSet))
-parseModuleExport =
+pmodule :: TokenParser (CoreModule, Bool, (IdSet,IdSet,IdSet,IdSet,IdSet))
+pmodule =
     do{ lexeme LexMODULE
       ; moduleId <- conid <?> "module name"
       ; exports <- pexports

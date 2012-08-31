@@ -19,7 +19,7 @@ import Data.List   ( mapAccumR )
 import Data.Maybe
 import Lvm.Common.Id     ( Id, NameSupply, freshId, splitNameSupply, splitNameSupplies )
 import Lvm.Common.IdMap  ( IdMap, lookupMap, mapFromList )
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Core.Utils
 
 ----------------------------------------------------------------

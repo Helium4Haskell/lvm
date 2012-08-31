@@ -29,7 +29,7 @@ import Lvm.Instr.Rewrite   ( instrRewrite )
   asmToLvm: generate instructions from Asm expressions
 ---------------------------------------------------------------}
 asmToLvm :: AsmModule -> LvmModule
-asmToLvm m = mapValues (codegen (initialEnv m)) m
+asmToLvm m = fmap (codegen (initialEnv m)) m
 
 codegen :: Env -> Top -> [Instr]
 codegen env = instrRewrite . instrResolve . cgTop env

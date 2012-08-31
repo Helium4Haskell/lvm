@@ -18,6 +18,7 @@ import Control.Monad
 import Data.Char hiding (isSymbol, isLetter)
 import Data.Maybe
 import Data.List (foldl')
+import Text.PrettyPrint.Leijen (Pretty(..))
 
 -----------------------------------------------------------
 -- The layout rule
@@ -187,6 +188,9 @@ data Lexeme     = LexUnknown Char
                 | Layout Context
                 | Indent Int
                 deriving (Eq,Show)
+
+instance Pretty Lexeme where
+   pretty = pretty . show
 
 type Lexer  = Pos -> String -> [(Pos, Lexeme)]
 type Lexer5 = Pos -> String -> ([(Pos, Lexeme)] -> [(Pos, Lexeme)], Double, Pos, String)

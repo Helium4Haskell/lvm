@@ -20,22 +20,18 @@ import Text.PrettyPrint.Leijen ( Pretty(..), empty, vsep )
 import Lvm.Path
 import Lvm.Common.Id         ( Id, newNameSupply, stringFromId )
 
-import Lvm.Core.Module ( Module, modulePublic )
-import Lvm.Core.Parse  ( coreParseExport )
--- import Lvm.Core.Parser ( parseModule )       -- new core syntax
-
+import Lvm.Core.Module ( modulePublic )
+import Lvm.Core.Parse  ( parseModuleExport )
+import Lvm.Core.Lexer  ( layout, lexer)
                                         -- parse text into Core
 import Lvm.Core.RemoveDead( coreRemoveDead ) -- remove dead declarations
 import Lvm.Core.ToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
-import Lvm.Core.Data (Expr)
 
 import Lvm.Asm.Optimize( asmOptimize )       -- optimize Asm (ie. local inlining)
 import Lvm.Asm.ToLvm   ( asmToLvm )          -- translate Asm to Lvm instructions
 
 import Lvm.Write   ( lvmWriteFile )      -- write a binary Lvm file
 import Lvm.Import  ( lvmImport )         -- resolve import declarations
--- import Lvm.Read    ( lvmReadFile )       -- read a Lvm file
--- import Lvm.Data (LvmModule)
 
 ----------------------------------------------------------------
 --
@@ -76,7 +72,8 @@ data Flag = Help | Version | Verbosity Verbosity | Dump Dump (Maybe String)
 data Verbosity = Silent | Normal | Verbose
    deriving (Eq, Ord)
 
-data Dump = DumpCore | DumpCoreOpt | DumpAsm | DumpAsmOpt | DumpInstr
+data Dump = DumpTokens | DumpCore | DumpCoreOpt | DumpAsm
+          | DumpAsmOpt | DumpInstr
    deriving Eq
 
 getVerbosity :: [Flag] -> Verbosity
@@ -95,11 +92,12 @@ options =
      , simple "?" "help"          Help        "show options"
      , simple []  "verbose"       flagVerbose "verbose output"
      , simple []  "silent"        flagSilent  "no output"
+     , dump "dump-tokens"   DumpTokens  "pretty print tokens"
      , dump "dump-core"     DumpCore    "pretty print core"
      , dump "dump-core-opt" DumpCoreOpt "pretty print core (optimized)"
      , dump "dump-asm"      DumpAsm     "pretty print assembler"
      , dump "dump-asm-opt"  DumpAsmOpt  "pretty print assembler (optimized)"
-     , dump  "dump-instr"    DumpInstr   "pretty print instructions"
+     , dump "dump-instr"    DumpInstr   "pretty print instructions"
      ]
  where
    simple xs long = Option xs [long] . NoArg
@@ -111,39 +109,34 @@ findModule paths = searchPath paths ".lvm" . stringFromId
 findSrc :: [String] -> String -> IO String
 findSrc paths = searchPath paths ".core"
 
-parse :: [Flag] -> [String] -> String -> IO (Module Expr, String)
-parse flags path src
-  = do{ source <- findSrc path src 
-      ; do{ -- messageLn flags "parsing"
-                           ; (m, implExps, es) <- coreParseExport source
-                           --; messageDoc flags "parsed"  (pretty m)
-                          --  ; messageLn flags "resolving imports"
-                           ; chasedMod  <- lvmImport (findModule path) m
-                           -- ; messageLn flags "making exports public"
-                           ; let publicmod = modulePublic implExps es chasedMod
-                           ; return (publicmod,source)
-                           } {- 
-          Right source ->do{ messageLn flags "parsing"
-                           ; m <- parseModule source
-                           ; messageDoc flags "parsed"  (pretty m)
-                           ; messageLn flags "resolving imports"
-                           ; chasedMod  <- lvmImport (findModule path) m
-                           ; return (chasedMod,source)
-                           } -}
-      }                       
-
-compile :: [Flag] -> String -> IO ()
+compile :: [Flag] -> FilePath -> IO ()
 compile flags src = do
+   -- searching
    message flags $ "Compiling " ++ showFile src
-   lvmPath        <- getLvmPath
+   lvmPath <- getLvmPath
    let path = "." : lvmPath
-   verbose $ "Search path: " ++ show (map showFile path)
+   source <- findSrc path src 
+   verbose $ "Source file: " ++ showFile source
    
-   (m,source) <- parse flags path src
-   dumpWith DumpCore flags "Core" m
+   -- lexing
+   verbose "Lexing"
+   input  <- readFile source
+   let tokens = layout (lexer (1,1) input)
+   dumpWith DumpTokens flags "Tokens" tokens
    
+   -- parsing
+   verbose "Parsing"
+   (m, implExps, es) <- parseModuleExport source tokens
+   
+   -- resolving
+   verbose "Resolving imports"
+   chasedMod  <- lvmImport (findModule path) m
+   let publicmod = modulePublic implExps es chasedMod
+   dumpWith DumpCore flags "Core" publicmod
+   
+   -- compiling
    verbose "Remove dead declarations"
-   let coremod = coreRemoveDead m
+   let coremod = coreRemoveDead publicmod
    dumpWith DumpCoreOpt flags "Core (dead declarations removed)" coremod
 
    verbose "Generating code"
@@ -158,6 +151,7 @@ compile flags src = do
    let lvmmod = asmToLvm  asmopt
    dumpWith DumpInstr flags "Instructions" lvmmod
 
+   -- writing
    let target  = reverse (dropWhile (/='.') (reverse source)) ++ "lvm"
    message flags $ "Writing " ++ showFile target
    lvmWriteFile target lvmmod
@@ -165,19 +159,6 @@ compile flags src = do
  where
    verbose :: Pretty a => a -> IO () 
    verbose = messageFor Verbose flags
-       
-       {-
-dump :: [Flag] -> String -> IO ()
-dump flags src
-  = do{ path        <- getLvmPath
-      ; messageLn flags ("search path: " ++ show (map showFile path))
-      ; source      <- searchPath path ".lvm" src
-      ; messageLn flags ("reading   : " ++ showFile source)
-      ; m           <- lvmReadFile source
-     --; messageDoc flags "module" (pretty m)
-      ; coremod    <- lvmImport (findModule path) m
-      --; messageDoc flags "resolved module" (pretty (coremod :: LvmModule))
-      } -}
 
 ---------------------------------------------------------------------
 -- Messages

@@ -16,18 +16,23 @@ module Lvm.Path
    ) where
 
 import Data.List
-import Data.Maybe
 import System.Directory
 import System.Environment
+import System.Exit
 
 ----------------------------------------------------------------
 -- file searching
 ----------------------------------------------------------------
 
 searchPath :: [String] -> String -> String -> IO String
-searchPath path ext name = 
-    fmap (fromMaybe (fail ("could not find " ++ show nameext)))
-         (searchPathMaybe path ext name)
+searchPath path ext name = do
+   ms <- searchPathMaybe path ext name
+   case ms of 
+      Just s  -> return s
+      Nothing -> do 
+         putStrLn ("Error: could not find " ++ show nameext)
+         putStrLn ("   with search path " ++ show path)
+         exitFailure
   where
     nameext
       | ext `isSuffixOf` name = name

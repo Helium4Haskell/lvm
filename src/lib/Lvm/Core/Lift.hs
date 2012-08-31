@@ -22,7 +22,7 @@ import Lvm.Common.Id      ( Id )
 import Lvm.Common.IdMap   ( IdMap, elemMap, extendMap, lookupMap, emptyMap )
 import Lvm.Common.IdSet   ( IdSet, elemSet, listFromSet, emptySet, foldSet
                , unionSet, sizeSet, setFromList )
-import Lvm.Core.Data
+import Lvm.Core.Expr
 import Lvm.Core.Utils
 
 ----------------------------------------------------------------
@@ -53,7 +53,7 @@ extendFree (Env prim env) x fv
 ----------------------------------------------------------------
 coreLift :: CoreModule -> CoreModule
 coreLift m
-  = mapExpr (liftExpr (Env primitives emptyMap)) m
+  = fmap (liftExpr (Env primitives emptyMap)) m
   where
     primitives  = externNames m
 
