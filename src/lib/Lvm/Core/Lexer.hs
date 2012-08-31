@@ -285,9 +285,14 @@ lexConOrQual pos cs
   = let (ident,rest) = span isLetter cs
         pos'         = foldl' newpos pos ident
     in case rest of
-        ('.':ds@(d:_))  | isLower d || d == '_'  
+        '.':ds@(d:_)    | isLower d || d == '_'  
                                      -> lexWhile isLetter (LexQualId ident) pos (incpos pos' 1) ds
                         | isUpper d  -> lexWhile isLetter (LexQualCon ident) pos (incpos pos' 1) ds
+                        | isSymbol d -> lexWhile isSymbol (LexQualId ident) pos (incpos pos' 1) ds
+        '.':'\'':'\'':ds -> case lexSpecialId pos (incpos pos 3) ds of
+                               (pos1, LexCon s):xs -> (pos1, LexQualCon ident s):xs
+                               (pos1, LexId s):xs  -> (pos1, LexQualId ident s):xs
+                               xs                  -> xs
         _ -> (pos,LexCon ident) : seq pos' (lexer pos' rest)
 
 lexWhile :: (Char -> Bool) -> (String -> Lexeme) -> Pos -> Lexer
@@ -306,7 +311,8 @@ lexSpecialId originalPos pos cs -- originalPos points to where '' started. it sh
                         seq pos' $
                         case ident of
                           []        -> (originalPos,LexError "empty special identifier") : lexer pos' cs'
-                          ":"       -> (originalPos,LexError "empty special con identifier") : lexer pos' cs'
+                          -- ":"       -> (originalPos,LexError "empty special con identifier") : lexer pos' cs'
+                          ":"       -> (originalPos,LexId ident)  : lexer pos' cs'
                           ':':conid -> (originalPos,LexCon conid) : lexer pos' cs'
                           _         -> (originalPos,LexId ident)  : lexer pos' cs'
       _              -> let pos' = foldl' newpos pos ident in

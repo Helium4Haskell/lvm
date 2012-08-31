@@ -31,6 +31,7 @@ module Lvm.Common.IdMap( module Lvm.Common.Id
 
             ) where
 
+import Data.List (sortBy)
 import Data.Maybe
 import qualified Data.IntMap as IntMap
 import Lvm.Common.Id( Id, intFromId, idFromInt
@@ -105,9 +106,11 @@ findMap x = fromMaybe (error msg) . lookupMap x
  where  
    msg = "IdMap.findMap: unknown identifier " ++ show x
 
+-- sort is needed to not rely on an id's index
 listFromMap :: IdMap a -> [(Id,a)]
 listFromMap (IdMap idmap)
-  = map (first idFromInt) (IntMap.toList idmap)
+  = sortBy (\x y -> fst x `compare` fst y) 
+  $ map (first idFromInt) (IntMap.toList idmap)
 
 mapFromList :: [(Id,a)] -> IdMap a
 mapFromList = IdMap . IntMap.fromList . map (first intFromId)

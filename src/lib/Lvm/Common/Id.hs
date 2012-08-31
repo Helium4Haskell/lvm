@@ -192,10 +192,14 @@ isUniq = odd
 instance Eq Id where
   Id i1 == Id i2 = i1 == i2
 
+-- fast, but predictable
 instance Ord Id where
-  -- i1      <= i2       = stringFromId i2 <= stringFromId i2
-  compare (Id i1) (Id i2) = compare i1 i2
-
+  compare x1@(Id i1) x2@(Id i2) =
+     case compare (extractHash i1) (extractHash i2) of
+        LT             -> LT
+        EQ | i1 == i2  -> EQ
+           | otherwise -> compare (stringFromId x1) (stringFromId x2)
+        GT             -> GT
 
 instance Show Id where
   show x = "\"" ++ stringFromId x ++ "\""

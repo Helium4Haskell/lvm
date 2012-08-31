@@ -20,14 +20,14 @@ module Lvm.Core.Module( Module(..)
              , mapDecls, mapValues
              , customDeclKind, customData, customTypeDecl
              , modulePublic
-             , declKindFromDecl, shallowKindFromDecl -- , hasDeclKind
+             , declKindFromDecl, shallowKindFromDecl, makeDeclKind -- , hasDeclKind
              , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern, isDeclImport, isDeclGlobal
              , public, private
              ) where
 
 import Unsafe.Coerce
 import Lvm.Common.Byte    ( Bytes, stringFromBytes )
-import Lvm.Common.Id      ( Id, idFromString, dummyId )
+import Lvm.Common.Id  
 import Lvm.Common.IdSet   ( IdSet, setFromList, elemSet )
 import Lvm.Core.PrettyId
 import Lvm.Instr.Data   ( Arity, Tag )
@@ -184,7 +184,7 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
                 _ ->
                     case access of
                         Imported{} -> False
-                        _          -> True
+                        Defined{}  -> accessPublic access
         else
             case access of
                 Imported{ importModule = x }
@@ -195,8 +195,7 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
                     | otherwise                         -> elemIdSet
     
     declPublic decl =
-        let
-            name = declName decl
+        let name = declName decl
         in
         case decl of
             DeclValue{}     ->  isExported decl (elemSet name exports)
@@ -238,8 +237,16 @@ instance Pretty a => Pretty (Decl a) where
       case decl of
          DeclValue{}     -> ppVarId (declName decl) <+> ppAttrs decl 
                             <$> text "=" <+> pretty (valueValue decl)
-         DeclCon{}       -> text "con" <+> ppConId (declName decl) <+> ppAttrs decl 
-                            <$> text "=" <+> parens (char '@' <> pretty (conTag decl) <> 
+         DeclCon{}       -> case declAccess decl of
+                               imp@Imported{} -> 
+                                  text "abstract" <+> ppConId (declName decl)
+                                  <+> ppAttrs decl
+                                  <$> text "=" <+> ppQualCon (importModule imp) (importName imp)
+                                  <+> parens (char '@' <> pretty (conTag decl) <> 
+                                             comma  <> pretty (declArity decl))
+                               
+                               _ -> text "con" <+> ppConId (declName decl) <+> ppAttrs decl 
+                                    <$> text "=" <+> parens (char '@' <> pretty (conTag decl) <> 
                                              comma  <> pretty (declArity decl))
          DeclCustom{}    -> text "custom" <+> pretty (declKind decl) <+> ppId (declName decl) <+> ppAttrs decl
          DeclExtern{}    -> text "extern" 
@@ -247,7 +254,7 @@ instance Pretty a => Pretty (Decl a) where
                                <+> ppVarId (declName decl) -- <+> ppAttrs decl
                             <+> ppExternName (externLib decl) (externName decl) -- <+> pretty (declArity decl)
                             <+> ppExternType (externCall decl) (externType decl)
-         DeclAbstract{}  -> text "abstract" <+> ppVarId (declName decl) <+> ppNoImpAttrs decl
+         DeclAbstract{}  -> text "abstract" <+> ppVarId (declName decl) <+> ppAttrs decl
                             <$> text "=" <+> ppImported (declAccess decl) <+> pretty (declArity decl)
          DeclImport{}    -> text "import" <+> pretty (importKind (declAccess decl)) 
                             <+> ppId (declName decl) <+> ppNoImpAttrs decl
@@ -274,9 +281,9 @@ ppExternName libName extName
       Decorate name -> text "decorate" <+> ppQual name
       Ordinal i     -> ppQual (show i)
   where
-    ppQual name   = (if null libName then empty
-                                     else ppConId (idFromString libName) <> char '.' )
-                    <> ppVarId (idFromString name)
+    ppQual name
+       | null libName = ppVarId (idFromString name)
+       | otherwise    = ppQualId (idFromString libName) (idFromString name)
 
 ppExternType :: CallConv -> String -> Doc
 ppExternType callConv tp
@@ -304,18 +311,18 @@ ppAccess acc
    | otherwise        = text "private"
 
 ppImportAttr :: Access -> Doc
-ppImportAttr  acc
+ppImportAttr acc
   = case acc of
       Defined _ -> empty
       Imported _ modid impid impkind _ _
-        -> text "import" <+> pretty impkind <+> ppConId modid <> char '.' <> ppId impid <> space
+        -> text "import" <+> pretty impkind <+> ppQualId modid impid <> space
   
 ppImported :: Access -> Doc
 ppImported acc
   = case acc of
       Defined _ -> error "ModulePretty.ppImported: internal error: abstract or import value should always be imported!"
       Imported _ modid impid _ _ _
-        -> ppConId modid <> char '.' <> ppId impid
+        -> ppQualId modid impid
 
 instance Pretty Custom where
    pretty custom =
@@ -346,6 +353,16 @@ instance Pretty DeclKind where
          DeclKindExtern      -> ppId (idFromString "extern")
 --         DeclKindExternType      
          _                   -> pretty (fromEnum kind)
+
+makeDeclKind :: Id -> DeclKind
+makeDeclKind x = 
+   case stringFromId x of
+      "val"    -> DeclKindValue
+      "con"    -> DeclKindCon
+      "import" -> DeclKindImport
+      "module" -> DeclKindModule
+      "extern" -> DeclKindExtern
+      _        -> DeclKindCustom x
 
 {---------------------------------------------------------------
   Utility functions

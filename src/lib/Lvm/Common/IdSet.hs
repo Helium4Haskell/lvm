@@ -20,6 +20,7 @@ module Lvm.Common.IdSet
    ) where
 
 import Lvm.Common.Id
+import Data.List (sort)
 import Data.IntSet
 import qualified Data.IntSet as IntSet
 
@@ -59,8 +60,9 @@ unionSets xs = IdSet (unions [ s | IdSet s <- xs ])
 diffSet :: IdSet -> IdSet -> IdSet
 diffSet (IdSet s1) (IdSet s2) = IdSet (difference s1 s2)
 
+-- sort is needed to not rely on an id's index
 listFromSet :: IdSet -> [Id]
-listFromSet (IdSet s) = [ idFromInt n | n <- elems s ]
+listFromSet (IdSet s) = sort [ idFromInt n | n <- elems s ]
 
 setFromList :: [Id] -> IdSet
 setFromList = foldr insertSet emptySet

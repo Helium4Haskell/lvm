@@ -53,8 +53,10 @@ coreRemoveDead m
     -- in other modules
     used  = foldl' usageDecl alwaysUsed (moduleDecls m)
 
-    alwaysUsed = Set.fromList $ map (\name -> (DeclKindValue,idFromString name))
-                 ["main$","main"]
+    alwaysUsed = Set.fromList
+                    [ (DeclKindValue, idFromString "main$")
+                    , (DeclKindValue, idFromString "main")
+                    ]
     
 ----------------------------------------------------------------
 -- Is a declaration used?

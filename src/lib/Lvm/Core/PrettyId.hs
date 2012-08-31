@@ -9,7 +9,7 @@
 
 --  $Id$
 
-module Lvm.Core.PrettyId ( ppId, ppVarId, ppConId, ppString ) where
+module Lvm.Core.PrettyId ( ppId, ppVarId, ppConId, ppQualId, ppQualCon, ppString ) where
 
 import Data.Char     ( isAlphaNum, isAlpha, isLower, isUpper )
 import Text.PrettyPrint.Leijen
@@ -17,13 +17,22 @@ import Lvm.Common.Id       ( Id, stringFromId, idFromString )
 import Lvm.Common.IdSet    ( IdSet, setFromList, elemSet )
 
 ppId :: Id -> Doc
-ppId = ppEscapeId isAlpha (\x -> "''" ++ x ++ "''") -- ('$':)
+ppId = ppEscapeId isAlpha quoted
 
 ppVarId :: Id -> Doc
-ppVarId = ppEscapeId isLower (\x -> "''" ++ x ++ "''") -- ('$':)
+ppVarId = ppEscapeId isLower quoted
 
 ppConId :: Id -> Doc
-ppConId = ppEscapeId isUpper ('@':)
+ppConId = ppEscapeId isUpper (quoted . (':' :))
+
+ppQualId :: Id -> Id -> Doc
+ppQualId x y = pretty x <> dot <> ppVarId y
+
+ppQualCon :: Id -> Id -> Doc
+ppQualCon x y = pretty x <> dot <> ppConId y
+
+quoted :: String -> String
+quoted s = "''" ++ s ++ "''"
 
 ppString :: String -> Doc
 ppString s
@@ -51,7 +60,7 @@ escapeId c   = escape c
 escape :: Char -> String
 escape c
   = case c of
-      '.'   -> "\\."
+      -- '.'   -> "\\."
       '\a'  -> "\\a"
       '\b'  -> "\\b"
       '\f'  -> "\\f"

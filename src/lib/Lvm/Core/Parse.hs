@@ -37,7 +37,7 @@ coreParseModule :: TokenParser a -> FilePath -> IO a
 coreParseModule parser fname =
     do{ input  <- readFile fname
       ; let ts = layout (lexer (1,1) input)
-      -- ; writeFile "tokens.txt" $ unlines (map show ts)
+      ; writeFile "tokens.txt" $ unlines (map show ts)
       ; case runParser parser () fname ts of
           Left err
             -> ioError (userError ("parse error: " ++ show err))
@@ -198,24 +198,30 @@ pabstract
 pabstractValue :: TokenParser (Decl v)
 pabstractValue
   = do{ x <- variable
+      ; (acc,custom) <- pAttributes private
       ; lexeme LexASG
       ; (mid,impid) <- qualifiedVar
-      ; (_,tparity) <- ptypeDecl
-      ; arity <- do{ lexeme LexASG; i <- lexInt; return (fromInteger i) } <|> return tparity
-      ; return (DeclAbstract x (Imported False mid impid DeclKindValue 0 0) arity [])
+      ; arity <- liftM fromInteger lexInt
+      ; let access | isImported acc = acc
+                   | otherwise      = Imported False mid impid DeclKindValue 0 0
+      ; return (DeclAbstract x access arity custom)
       }
 
 pabstractCon :: TokenParser (Decl v)
 pabstractCon
   = do{ x <- conid
+      ; (acc,custom) <- pAttributes private -- ignore access
       ; lexeme LexASG
-      ; (mid,impid) <- qualifiedCon
-      ; (_,arity) <- ptypeDecl
-      ; lexeme LexASG
-      ; tag <- lexInt
-      ; return (DeclCon x (Imported False mid impid DeclKindCon 0 0) arity (fromInteger tag) [])
+      ; (mid,impid)  <- qualifiedCon
+      ; (tag, arity) <- pConInfo
+      ; let access | isImported acc = acc
+                   | otherwise      = Imported False mid impid DeclKindCon 0 0
+      ; return (DeclCon x access arity tag custom)
       }
 
+isImported :: Access -> Bool
+isImported (Imported {}) = True
+isImported _             = False
 
 ----------------------------------------------------------------
 -- import declarations
@@ -290,7 +296,7 @@ pconDecl :: TokenParser CoreDecl
 pconDecl = do
    lexeme LexCON
    x <- constructor
-   (access,custom) <- pAttributes
+   (access,custom) <- pAttributes public
    lexeme LexASG
    (tag, arity) <- pConInfo
    return $ DeclCon x access arity tag custom
@@ -339,7 +345,7 @@ ptopDeclDirect x
 pbindTopRhs :: TokenParser (Access, [Custom], Expr)
 pbindTopRhs
   = do{ args <- many bindid
-      ; (access,custom) <- pAttributes
+      ; (access,custom) <- pAttributes public
       ; lexeme LexASG
       ; body <- pexpr
       ; let expr = foldr Lam body args
@@ -385,11 +391,11 @@ pdata
       ; x   <- typeid
       ; args <- many typevarid
       ; let kind     = foldr (KFun . const KStar) KStar args
-            datadecl = DeclCustom x private customData [customKind kind]
+            datadecl = DeclCustom x public customData [customKind kind]
       ; do{ lexeme LexASG
           ; let t1  = foldl TAp (TCon x) (map TVar args)
           ; cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
-          ; let con tag (cid,t2) = DeclCon cid private (arityFromType t2) tag 
+          ; let con tag (cid,t2) = DeclCon cid public (arityFromType t2) tag 
                                       [customType t2, 
                                        CustomLink x customData]
           ; return (datadecl:zipWith con [0..] cons)
@@ -433,24 +439,31 @@ pCustomDecl
   = do{ lexeme LexCUSTOM
       ; kind <- pdeclKind
       ; x   <- customid
-      ; (access,customs) <- pAttributes
+      ; (access,customs) <- pAttributes private
       ; return (DeclCustom x access kind customs)
       }
 
-pAttributes :: TokenParser (Access,[Custom])
-pAttributes
+pAttributes :: Access -> TokenParser (Access,[Custom])
+pAttributes defAccess
   = do{ lexeme LexCOLON
-      ; access  <- paccess
+      ; access  <- paccess defAccess
       ; customs <- pcustoms
-      ; return (access,customs)
+      ; return (access, customs)
       }
   <|> return (private,[])
 
-paccess :: TokenParser Access
-paccess 
-  =   do{ lexeme LexPRIVATE; return private }
-  <|> do{ lexeme LexPUBLIC; return public }
-  <|> return private
+paccess :: Access -> TokenParser Access
+paccess defAccess
+  =   do{ lexeme LexPRIVATE; pimportaccess False <|> return private }
+  <|> do{ lexeme LexPUBLIC;  pimportaccess True  <|> return public }
+  <|> return defAccess
+
+pimportaccess :: Bool -> TokenParser Access
+pimportaccess isPublic = do
+   lexeme LexIMPORT
+   kind   <- pdeclKind
+   (m, x) <- lexQualifiedId
+   return $ Imported isPublic (idFromString m) (idFromString x) kind 0 0
 
 pcustoms :: TokenParser [Custom]
 pcustoms
@@ -481,7 +494,7 @@ pcustom
 
 pdeclKind :: TokenParser DeclKind
 pdeclKind
-  =   do{ x <- varid;     return (DeclKindCustom x) }
+  =   do{ x <- varid;     return (makeDeclKind x) }
   <|> do{ i <- lexInt;    return (toEnum (fromInteger i)) }
   <|> do{ s <- lexString; return (customDeclKind s) }
   <?> "custom kind"
@@ -520,8 +533,12 @@ pexpr
       ; lexeme LexWITH
       ; (defid,alts) <- palts
       ; case alts of
-          [Alt PatDefault rhs] -> return (Let (NonRec (Bind defid (Var x))) rhs)
-          _ | x == defid       -> return (Match defid alts)
+          -- better approach is to optize these cases *after* parsing
+          [Alt PatDefault rhs] 
+            | x == defid       -> return rhs
+            | otherwise        -> return (Let (NonRec (Bind defid (Var x))) rhs)
+          _ | x == defid       -> return (Match x alts)
+            | defid == wildId  -> return (Match x alts)
             | otherwise        -> return (Let (NonRec (Bind defid (Var x))) (Match defid alts))
       }
   <|> 
@@ -533,6 +550,9 @@ pexpr
       }
   <|> pexprAp
   <?> "expression"
+
+wildId :: Id
+wildId = idFromString "_"
 
 pexprAp :: TokenParser Expr
 pexprAp
@@ -918,13 +938,13 @@ qualifiedVar
       }
 
 bindid :: TokenParser Id
-bindid
+bindid = varid {- 
   = do{ x <- varid
       ; do{ lexeme LexEXCL
           ; return x {- (setSortId SortStrict id) -}
           }
         <|> return x
-      }
+      -}
 
 constructor :: TokenParser Id
 constructor
