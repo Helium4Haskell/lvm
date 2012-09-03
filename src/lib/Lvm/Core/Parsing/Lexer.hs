@@ -9,191 +9,16 @@
 
 --  $Id$
 
-module Lvm.Core.Lexer( Token, Lexeme(..), Pos
-                , lexer
-                , layout, addLayout
-                ) where
+module Lvm.Core.Parsing.Lexer (lexer) where
 
 import Control.Monad
 import Data.Char hiding (isSymbol, isLetter)
 import Data.Maybe
 import Data.List (foldl')
-import Text.PrettyPrint.Leijen (Pretty(..))
+import Lvm.Core.Parsing.Token
 
------------------------------------------------------------
--- The layout rule
------------------------------------------------------------
-layout :: [Token] -> [Token]
-layout  = doubleSemi . lay [] . addLayout
-
-
-data Context   = CtxLay Int
-               | CtxLet Int
-               | CtxBrace
-               deriving (Eq,Show)
-
-
-lay :: [Context] -> [Token] -> [Token]
-
-
-lay (CtxLet _:cs) ((_,Indent _):t@(pos,LexIN):ts)  = (pos,LexRBRACE) : t : lay cs ts
-lay (CtxLet _:cs) (t@(pos,LexIN):ts)               = (pos,LexRBRACE) : t : lay cs ts
-
-
-{-
-lay cc@(CtxLet c:cs) tt@(t@(_,LexSEMI):(pos,Indent i):ts)
-                                            = t : lay cc ts
--}
-lay cc@(CtxLet c:cs) tt@((pos,Indent i):ts) | i == c    = (pos,LexSEMI) : lay cc ts
-                                            | i  < c    = (pos,LexRBRACE) : lay cs tt
-                                            | otherwise = lay cc ts
-{-
-lay cc@(CtxLay c:cs) tt@(t@(_,LexSEMI):(pos,Indent i):ts)
-                                            | i == c    = t : lay cc ts
-                                            | i  < c    = (pos,LexRBRACE) : lay cs tt
-                                            | otherwise = lay cc ts
--}
-lay cc@(CtxLay c:cs) tt@((pos,Indent i):ts) | i == c    = (pos,LexSEMI) : lay cc ts
-                                            | i  < c    = (pos,LexRBRACE) : lay cs tt
-                                            | otherwise = lay cc ts
-
-
-lay (CtxLay _:cs) tt@((pos,LexIN):_)        = (pos,LexRBRACE) : lay cs tt
-
-lay cc@(CtxBrace:_) ((_,Indent _):ts)       = lay cc ts
-lay (CtxBrace:cs) (t@(_,LexRBRACE):ts)      = t : lay cs ts
-
-lay cs (t@(_,LexLBRACE):ts)                 = t : lay (CtxBrace:cs) ts
-
-lay cs ((_,Indent _):ts)                    = lay cs ts
-lay cs ((pos,Layout c):ts)                  = (pos,LexLBRACE) : lay (c:cs) ts
-
-lay cs (t:ts)                               = t : lay cs ts
-lay _ []                                    = []
-
-addLayout :: [(Pos, Lexeme)] -> [Token]
-addLayout tt@((pos,LexMODULE):_) = addLay pos tt
-addLayout tt@((pos,LexLBRACE):_) = addLay pos tt
-addLayout tt@((pos,_):_)         = (pos,Layout (CtxLay (snd pos))) : addLay pos tt
-addLayout []                     = []
-
-addLay :: Pos -> [Token] -> [Token]
-addLay _ []                           = []
---addLay _ (t@(pos,LexIN):ts)             = t : addLay pos ts
-addLay (l,_) (t@(pos,lexeme):ts)
-            | ln > l     = (pos,Indent col) : t : rest
-            | otherwise  = t : rest
-            where
-              (ln,col)   = pos
-              rest       = case lexeme of
-                                     LexLET    -> newlay CtxLet
-                                     LexLETSTRICT -> newlay CtxLet
-                                     LexWHERE  -> newlay CtxLay
-                                     LexOF     -> newlay CtxLay
-                                     LexDO     -> newlay CtxLay
-                                     _         -> addLay pos ts
-
-              newlay ctx = case ts of
-                             [] -> []
-                             (u@(pos',LexLBRACE):us)
-                                -> u : addLay pos' us
-                             (u@(pos',_):us)
-                                -> (pos',Layout (ctx (snd pos'))) : u : addLay pos' us
-
-doubleSemi :: [Token] -> [Token]
-doubleSemi (t@(_, LexSEMI):(_, LexSEMI):rest) = doubleSemi (t:rest)
-doubleSemi (t:ts) = t:doubleSemi ts
-doubleSemi []     = []
-
------------------------------------------------------------
--- Lexer
------------------------------------------------------------
-type Pos        = (Int,Int)
-type Token      = (Pos,Lexeme)
-
-data Lexeme     = LexUnknown Char
-                | LexError String
-                | LexChar Char
-                | LexString String
-                | LexInt Integer
-                | LexFloat Double
-                | LexId String
-                | LexQualId String String
-                | LexOp String
-                | LexCon String
-                | LexQualCon String String
-                | LexConOp String
-
-                | LexCOMMA      -- ,
-                | LexQUOTE      -- `
-                | LexSEMI       -- ;
-                | LexBSLASH     -- \ (niet meteen een enter hierachter vanwege -cpp)
-                | LexASG        -- =
-                | LexCOLON      -- :
-                | LexCOLCOL     -- ::
-                | LexDOT        -- .
-                | LexDOTDOT     -- ..
-                | LexBAR        -- |
-                | LexLARROW     -- <-
-                | LexRARROW     -- ->
-                | LexTILDE      -- ~
-                | LexARROW      -- =>
-                | LexAT         -- @
-                | LexEXCL       -- !
-                | LexDASH       -- -
-
-                | LexLPAREN     -- (
-                | LexRPAREN     -- )
-                | LexLBRACKET   -- [
-                | LexRBRACKET   -- ]
-                | LexLBRACE     -- {
-                | LexRBRACE     -- }
-
-                | LexLET
-                | LexIN
-                | LexDO
-                | LexWHERE
-                | LexCASE
-                | LexOF
-                | LexIF
-                | LexTHEN
-                | LexELSE
-                | LexDATA
-                | LexTYPE
-                | LexMODULE
-                | LexIMPORT
-                | LexEOF
-
-                -- not standard
-                | LexLETSTRICT
-                | LexMATCH
-                | LexWITH
-
-                | LexPRIVATE
-                | LexPUBLIC
-                | LexDEFAULT
-                | LexCON
-                
-                | LexABSTRACT
-                | LexINSTR
-                | LexEXTERN
-
-                | LexNOTHING
-                | LexCUSTOM
-
-                | LexSTATIC | LexDYNAMIC | LexRUNTIME
-                | LexCCALL | LexSTDCALL | LexINSTRCALL
-                | LexDECORATE | LexORDINAL
-
-                | Layout Context
-                | Indent Int
-                deriving (Eq,Show)
-
-instance Pretty Lexeme where
-   pretty = pretty . show
-
-type Lexer  = Pos -> String -> [(Pos, Lexeme)]
-type Lexer5 = Pos -> String -> ([(Pos, Lexeme)] -> [(Pos, Lexeme)], Double, Pos, String)
+type Lexer  = Pos -> String -> [Token]
+type Lexer5 = Pos -> String -> ([Token] -> [Token], Double, Pos, String)
 
 lexer :: Lexer
 lexer (ln,_) []                 = [((ln+1,0),LexEOF)]
@@ -409,12 +234,12 @@ lexChar pos (c:cs)              | isGraphic c || c == '"' || c == ' ' = lexEndCh
 
 lexChar pos []                  = (pos,LexError "unexpected end of input in character") : lexer pos []
 
-lexEndChar :: (Pos, Lexeme) -> Lexer
+lexEndChar :: Token -> Lexer
 lexEndChar lexeme pos ('\'':cs) = lexeme : nextinc lexer pos 1 cs
 lexEndChar _ pos cs             = (pos,LexError "expecting termiInting symbol \"'\"") : lexer pos cs
 
 
-lexString :: Pos -> (Pos, String) -> String -> [(Pos, Lexeme)]
+lexString :: Pos -> (Pos, String) -> String -> [Token]
 lexString pos (p,s) ('"':cs)    = (p,LexString (reverse s)) : nextinc lexer pos 1 cs
 
 lexString pos (p,s) ('\n':cs)   = (p,LexString (reverse s)) : (pos,LexError "newline in string") : next lexer pos '\n' cs
@@ -437,7 +262,7 @@ lexString pos (p,s) (c:cs)      | isGraphic c || c == '\'' || c == ' '
                                 | otherwise  = (pos,LexError ("illegal character (" ++ [c] ++ ") in string"))
                                                     : lexString (newpos pos c) (p,s) cs
 
-gap :: Pos -> (Pos, String) -> String -> [(Pos, Lexeme)]
+gap :: Pos -> (Pos, String) -> String -> [Token]
 gap pos (p,s) cs                = let (ws,rest) = span isSpace cs
                                       pos'      = foldl' newpos pos ws
                                   in  case rest of
@@ -450,7 +275,7 @@ gap pos (p,s) cs                = let (ws,rest) = span isSpace cs
 -----------------------------------------------------------
 
 
-escapeChar :: Pos -> String -> (Pos,(Pos,Lexeme),String)
+escapeChar :: Pos -> String -> (Pos,Token,String)
 escapeChar pos [] = (pos,(pos,LexError "Unexpected end of input"),[])
 escapeChar pos cs = fromMaybe def (msum [ f pos cs | f <- fs ])
  where
@@ -464,7 +289,7 @@ charnum pos ('d':cs)    = numToChar pos (decimal (incpos pos 1) cs)
 charnum pos (c:cs)      | isDigit c  = numToChar pos (decimal (incpos pos 1) cs)
 charnum _ _             = Nothing
 
-numToChar :: Pos -> Maybe (Integer, Pos, String) -> Maybe (Pos, (Pos, Lexeme), String)
+numToChar :: Pos -> Maybe (Integer, Pos, String) -> Maybe (Pos, Token, String)
 numToChar pos (Just (x,pos',cs')) = Just (pos',(pos,LexChar (toEnum (fromInteger x))), cs')
 numToChar _ _ = Nothing
 
@@ -538,12 +363,13 @@ nonSym []    = True
 -----------------------------------------------------------
 -- Comment
 -----------------------------------------------------------
-lexeol :: Pos -> String -> [(Pos, Lexeme)]
+
+lexeol :: Lexer
 lexeol pos ('\n':cs)    = lexer  (newpos pos '\n') cs
 lexeol pos (c:cs)       = lexeol (newpos pos c) cs
 lexeol pos []           = lexer pos []
 
-lexComment :: Int -> Pos -> String -> [(Pos, Lexeme)]
+lexComment :: Int -> Lexer
 lexComment level pos s =
    case s of
       '-':'}':cs | level == 0    -> lexer (incpos pos 2) cs
@@ -551,16 +377,3 @@ lexComment level pos s =
       '{':'-':cs -> lexComment (level+1) (incpos pos 2) cs
       c:cs       -> lexComment level (newpos pos c) cs
       []         -> lexer pos []
-
-
------------------------------------------------------------
--- Positions
------------------------------------------------------------
-
-incpos :: Pos -> Int -> Pos
-incpos (line,col) i     = (line,col+i)
-
-newpos :: Pos -> Char -> Pos
-newpos (line,_)   '\n'  = (line + 1,1)
-newpos (line,col) '\t'  = (line, ((((col-1) `div` 8)+1)*8)+1)
-newpos (line,col) _     = (line, col+1)

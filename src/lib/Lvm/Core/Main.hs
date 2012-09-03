@@ -21,8 +21,9 @@ import Lvm.Path
 import Lvm.Common.Id         ( Id, newNameSupply, stringFromId )
 
 import Lvm.Core.Module ( modulePublic )
-import Lvm.Core.Parse  ( parseModuleExport )
-import Lvm.Core.Lexer  ( layout, lexer)
+import Lvm.Core.Parsing.Parser  ( parseModuleExport )
+import Lvm.Core.Parsing.Lexer  ( lexer)
+import Lvm.Core.Parsing.Layout  (layout)
                                         -- parse text into Core
 import Lvm.Core.RemoveDead( coreRemoveDead ) -- remove dead declarations
 import Lvm.Core.ToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm

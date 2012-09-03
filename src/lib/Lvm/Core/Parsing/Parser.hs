@@ -9,7 +9,7 @@
 
 --  $Id$
 
-module Lvm.Core.Parse (parseModuleExport, parseModule) where
+module Lvm.Core.Parsing.Parser (parseModuleExport, parseModule) where
 
 import Control.Monad
 import Prelude hiding (lex)
@@ -18,7 +18,7 @@ import Lvm.Common.Byte   ( Bytes, bytesFromString )
 import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.Utils
-import Lvm.Core.Lexer (Token, Lexeme(..))
+import Lvm.Core.Parsing.Token (Token, Lexeme(..))
 import Lvm.Core.Type
 import Data.List (foldl') 
 
@@ -171,6 +171,7 @@ pabstractValue
       ; lexeme LexASG
       ; (mid,impid) <- qualifiedVar
       ; arity <- liftM fromInteger lexInt
+                 <|> liftM (arityFromType . fst) ptypeDecl
       ; let access | isImported acc = acc
                    | otherwise      = Imported False mid impid DeclKindValue 0 0
       ; return (DeclAbstract x access arity custom)
@@ -270,14 +271,20 @@ pconDecl = do
    (tag, arity) <- pConInfo
    return $ DeclCon x access arity tag custom
 
--- constructor info: #(tag, arity)
+-- constructor info: (@tag, arity)
 pConInfo :: TokenParser (Tag, Arity)
-pConInfo = parens $ do
+pConInfo = (parens $ do
    lexeme LexAT
    tag   <- lexInt <?> "tag" 
    lexeme LexCOMMA
    arity <- lexInt <?> "arity"
-   return (fromInteger tag, fromInteger arity)
+   return (fromInteger tag, fromInteger arity))
+ <|> do -- :: TypeSig = tag
+   (tp, _) <- ptypeDecl
+   lexeme LexASG
+   tag   <- lexInt <?> "tag" 
+   return (fromInteger tag, arityFromType tp)
+ 
 
 ----------------------------------------------------------------
 -- value declarations

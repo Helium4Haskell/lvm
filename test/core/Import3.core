@@ -1,7 +1,7 @@
 {- import/export -}
 module Import3( main, product ) where
 
-import Import2
+import Import2 (fromTo, foldl, mulint)
 
 main  = product (fromTo 1 10)
 
