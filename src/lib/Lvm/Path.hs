@@ -11,8 +11,9 @@
 
 --  $Id$
 
-module Lvm.Path
-   ( getLvmPath, searchPath, searchPathMaybe, splitPath
+module Lvm.Path 
+   ( getLvmPath, searchPath
+   , searchPathMaybe, splitPath
    ) where
 
 import Data.List

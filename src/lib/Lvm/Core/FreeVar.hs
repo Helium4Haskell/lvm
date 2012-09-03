@@ -12,14 +12,12 @@
 ----------------------------------------------------------------
 -- Annotate let bound expression with their free variables
 ----------------------------------------------------------------
-module Lvm.Core.FreeVar( coreFreeVar ) where
+module Lvm.Core.FreeVar (coreFreeVar) where
 
-import Lvm.Common.IdSet( IdSet, emptySet, isEmptySet
-            , listFromSet, setFromList
-            , elemSet, insertSet, unionSets, unionSet, deleteSet, diffSet )
+import Debug.Trace
+import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.Utils
-import Debug.Trace
 
 ----------------------------------------------------------------
 -- coreFreeVar

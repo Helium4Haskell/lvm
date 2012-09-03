@@ -13,8 +13,8 @@ module Lvm.Core.Parsing.Lexer (lexer) where
 
 import Control.Monad
 import Data.Char hiding (isSymbol, isLetter)
+import Data.List
 import Data.Maybe
-import Data.List (foldl')
 import Lvm.Core.Parsing.Token
 
 type Lexer  = Pos -> String -> [Token]

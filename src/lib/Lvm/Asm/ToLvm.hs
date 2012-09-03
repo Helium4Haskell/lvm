@@ -9,21 +9,19 @@
 
 --  $Id$
 
-module Lvm.Asm.ToLvm( asmToLvm )  where
+module Lvm.Asm.ToLvm (asmToLvm)  where
 
 import Control.Exception ( assert )
-import Data.List     ( partition)
-import Lvm.Common.Id
-import Lvm.Common.IdMap    ( IdMap, lookupMap, mapFromList )
-import qualified Lvm.Asm.Data as Asm
+import Data.List 
 import Lvm.Asm.Data
+import Lvm.Common.Id
+import Lvm.Common.IdMap 
 import Lvm.Data
-
 import Lvm.Instr.Data hiding  ( Con(..), Alt(..), Pat(..) )
+import Lvm.Instr.Resolve   (instrResolve)
+import Lvm.Instr.Rewrite   (instrRewrite)
+import qualified Lvm.Asm.Data as Asm
 import qualified Lvm.Instr.Data as Instr
-
-import Lvm.Instr.Resolve   ( instrResolve )
-import Lvm.Instr.Rewrite   ( instrRewrite )
 
 {---------------------------------------------------------------
   asmToLvm: generate instructions from Asm expressions

@@ -14,14 +14,13 @@
 -- After this pass, each binding has either no free variables or no arguments.
 -- maintains free variable information & normalised structure
 ----------------------------------------------------------------
-module Lvm.Core.Lift ( coreLift ) where
+module Lvm.Core.Lift (coreLift) where
 
-import Data.List (foldl') 
+import Data.List
 import Data.Maybe
-import Lvm.Common.Id      ( Id )
-import Lvm.Common.IdMap   ( IdMap, elemMap, extendMap, lookupMap, emptyMap )
-import Lvm.Common.IdSet   ( IdSet, elemSet, listFromSet, emptySet, foldSet
-               , unionSet, sizeSet, setFromList )
+import Lvm.Common.Id     
+import Lvm.Common.IdMap   
+import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.Utils
 

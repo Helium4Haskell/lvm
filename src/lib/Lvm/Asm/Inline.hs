@@ -10,12 +10,11 @@
 --  $Id$
 module Lvm.Asm.Inline (asmInline) where
 
-import Lvm.Common.Id       ( Id )
-import Lvm.Common.IdMap    ( IdMap, emptyMap, extendMap, deleteMap, lookupMap )
-
+import Data.Maybe
 import Lvm.Asm.Data
 import Lvm.Asm.Occur ( asmOccur )
-import Data.Maybe
+import Lvm.Common.Id       
+import Lvm.Common.IdMap
 
 {---------------------------------------------------------------
   Inline environment maps identifiers to their definition

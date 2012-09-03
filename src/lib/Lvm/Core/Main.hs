@@ -9,30 +9,26 @@
 
 --  $Id$
 
-module Main where
+module Main (main) where
 
 import Control.Monad
-import System.Environment      ( getArgs )
-import System.Console.GetOpt
-import System.Exit
-import Text.PrettyPrint.Leijen ( Pretty(..), empty, vsep )
-
+import Lvm.Common.Id
 import Lvm.Path
-import Lvm.Common.Id         ( Id, newNameSupply, stringFromId )
+import System.Console.GetOpt
+import System.Environment
+import System.Exit
+import Text.PrettyPrint.Leijen
 
-import Lvm.Core.Module ( modulePublic )
-import Lvm.Core.Parsing.Parser  ( parseModuleExport )
-import Lvm.Core.Parsing.Lexer  ( lexer)
-import Lvm.Core.Parsing.Layout  (layout)
-                                        -- parse text into Core
-import Lvm.Core.RemoveDead( coreRemoveDead ) -- remove dead declarations
-import Lvm.Core.ToAsm  ( coreToAsm )         -- enriched lambda expressions (Core) to Asm
-
-import Lvm.Asm.Optimize( asmOptimize )       -- optimize Asm (ie. local inlining)
-import Lvm.Asm.ToLvm   ( asmToLvm )          -- translate Asm to Lvm instructions
-
-import Lvm.Write   ( lvmWriteFile )      -- write a binary Lvm file
-import Lvm.Import  ( lvmImport )         -- resolve import declarations
+import Lvm.Asm.Inline          (asmInline)         -- optimize Asm (ie. local inlining)
+import Lvm.Asm.ToLvm           (asmToLvm)          -- translate Asm to Lvm instructions
+import Lvm.Core.Module         (modulePublic)      -- imports
+import Lvm.Core.Parsing.Layout (layout)            -- apply layout rule
+import Lvm.Core.Parsing.Lexer  (lexer)             -- lexical tokens
+import Lvm.Core.Parsing.Parser (parseModuleExport) -- parse text into Core
+import Lvm.Core.RemoveDead     (coreRemoveDead)    -- remove dead declarations
+import Lvm.Core.ToAsm          (coreToAsm)         -- enriched lambda expressions (Core) to Asm
+import Lvm.Import              (lvmImport)         -- resolve import declarations
+import Lvm.Write               (lvmWriteFile)      -- write a binary Lvm file
 
 ----------------------------------------------------------------
 --
@@ -146,7 +142,7 @@ compile flags src = do
    let asmmod = coreToAsm nameSupply coremod
    dumpWith DumpAsm flags "Assembler" asmmod
    
-   let asmopt = asmOptimize asmmod
+   let asmopt = asmInline asmmod
    dumpWith DumpAsmOpt flags "Assembler (optimized)" asmopt
    
    let lvmmod = asmToLvm  asmopt
@@ -182,8 +178,8 @@ dumpWith dump flags s a =
       Nothing:_   -> messageDoc nice
       []          -> return ()
  where
-   nice = vsep [line, pretty ("-- " ++ s), empty, pretty a, line]
-   line = pretty (replicate 40 '-')
+   nice  = vsep [hline, pretty ("-- " ++ s), empty, pretty a, hline]
+   hline = pretty (replicate 40 '-')
 
 showFile :: String -> String
 showFile = map (\c -> if c == '\\' then '/' else c)

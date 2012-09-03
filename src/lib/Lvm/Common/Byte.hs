@@ -11,27 +11,18 @@
 
 --  $Id$
 
-module Lvm.Common.Byte( Byte
-           , Bytes  -- instance Show, Eq
-           , Monoid(..), unit, isEmpty
-           , bytesLength
-           , writeBytes
-           , bytesFromList, listFromBytes
-
-           , bytesFromString, stringFromBytes
-           , bytesFromInt32
-           , byteFromInt8
-
-           , readByteList
-           , int32FromByteList
-           , stringFromByteList, bytesFromByteList
-           ) where
+module Lvm.Common.Byte
+   ( Byte, Bytes 
+   , Monoid(..), unit, isEmpty
+   , bytesLength, writeBytes, bytesFromList, listFromBytes
+   , bytesFromString, stringFromBytes, bytesFromInt32, byteFromInt8
+   , readByteList, int32FromByteList, stringFromByteList, bytesFromByteList
+   ) where
 
 import Data.Monoid
 import Data.Word
-
+import System.Exit
 import System.IO
-import System.Exit   ( exitWith, ExitCode(..))
 
 {----------------------------------------------------------------
   types

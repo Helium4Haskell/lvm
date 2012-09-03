@@ -9,12 +9,15 @@
 
 --  $Id$
 
-module Lvm.Core.PrettyId ( ppId, ppVarId, ppConId, ppQualId, ppQualCon, ppString ) where
+module Lvm.Core.PrettyId 
+   ( ppId, ppVarId, ppConId, ppQualId
+   , ppQualCon, ppString 
+   ) where
 
-import Data.Char     ( isAlphaNum, isAlpha, isLower, isUpper )
+import Data.Char
+import Lvm.Common.Id
+import Lvm.Common.IdSet
 import Text.PrettyPrint.Leijen
-import Lvm.Common.Id       ( Id, stringFromId, idFromString )
-import Lvm.Common.IdSet    ( IdSet, setFromList, elemSet )
 
 ppId :: Id -> Doc
 ppId = ppEscapeId isAlpha quoted

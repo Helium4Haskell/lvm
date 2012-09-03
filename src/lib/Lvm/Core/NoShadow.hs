@@ -16,12 +16,12 @@
 -- After this pass, no variables shadow each other and let-bound variables
 -- are globally unique.
 ----------------------------------------------------------------
-module Lvm.Core.NoShadow( coreNoShadow, coreRename ) where
+module Lvm.Core.NoShadow (coreNoShadow, coreRename) where
 
 import Data.Maybe
-import Lvm.Common.Id     ( Id, freshIdFromId, NameSupply, splitNameSupply, splitNameSupplies )
-import Lvm.Common.IdMap  ( IdMap, emptyMap, lookupMap, extendMap )
-import Lvm.Common.IdSet  ( IdSet, emptySet, elemSet, insertSet )
+import Lvm.Common.Id
+import Lvm.Common.IdMap
+import Lvm.Common.IdSet 
 import Lvm.Core.Expr
 import Lvm.Core.Utils
 

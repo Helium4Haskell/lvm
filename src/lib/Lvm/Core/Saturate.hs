@@ -13,12 +13,12 @@
 -- saturate all calls to externals, instructions and constructors.
 -- pre: [coreNoShadow]
 ----------------------------------------------------------------
-module Lvm.Core.Saturate( coreSaturate ) where
+module Lvm.Core.Saturate (coreSaturate) where
 
-import Data.List   ( mapAccumR )
+import Data.List
 import Data.Maybe
-import Lvm.Common.Id     ( Id, NameSupply, freshId, splitNameSupply, splitNameSupplies )
-import Lvm.Common.IdMap  ( IdMap, lookupMap, mapFromList )
+import Lvm.Common.Id    
+import Lvm.Common.IdMap
 import Lvm.Core.Expr
 import Lvm.Core.Utils
 

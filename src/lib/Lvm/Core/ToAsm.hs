@@ -9,21 +9,21 @@
 
 --  $Id$
 
-module Lvm.Core.ToAsm( coreToAsm ) where
+module Lvm.Core.ToAsm (coreToAsm) where
 
-import Control.Exception  ( assert )
-import Lvm.Common.Id      ( Id, idFromString, NameSupply, splitNameSupplies )
-import Lvm.Common.IdSet   ( IdSet, elemSet )
+import Control.Exception (assert)
+import Lvm.Common.Id
+import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.Utils
 import qualified Lvm.Asm.Data as Asm
 
-import Lvm.Core.NoShadow   ( coreRename )      -- rename local variables
-import Lvm.Core.Saturate   ( coreSaturate )    -- saturate constructors, instructions and externs
-import Lvm.Core.Normalize  ( coreNormalize )   -- normalize core, ie. atomic arguments and lambda's at let bindings
-import Lvm.Core.FreeVar    ( coreFreeVar )     -- attach free variable information at let bindings
-import Lvm.Core.LetSort    ( coreLetSort )     -- find smallest recursive let binding groups
-import Lvm.Core.Lift       ( coreLift )        -- lambda-lift, ie. make free variables arguments
+import Lvm.Core.NoShadow  (coreRename)    -- rename local variables
+import Lvm.Core.Saturate  (coreSaturate)  -- saturate constructors, instructions and externs
+import Lvm.Core.Normalize (coreNormalize) -- normalize core, ie. atomic arguments and lambda's at let bindings
+import Lvm.Core.FreeVar   (coreFreeVar)   -- attach free variable information at let bindings
+import Lvm.Core.LetSort   (coreLetSort)   -- find smallest recursive let binding groups
+import Lvm.Core.Lift      (coreLift)      -- lambda-lift, ie. make free variables arguments
 
 {---------------------------------------------------------------
   coreToAsm: translate Core expressions into Asm expressions

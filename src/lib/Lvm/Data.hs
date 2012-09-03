@@ -9,14 +9,14 @@
 
 --  $Id$
 
-module Lvm.Data( module Lvm.Core.Module, LvmModule, LvmDecl
+module Lvm.Data
+   ( module Lvm.Core.Module, LvmModule, LvmDecl
+     -- constants
+   , recHeader,recFooter           
+   ) where
 
-          -- constants
-          , recHeader,recFooter           
-          ) where
-
-import Lvm.Instr.Data   ( Instr )
 import Lvm.Core.Module
+import Lvm.Instr.Data   ( Instr )
 
 {--------------------------------------------------------------
   An LVM module

@@ -9,12 +9,12 @@
 
 --  $Id$
 
-module Lvm.Instr.Resolve( instrResolve ) where
+module Lvm.Instr.Resolve (instrResolve) where
 
-import Control.Exception ( assert )
+import Control.Exception (assert)
 import Data.Maybe
-import Lvm.Common.IdMap   ( IdMap, emptyMap, lookupMap, extendMap )
 import Lvm.Common.Id
+import Lvm.Common.IdMap
 import Lvm.Instr.Data
 
 {---------------------------------------------------------------

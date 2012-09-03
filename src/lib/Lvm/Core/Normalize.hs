@@ -24,10 +24,10 @@
 --
 -- pre: [coreNoShadow, coreSaturate]
 ----------------------------------------------------------------
-module Lvm.Core.Normalize ( coreNormalize ) where
+module Lvm.Core.Normalize (coreNormalize) where
 
-import Lvm.Common.Id     ( Id, NameSupply, splitNameSupply, splitNameSupplies, freshId )
-import Lvm.Common.IdSet  ( IdSet, elemSet )
+import Lvm.Common.Id
+import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.Utils
 

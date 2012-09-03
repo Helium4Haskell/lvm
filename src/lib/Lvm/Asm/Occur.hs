@@ -8,11 +8,11 @@
 ------------------------------------------------------------------------}
 
 --  $Id$
-module Lvm.Asm.Occur( asmOccur ) where
+module Lvm.Asm.Occur (asmOccur) where
 
-import Lvm.Common.Id     ( Id )
-import Lvm.Common.IdMap  ( IdMap, emptyMap, insertMapWith, unionMapWith, deleteMap, lookupMap )
 import Lvm.Asm.Data
+import Lvm.Common.Id 
+import Lvm.Common.IdMap
 
 {---------------------------------------------------------------
   Occ: maps identifiers to the number of syntactic

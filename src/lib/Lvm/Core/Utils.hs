@@ -11,18 +11,14 @@
 
 module Lvm.Core.Utils 
    ( module Lvm.Core.Module
-   , listFromBinds, unzipBinds, binders, mapBinds
-   , mapAccumBinds, zipBindsWith
-   , patBinders
-   , mapAlts, zipAltsWith
-   , mapExprWithSupply
-   , mapAccum
+   , listFromBinds, unzipBinds, binders, mapBinds, mapAccumBinds, zipBindsWith
+   , patBinders, mapAlts, zipAltsWith, mapExprWithSupply, mapAccum
    ) where
 
 import Lvm.Core.Expr
-import Lvm.Common.Id     ( Id, NameSupply, mapWithSupply )
+import Lvm.Common.Id
 import Lvm.Core.Module
-import Lvm.Common.IdSet  ( IdSet, emptySet, setFromList )
+import Lvm.Common.IdSet
 
 ----------------------------------------------------------------
 -- Binders functions

@@ -9,17 +9,16 @@
 
 --  $Id$
 
-module Lvm.Core.RemoveDead( coreRemoveDead ) where
+module Lvm.Core.RemoveDead (coreRemoveDead) where
 
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Lvm.Common.Id       ( Id, idFromString )
-import Lvm.Common.IdSet    ( IdSet, emptySet, elemSet, insertSet, setFromList, unionSet )
+import Lvm.Common.Id
+import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.Utils
 import Lvm.Core.Module
-import Data.List (foldl')
-
+import Data.List
 
 ----------------------------------------------------------------
 -- The identity of a declaration is it's name *and* the kind.
@@ -28,7 +27,7 @@ import Data.List (foldl')
 -- distinguished from normal values inside core expressions.
 ----------------------------------------------------------------
 type Identity   = (DeclKind,Id)
-type Used       = Set.Set Identity
+type Used       = Set Identity
 
 declIdentity :: CoreDecl -> Identity
 declIdentity decl@(DeclExtern {})

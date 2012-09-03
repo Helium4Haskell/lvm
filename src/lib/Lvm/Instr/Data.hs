@@ -9,21 +9,17 @@
 
 --  $Id$
 
-module Lvm.Instr.Data ( Instr(..)
-            , Var(..), Con(..), Global(..)
-            , Alt(..), Pat(..)
+module Lvm.Instr.Data 
+   ( Instr(..), Var(..), Con(..), Global(..), Alt(..), Pat(..)
+   , Offset, Depth, Index, Tag, Arity
+   , opcodeFromInstr, instrFromOpcode, instrFromName, nameFromInstr
+   , isCATCH, strictResult
+   ) where
 
-            , Offset, Depth, Index, Tag, Arity
-
-            , opcodeFromInstr, instrFromOpcode
-            , instrFromName, nameFromInstr, isCATCH
-            , strictResult
-            ) where
-
-import Data.Char     ( toUpper )
+import Data.Char
 import Data.Maybe
-import Lvm.Common.Id       ( Id, dummyId )
-import Lvm.Common.Byte     ( Bytes, mempty, stringFromBytes )
+import Lvm.Common.Byte
+import Lvm.Common.Id
 import Text.PrettyPrint.Leijen
 
 ----------------------------------------------------------------

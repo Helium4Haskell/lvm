@@ -9,27 +9,22 @@
 
 --  $Id$
 
-module Lvm.Core.Module( Module(..)
-             , Decl(..)
-             , Custom(..)
-             , DeclKind(..)  -- instance Eq, Enum
-             , Arity, Tag 
-             , Access(..), ExternName(..), CallConv(..), LinkConv(..)
-             
-             , globalNames, externNames, filterPublic
-             , mapDecls
-             , customDeclKind, customData, customTypeDecl
-             , modulePublic
-             , declKindFromDecl, shallowKindFromDecl, makeDeclKind -- , hasDeclKind
-             , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern, isDeclImport, isDeclGlobal
-             , public, private
-             ) where
+module Lvm.Core.Module
+   ( Module(..), Decl(..), Custom(..), DeclKind(..)
+   , Arity, Tag, Access(..), ExternName(..), CallConv(..), LinkConv(..)
+   , globalNames, externNames, filterPublic, mapDecls
+   , customDeclKind, customData, customTypeDecl, modulePublic
+   , declKindFromDecl, shallowKindFromDecl, makeDeclKind
+   , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern
+   , isDeclImport, isDeclGlobal
+   , public, private
+   ) where
 
-import Lvm.Common.Byte    ( Bytes, stringFromBytes )
+import Lvm.Common.Byte
 import Lvm.Common.Id  
-import Lvm.Common.IdSet   ( IdSet, setFromList, elemSet )
+import Lvm.Common.IdSet  
 import Lvm.Core.PrettyId
-import Lvm.Instr.Data   ( Arity, Tag )
+import Lvm.Instr.Data
 import Text.PrettyPrint.Leijen
 
 {---------------------------------------------------------------

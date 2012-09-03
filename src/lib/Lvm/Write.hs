@@ -9,17 +9,17 @@
 
 --  $Id$
 
-module Lvm.Write( lvmWriteFile, lvmToBytes ) where
+module Lvm.Write (lvmWriteFile, lvmToBytes) where
 
 import Control.Exception (assert)
 import Control.Monad
-import Lvm.Common.Id       ( Id, stringFromId )
-import Lvm.Common.IdMap    ( IdMap, emptyMap, insertMapWith, lookupMap )
-import System.Exit   ( exitWith, ExitCode(..))
-import Lvm.Common.Byte
-import Lvm.Instr.Data
-import Lvm.Data
 import Data.Maybe
+import Lvm.Common.Byte
+import Lvm.Common.Id 
+import Lvm.Common.IdMap
+import Lvm.Data
+import Lvm.Instr.Data
+import System.Exit 
 
 {--------------------------------------------------------------
   Magic numbers

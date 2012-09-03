@@ -9,18 +9,16 @@
 
 --  $Id$
 
-module Lvm.Read( lvmReadFile, lvmRead ) where
+module Lvm.Read (lvmReadFile, lvmRead) where
 
-import Prelude hiding (Read)
 import Control.Monad
 import Data.Array
-import Lvm.Common.Id       ( stringFromId, idFromString, newNameSupply, freshId )
-import Lvm.Common.IdMap
-
-import Lvm.Common.Byte   hiding (readByteList)
-import qualified Lvm.Common.Byte as Byte
+import Lvm.Common.Byte hiding (readByteList)
+import Lvm.Common.Id
 import Lvm.Data
 import Lvm.Instr.Data
+import Prelude hiding (Read)
+import qualified Lvm.Common.Byte as Byte
 
 {--------------------------------------------------------------
   Magic numbers

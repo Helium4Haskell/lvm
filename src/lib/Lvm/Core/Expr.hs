@@ -10,17 +10,16 @@
 --  $Id$
 
 module Lvm.Core.Expr 
-   ( CoreModule, CoreDecl
-   , Expr(..), Note(..), Binds(..), Bind(..)
+   ( CoreModule, CoreDecl, Expr(..), Note(..), Binds(..), Bind(..)
    , Alts, Alt(..), Pat(..), Literal(..), Con(..)
    ) where
 
-import Lvm.Common.Id     ( Id )
+import Lvm.Common.Byte
+import Lvm.Common.Id
+import Lvm.Common.IdSet
 import Lvm.Core.Module
+import Lvm.Core.PrettyId
 import Text.PrettyPrint.Leijen
-import Lvm.Common.Byte         ( Bytes, stringFromBytes )
-import Lvm.Common.IdSet        ( IdSet, listFromSet )
-import Lvm.Core.PrettyId ( ppId, ppVarId, ppConId )
 
 ----------------------------------------------------------------
 -- Modules

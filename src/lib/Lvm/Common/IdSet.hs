@@ -12,16 +12,15 @@
 -- this module is exotic, only used by the core compiler
 -- but it works with any IdMap
 module Lvm.Common.IdSet
-   ( module Lvm.Common.Id
-   , IdSet
+   ( IdSet, Id
    , emptySet, singleSet, elemSet, filterSet, foldSet
    , insertSet, deleteSet, unionSet, unionSets, diffSet
    , listFromSet, setFromList, sizeSet, isEmptySet
    ) where
 
-import Lvm.Common.Id
-import Data.List (sort)
 import Data.IntSet
+import Data.List (sort)
+import Lvm.Common.Id
 import qualified Data.IntSet as IntSet
 
 ----------------------------------------------------------------

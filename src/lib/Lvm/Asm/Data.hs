@@ -15,10 +15,10 @@ module Lvm.Asm.Data
    , Lit(..), Alt(..), Pat(..), Con(..)
    ) where
 
-import Lvm.Common.Id     ( Id )
+import Lvm.Common.Byte
+import Lvm.Common.Id
 import Lvm.Core.Module
 import Text.PrettyPrint.Leijen
-import Lvm.Common.Byte         ( Bytes, stringFromBytes )
 
 {---------------------------------------------------------------
   Asm modules

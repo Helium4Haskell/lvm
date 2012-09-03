@@ -9,7 +9,7 @@
 
 --  $Id$
 
-module Lvm.Instr.Rewrite( instrRewrite )  where
+module Lvm.Instr.Rewrite (instrRewrite) where
 
 import Lvm.Instr.Data
 

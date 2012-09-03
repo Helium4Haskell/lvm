@@ -9,34 +9,22 @@
 
 --  $Id$
 
-module Lvm.Common.IdMap( module Lvm.Common.Id
-            , IdMap
+module Lvm.Common.IdMap
+   ( IdMap, Id
+     -- essential: used by "Asm" and "Lvm"
+   , emptyMap, singleMap, elemMap, mapMap, insertMap, extendMap
+   , insertMapWith, lookupMap, findMap, filterMap, listFromMap
+   , mapMapWithId, unionMap, unionMapWith, updateMap
+   -- exotic: used by core compiler
+   , foldMap, deleteMap, filterMapWithId, mapFromList
+   , unionMaps, diffMap, unionlMap, foldMapWithId
+   , isEmptyMap, sizeMap
+   ) where
 
-            -- essential: used by "Asm" and "Lvm"
-            , emptyMap, singleMap, elemMap, mapMap
-            , insertMap, extendMap, insertMapWith
-            , lookupMap, findMap
-            , filterMap
-            , listFromMap
-            , mapMapWithId, unionMap, unionMapWith
-            , updateMap
-
-            -- exotic: used by core compiler
-            , foldMap, deleteMap
-            , filterMapWithId
-            , mapFromList
-            , unionMaps, diffMap, unionlMap
-            , foldMapWithId
-            , isEmptyMap, sizeMap
-
-            ) where
-
-import Data.List (sortBy)
+import Data.List
 import Data.Maybe
 import qualified Data.IntMap as IntMap
-import Lvm.Common.Id( Id, intFromId, idFromInt
-         , NameSupply, splitNameSupply
-         )
+import Lvm.Common.Id
 import Control.Arrow (first)
 
 ----------------------------------------------------------------

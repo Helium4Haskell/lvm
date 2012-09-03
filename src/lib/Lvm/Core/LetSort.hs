@@ -13,12 +13,11 @@
 -- Determine which bindings are really recursive and which are not.
 -- maintains free variable information & normalised structure
 ----------------------------------------------------------------
-module Lvm.Core.LetSort( coreLetSort ) where
+module Lvm.Core.LetSort (coreLetSort) where
 
-import qualified Data.Graph as G
-import qualified Data.Tree  as G
-import Lvm.Common.Id       ( Id )
-import Lvm.Common.IdSet    ( IdSet, elemSet, foldSet )
+import Data.Graph hiding (topSort)
+import Data.Tree
+import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.Utils
 import Data.Maybe
@@ -64,8 +63,8 @@ sortBinds :: Binds -> [Binds]
 sortBinds (Rec bindsrec)
   = let binds  = map (\(Bind x rhs) -> (x,rhs)) bindsrec
         names  = zip (map fst binds) [0..]
-        edges  = concatMap (depends names) binds
-        sorted = topSort (length names-1) edges
+        es     = concatMap (depends names) binds
+        sorted = topSort (length names-1) es
         binds'  = map (map (binds!!)) sorted
         binds'' = map (map (second lsExpr)) binds'
     in  map toBinding binds'' -- foldr sortLets (lsExpr expr) binds''
@@ -73,17 +72,14 @@ sortBinds binds
   = [mapBinds (\x expr -> Bind x (lsExpr expr)) binds]
 
 -- topological sort
-topSort :: G.Vertex -> [G.Edge] -> [[G.Vertex]]
-topSort n = map G.flatten . G.scc . G.buildG (0, n)
+topSort :: Vertex -> [Edge] -> [[Vertex]]
+topSort n = map flatten . scc . buildG (0, n)
 
 toBinding :: [(Id, Expr)] -> Binds
 toBinding [(x,rhs)]
   | not (elemSet x (freeVar rhs)) = NonRec (Bind x rhs)
 toBinding binds
   = Rec (map (uncurry Bind) binds)
-
-
-type Vertex = Int
 
 depends :: [(Id,Vertex)] -> (Id,Expr) -> [(Vertex,Vertex)]
 depends names (v,expr)

@@ -9,16 +9,15 @@
 
 --  $Id$
 
-module Lvm.Import( lvmImport, lvmImportDecls ) where
+module Lvm.Import (lvmImport, lvmImportDecls) where
 
-
-import Control.Monad    ( foldM )
-import Data.List (foldl') 
-import Lvm.Common.Id       ( Id, stringFromId, idFromString )
-import Lvm.Common.IdMap    ( IdMap, emptyMap, insertMap, elemMap, updateMap, listFromMap, lookupMap, findMap, mapMap  )
-import qualified Lvm.Core.Module as Module
+import Control.Monad
+import Data.List 
+import Lvm.Common.Id
+import Lvm.Common.IdMap
 import Lvm.Data
-import Lvm.Read  ( lvmReadFile )
+import Lvm.Read  (lvmReadFile)
+import qualified Lvm.Core.Module as Module
 
 {--------------------------------------------------------------
   lvmImport: replace all import declarations with

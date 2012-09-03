@@ -9,30 +9,23 @@
 
 --  $Id$
 
-module Lvm.Common.Id ( Id -- instance Eq, Show
+module Lvm.Common.Id 
+   ( Id
+   -- essential used in "asm" and "lvm"
+   , stringFromId, idFromString, idFromStringEx, dummyId
+   -- exotic: only used in the core compiler
+   , freshIdFromId, getNameSpace, setNameSpace, NameSupply, newNameSupply
+   , splitNameSupply, splitNameSupplies, freshId, mapWithSupply
+   -- very exotic: only used internally for IdMap's that use IntMap
+   , intFromId, idFromInt
+   ) where
 
-          -- essential used in "asm" and "lvm"
-          , stringFromId, idFromString, idFromStringEx
-          , dummyId
-
-          -- exotic: only used in the core compiler
-          , freshIdFromId, getNameSpace, setNameSpace
-
-          , NameSupply, newNameSupply
-          , splitNameSupply, splitNameSupplies, freshId
-          , mapWithSupply
-
-          -- very exotic: only used internally for IdMap's that use IntMap
-          , intFromId, idFromInt
-          ) where
-
-import Data.List (foldl')
-import qualified Data.IntMap as IntMap
-
+import Data.IORef
 import Data.Int (Int32)
-import Data.IORef( IORef, newIORef, readIORef, writeIORef )
+import Data.List
 import System.IO.Unsafe
 import Text.PrettyPrint.Leijen
+import qualified Data.IntMap as IntMap
 
 ----------------------------------------------------------------
 -- Types
@@ -212,11 +205,11 @@ getNameSpace (Id i)
   = toEnum (fromIntegral (extractSort i))
 
 setNameSpace :: Enum a => a -> Id -> Id
-setNameSpace sort (Id i)
+setNameSpace srt (Id i)
   | s > maxSort   = error "Id.setIdSort: sort index out of range"
   | otherwise     = Id (initSort s (clearSort i))
   where
-    s    = fromIntegral (fromEnum sort)
+    s = fromIntegral (fromEnum srt)
 
 
 lookupId :: Id -> Names -> Maybe String

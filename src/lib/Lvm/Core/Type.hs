@@ -14,9 +14,9 @@ module Lvm.Core.Type
    , addForall, arityFromType
    ) where
 
-import Text.PrettyPrint.Leijen
 import Lvm.Common.Id
 import Lvm.Common.IdSet
+import Text.PrettyPrint.Leijen
 
 ----------------------------------------------------------------
 -- Types

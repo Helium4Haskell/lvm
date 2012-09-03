@@ -12,15 +12,16 @@
 module Lvm.Core.Parsing.Parser (parseModuleExport, parseModule) where
 
 import Control.Monad
-import Prelude hiding (lex)
-import Text.ParserCombinators.Parsec hiding (satisfy)
-import Lvm.Common.Byte   ( Bytes, bytesFromString )
+import Data.List
+import Lvm.Common.Byte
+import Lvm.Common.Id
 import Lvm.Common.IdSet
 import Lvm.Core.Expr
-import Lvm.Core.Utils
 import Lvm.Core.Parsing.Token (Token, Lexeme(..))
 import Lvm.Core.Type
-import Data.List (foldl') 
+import Lvm.Core.Utils
+import Prelude hiding (lex)
+import Text.ParserCombinators.Parsec hiding (satisfy)
 
 parseModuleExport :: FilePath -> [Token] -> IO (CoreModule, Bool, (IdSet,IdSet,IdSet,IdSet,IdSet))
 parseModuleExport fname ts =
