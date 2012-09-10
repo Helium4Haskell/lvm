@@ -21,7 +21,6 @@ import qualified Lvm.Asm.Data as Asm
 import Lvm.Core.NoShadow  (coreRename)    -- rename local variables
 import Lvm.Core.Saturate  (coreSaturate)  -- saturate constructors, instructions and externs
 import Lvm.Core.Normalize (coreNormalize) -- normalize core, ie. atomic arguments and lambda's at let bindings
-import Lvm.Core.FreeVar   (coreFreeVar)   -- attach free variable information at let bindings
 import Lvm.Core.LetSort   (coreLetSort)   -- find smallest recursive let binding groups
 import Lvm.Core.Lift      (coreLift)      -- lambda-lift, ie. make free variables arguments
 
@@ -33,7 +32,6 @@ coreToAsm supply
   = exprToTop 
   . coreLift
   . coreLetSort
-  . coreFreeVar
   . coreNormalize supply2
   . coreSaturate supply1
   . coreRename supply0
@@ -70,7 +68,6 @@ asmTop prim expr
 splitParams :: Expr -> ([Id],Expr)
 splitParams expr
   = case expr of
-      Note _ e  -> splitParams e
       Lam x e   -> let (pars,e') = splitParams e in (x:pars,e')
       _         -> ([],expr)
 
@@ -80,8 +77,6 @@ splitParams expr
 asmExpr :: IdSet -> Expr -> ([Bind],Asm.Expr)
 asmExpr prim expr
   = case expr of
-      Note _ e        -> asmExpr prim e
-      Lam _ _         -> error "CoreToAsm.asmExpr: unexpected lambda expression (do 'coreNormalise' first?)"
       Let binds e     -> asmLet prim binds (asmExpr prim e)
       Match x alts    -> let (lifted,asmalts) = asmAlts prim alts
                          in (concat lifted, Asm.Match x asmalts)
@@ -140,7 +135,6 @@ asmLet prim binds (lifted,asmexpr)
 asmAtom :: Expr -> [Asm.Expr] -> Asm.Expr
 asmAtom atom args
   = case atom of
-      Note _ e  -> asmAtom e args
       Ap e1 e2  -> asmAtom e1 (asmAtom e2 []:args)
       Var x     -> Asm.Ap x args
       Con con   -> Asm.Con (asmCon con) args
@@ -158,7 +152,6 @@ asmCon con
   where
     simpleTag (Lit (LitInt _))  = True
     simpleTag (Var _)           = True
-    simpleTag (Note _ e)        = simpleTag e
     simpleTag _                 = False
 
 asmAtomBinds :: Binds -> Asm.Expr -> Asm.Expr
@@ -182,7 +175,6 @@ asmLit lit
 isAtomic :: IdSet -> Expr -> Bool
 isAtomic prim expr
   = case expr of
-      Note _ e  -> isAtomic prim e
       Ap e1 e2  -> isAtomic prim e1 && isAtomic prim e2
       Var x     -> not (elemSet x prim)
       Con (ConId _)    -> True

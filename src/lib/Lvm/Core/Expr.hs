@@ -10,13 +10,12 @@
 --  $Id$
 
 module Lvm.Core.Expr 
-   ( CoreModule, CoreDecl, Expr(..), Note(..), Binds(..), Bind(..)
+   ( CoreModule, CoreDecl, Expr(..), Binds(..), Bind(..)
    , Alts, Alt(..), Pat(..), Literal(..), Con(..)
    ) where
 
 import Lvm.Common.Byte
 import Lvm.Common.Id
-import Lvm.Common.IdSet
 import Lvm.Core.Module
 import Lvm.Core.PrettyId
 import Text.PrettyPrint.Leijen
@@ -36,10 +35,7 @@ data Expr       = Let       !Binds Expr
                 | Lam       !Id Expr
                 | Con       !(Con Expr)
                 | Var       !Id
-                | Lit       !Literal 
-                | Note      !Note !Expr
-
-data Note       = FreeVar   !IdSet
+                | Lit       !Literal
 
 data Binds      = Rec       ![Bind]
                 | Strict    !Bind
@@ -81,10 +77,6 @@ ppExpr p expr
       Var x       -> ppVarId  x
       Con con     -> pretty con
       Lit lit     -> pretty lit
-      Note n e  -> 
-         case n of
-            FreeVar fv -> align (text "{" <+> sep (map ppVarId (listFromSet fv)) <+> text "}"
-                             <$> ppExpr p e)
   where
     prec p'  | p' >= p   = id
              | otherwise = parens

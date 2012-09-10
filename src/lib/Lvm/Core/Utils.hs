@@ -11,14 +11,13 @@
 
 module Lvm.Core.Utils 
    ( module Lvm.Core.Module
-   , listFromBinds, unzipBinds, binders, mapBinds, mapAccumBinds, zipBindsWith
-   , patBinders, mapAlts, zipAltsWith, mapExprWithSupply, mapAccum
+   , listFromBinds, unzipBinds, mapBinds, mapAccumBinds, zipBindsWith
+   , mapAlts, zipAltsWith, mapExprWithSupply, mapAccum
    ) where
 
 import Lvm.Core.Expr
 import Lvm.Common.Id
 import Lvm.Core.Module
-import Lvm.Common.IdSet
 
 ----------------------------------------------------------------
 -- Binders functions
@@ -30,9 +29,6 @@ listFromBinds binds
       NonRec bind -> [bind]
       Strict bind -> [bind]
       Rec recs    -> recs
-      
-binders :: [Bind] -> [Id]
-binders = map (\(Bind x _) -> x)
 
 unzipBinds :: [Bind] -> ([Id],[Expr])
 unzipBinds = unzip . map (\(Bind x rhs) -> (x,rhs))
@@ -80,11 +76,6 @@ zipBindsWith _ _ _
 ----------------------------------------------------------------
 -- Alternatives functions
 ----------------------------------------------------------------
-patBinders :: Pat -> IdSet
-patBinders pat
-  = case pat of
-      PatCon _ ids -> setFromList ids
-      _            -> emptySet
 
 mapAlts :: (Pat -> Expr -> Alt) -> Alts -> Alts
 mapAlts f = map (\(Alt pat expr) -> f pat expr)

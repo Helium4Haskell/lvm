@@ -71,8 +71,6 @@ satExpr env expr
         -> Match x (satAlts env alts)
       Lam x e
         -> Lam x (satExpr env e)
-      Note n e
-        -> Note n (satExpr env e)
       _
         -> let expr'  = satExprSimple env expr
            in addLam env  (requiredArgs env expr') expr'
@@ -92,7 +90,6 @@ satExprSimple env expr
       Lam _ _     -> satExpr env expr
       Ap e1 e2    -> let (env1,env2) = splitEnv env
                      in  Ap (satExprSimple env1 e1) (satExpr env2 e2)
-      Note n e    -> Note n (satExprSimple env e)
       _           -> expr
 
 ----------------------------------------------------------------
@@ -114,5 +111,4 @@ requiredArgs env expr
       Var x                 -> findArity x env
       Con (ConId x)         -> findArity x env
       Con (ConTag _ arity)  -> arity
-      Note _ e              -> requiredArgs env e
       _                     -> 0

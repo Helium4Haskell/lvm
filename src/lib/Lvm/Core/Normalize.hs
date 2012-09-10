@@ -82,7 +82,6 @@ normBind env expr
                            in Let (normBinds env1 binds) (normExpr env2 e)
       Match x alts      -> Match x (normAlts env alts)
       Lam x e           -> Lam x (normBind env e)
-      Note _ e          -> normBind env e  -- de-annotate
       Ap _ _            -> normAtomExpr env expr
       _                 -> expr
 
@@ -119,7 +118,6 @@ normAtom env expr
                                (atom,f)    = normAtom env1 e1
                                (arg,g)     = normArg  env2 e2
                            in (Ap atom arg, f . g)
-      Note _ e          -> normAtom env e  -- de-annotate
       _                 -> (expr,id)
   where
     freshBinding         = let (env1,env2) = splitEnv env
@@ -152,6 +150,5 @@ isDirectAp :: Env -> Expr -> Bool
 isDirectAp env expr
   = case expr of
       Ap e1 _   -> isDirectAp env e1
-      Note _ e  -> isDirectAp env e
       Var x     -> isDirect env x
       _         -> False

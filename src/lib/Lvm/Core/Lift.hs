@@ -22,6 +22,7 @@ import Lvm.Common.Id
 import Lvm.Common.IdMap   
 import Lvm.Common.IdSet
 import Lvm.Core.Expr
+import Lvm.Core.FreeVar
 import Lvm.Core.Utils
 
 ----------------------------------------------------------------
@@ -52,71 +53,67 @@ extendFree (Env prim env) x fv
 ----------------------------------------------------------------
 coreLift :: CoreModule -> CoreModule
 coreLift m
-  = fmap (liftExpr (Env primitives emptyMap)) m
+  = fmap (liftExpr globals (Env primitives emptyMap)) m
   where
-    primitives  = externNames m
+    primitives = externNames m
+    globals    = globalNames m
 
-liftExpr :: Env -> Expr -> Expr
-liftExpr env expr
+liftExpr :: IdSet -> Env -> Expr -> Expr
+liftExpr globals env expr
   = case expr of
       Let binds e
-        -> let (binds',env') = liftBinds env binds
-           in Let binds' (liftExpr env' e)
+        -> let (binds',env') = liftBinds globals env binds
+           in Let binds' (liftExpr globals env' e)
       Match x alts
-        -> Match x (liftAlts env alts)
+        -> Match x (liftAlts globals env alts)
       Lam x e
-        -> Lam x (liftExpr env e)
+        -> Lam x (liftExpr globals env e)
       Ap expr1 expr2
-        -> Ap (liftExpr env expr1) (liftExpr env expr2)
+        -> Ap (liftExpr globals env expr1) (liftExpr globals env expr2)
       Var x
         -> foldl' (\e v -> Ap e (Var v)) expr (lookupFree env x)
       Con (ConTag tag arity)
-        -> Con (ConTag (liftExpr env tag) arity)
-      Note n e
-        -> Note n (liftExpr env e)
+        -> Con (ConTag (liftExpr globals env tag) arity)
       _
         -> expr
 
-liftAlts :: Env -> Alts -> Alts
-liftAlts env = mapAlts (\pat expr -> Alt pat (liftExpr env expr))
+liftAlts :: IdSet -> Env -> Alts -> Alts
+liftAlts globals env = mapAlts (\pat expr -> Alt pat (liftExpr globals env expr))
 
 ----------------------------------------------------------------
 -- Lift binding groups
 ----------------------------------------------------------------
 
-liftBinds :: Env -> Binds -> (Binds, Env)
-liftBinds env binds
+liftBinds :: IdSet -> Env -> Binds -> (Binds, Env)
+liftBinds globals env binds
   = case binds of
-      NonRec bind -> let ([bind'],env') = liftBindsRec env [bind]
+      NonRec bind -> let ([bind'],env') = liftBindsRec globals env [bind]
                      in  (NonRec bind',env')      
-      Rec recs    -> let (recs',env') = liftBindsRec env recs
+      Rec recs    -> let (recs',env') = liftBindsRec globals env recs
                      in (Rec recs',env')
       Strict (Bind x rhs)
-                  -> (Strict (Bind x (liftExpr env rhs)),env)
+                  -> (Strict (Bind x (liftExpr globals env rhs)),env)
       
+freeVar2 :: IdSet -> Expr -> IdSet
+freeVar2 globals = (`diffSet` globals) . freeVar
 
-
-liftBindsRec :: Env -> [Bind] -> ([Bind],Env)
-liftBindsRec env recs
+liftBindsRec :: IdSet -> Env -> [Bind] -> ([Bind],Env)
+liftBindsRec globals env recs
   = let (ids,exprs)  = unzipBinds recs
         -- calculate the mutual free variables
-        fvmap   = fixMutual (zip ids (map (liftedFreeVar env . freeVarSet) exprs))
+        fvmap   = fixMutual (zip ids (map (liftedFreeVar env . freeVar2 globals) exprs))
         -- note these recursive equations :-)
         fvs     = map  (removeLifted env' .  listFromSet . snd) fvmap
         env'    = foldl insertLifted env (zip recs fvs)
 
         -- put the computed free variables back into the bindings as lambdas
-        recs'  = zipWith (addLambdas env) fvs (zipWith Bind ids (map (liftExpr env') exprs))
+        recs'  = zipWith (addLambdas env) fvs (zipWith Bind ids (map (liftExpr globals env') exprs))
     in (recs', env')
 
 addLambdas :: Env -> [Id] -> Bind -> Bind
-addLambdas env fv bind@(Bind x (Note (FreeVar _) expr))  
+addLambdas env fv bind@(Bind x expr)
   | isAtomExpr env expr = bind
---   | isValueExpr expr    = Bind id (Note (FreeVar fvset) (Let (NonRec (Bind id (foldlStrict (\e v -> Ap e (Var v)) (Var id) fv))) (Var id)))
-  | otherwise           = Bind x (Note (FreeVar emptySet) (foldr Lam expr fv))
-
-addLambdas _ _ _
-  = error "CoreLift.addLambdas: no free variable annotation. Do coreFreeVar first?"
+  | otherwise           = Bind x (foldr Lam expr fv)
 
 insertLifted :: Env -> (Bind, [Id]) -> Env
 insertLifted env (Bind x expr,fv)
@@ -151,10 +148,6 @@ liftedFreeVar :: Env -> IdSet -> IdSet
 liftedFreeVar env fv
   = unionSet fv (setFromList (concatMap (lookupFree env) (listFromSet fv)))
 
-freeVarSet :: Expr -> IdSet
-freeVarSet (Note (FreeVar fv) _) = fv
-freeVarSet _ = error "CoreLetSort.freeVar: no annotation. Do coreFreeVar first?"
-
 ----------------------------------------------------------------
 -- is an expression atomic: i.e. can we generate code inplace
 ----------------------------------------------------------------
@@ -163,7 +156,6 @@ isAtomExpr :: Env -> Expr -> Bool
 isAtomExpr env expr
   = case expr of
       Ap e1 e2  -> isAtomExpr env e1 && isAtomExpr env e2
-      Note _ e  -> isAtomExpr env e
       Var x     -> not (isPrimitive env x)
       Con _     -> True
       Lit _     -> True

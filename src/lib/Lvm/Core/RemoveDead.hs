@@ -16,6 +16,7 @@ import Data.Set (Set)
 import Lvm.Common.Id
 import Lvm.Common.IdSet
 import Lvm.Core.Expr
+import Lvm.Core.FreeVar
 import Lvm.Core.Utils
 import Lvm.Core.Module
 import Data.List
@@ -103,14 +104,13 @@ usageExpr :: IdSet -> Used -> Expr -> Used
 usageExpr locals used expr
  = case expr of
       Let binds e     -> let used'   = usageBinds locals used binds 
-                             locals' = unionSet locals (setFromList (binders (listFromBinds binds)))
+                             locals' = unionSet locals (binder binds)
                          in usageExpr locals' used' e
       Lam x e         -> usageExpr (insertSet x locals) used e
       Match x alts    -> usageAlts locals (usageVar locals used x) alts
       Ap e1 e2        -> usageExpr locals (usageExpr locals used e1) e2
       Var x           -> usageVar locals used x
       Con con         -> usageCon locals used con
-      Note _ e        -> usageExpr locals used e
       Lit _           -> used
 
 usageVar :: IdSet -> Set (DeclKind, Id) -> Id -> Set (DeclKind, Id)

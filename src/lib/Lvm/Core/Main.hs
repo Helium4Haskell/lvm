@@ -168,7 +168,7 @@ messageFor a flags =
    when (getVerbosity flags >= a) . messageDoc
 
 messageDoc :: Pretty a => a -> IO ()
-messageDoc = putStrLn . show . pretty
+messageDoc = print . pretty
 
 dumpWith :: Pretty a => Dump -> [Flag] -> String -> a -> IO () 
 dumpWith dump flags s a = 

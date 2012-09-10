@@ -80,7 +80,6 @@ nsDeclExpr inscope supply = nsExpr (Env supply inscope emptyMap)
 nsExpr :: Env -> Expr -> Expr
 nsExpr env expr
   = case expr of
-      Note n e          -> Note n (nsExpr env e)
       Let binds e       -> nsBinds env binds $ \env' binds' ->
                            Let binds' (nsExpr env' e)
       Match x alts      -> Match (renameVar env x) (nsAlts env alts)

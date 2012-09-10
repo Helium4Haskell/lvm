@@ -19,6 +19,7 @@ import Data.Graph hiding (topSort)
 import Data.Tree
 import Lvm.Common.IdSet
 import Lvm.Core.Expr
+import Lvm.Core.FreeVar
 import Lvm.Core.Utils
 import Data.Maybe
 import Control.Arrow (second)
@@ -48,8 +49,6 @@ lsExpr expr
         -> Ap (lsExpr e1) (lsExpr e2)
       Con (ConTag tag arity)
         -> Con (ConTag (lsExpr tag) arity)
-      Note n e
-        -> Note n (lsExpr e)
       _
         -> expr
 
@@ -90,9 +89,3 @@ depends names (v,expr)
     depend x ds   = case lookup x names of
                       Just i  -> (index,i):ds
                       Nothing -> ds
-
-freeVar :: Expr -> IdSet
-freeVar expr
-  = case expr of
-      Note (FreeVar fv) _ -> fv
-      _                   -> error "CoreLetSort.freeVar: no annotation. Do coreFreeVar first?"

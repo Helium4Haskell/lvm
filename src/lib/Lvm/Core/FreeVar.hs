@@ -10,95 +10,61 @@
 --  $Id$
 
 ----------------------------------------------------------------
--- Annotate let bound expression with their free variables
+-- Calculate free variables
 ----------------------------------------------------------------
-module Lvm.Core.FreeVar (coreFreeVar) where
+module Lvm.Core.FreeVar (FreeVar(..), Binder(..)) where
 
-import Debug.Trace
 import Lvm.Common.IdSet
 import Lvm.Core.Expr
-import Lvm.Core.Utils
 
-----------------------------------------------------------------
--- coreFreeVar
--- Annotate let bound expression with their free variables
-----------------------------------------------------------------
+class FreeVar a where
+   freeVar :: a -> IdSet
 
-coreFreeVar :: CoreModule -> CoreModule
-coreFreeVar m
-  = fmap (fvDeclExpr (globalNames m)) m
+instance FreeVar a => FreeVar [a] where
+   freeVar = unionSets . map freeVar
 
-fvDeclExpr :: IdSet -> Expr -> Expr
-fvDeclExpr globals expr
-  = let (expr',fv) = fvExpr globals expr
-    in if isEmptySet fv
-        then Note (FreeVar fv) expr'
-        else trace ("warning: CoreFreeVar.fvDeclExpr: top-level binding with free variables: "
-                      ++ show (listFromSet fv)) (Note (FreeVar fv) expr')
+instance FreeVar Expr where
+   freeVar expr = 
+      case expr of
+         Let bs e  -> freeVar bs `unionSet` (freeVar e `diffSet` binder bs)
+         Match x e -> insertSet x (freeVar e)
+         Ap e1 e2  -> freeVar e1 `unionSet` freeVar e2
+         Lam x e   -> deleteSet x (freeVar e)
+         Con c     -> freeVar c
+         Var x     -> singleSet x
+         Lit _     -> emptySet
 
-fvBindExpr :: IdSet -> Expr -> (Expr, IdSet)
-fvBindExpr globals expr
-  = let (expr',fv) = fvExpr globals expr
-    in  (Note (FreeVar fv) expr',fv)
+instance FreeVar Alt where
+   freeVar (Alt p e) = freeVar e `diffSet` binder p
 
-fvExpr :: IdSet -> Expr -> (Expr,IdSet)
-fvExpr globals expr
-  = case expr of
-      Let binds e
-        -> let (expr',fv)       = fvExpr globals e
-               (binds',fvbinds) = fvBinds globals binds
-           in (Let binds' expr', diffSet (unionSet fvbinds fv) (setFromList (binders (listFromBinds binds))))
-      Lam x e
-        -> let (expr',fv) = fvExpr globals e
-           in  (Lam x expr',deleteSet x fv)
-      Match x alts
-        -> let (alts',fvalts) = fvAlts globals alts
-           in  (Match x alts',insertSet x fvalts)
-      Ap e1 e2
-        -> let (expr1',fv1)   = fvExpr globals e1
-               (expr2',fv2)   = fvExpr globals e2
-           in  (Ap expr1' expr2', unionSet fv1 fv2)
-      Var x
-        -> if elemSet x globals
-            then (expr,emptySet)
-            else (expr,insertSet x emptySet)
-      Con (ConTag tag arity)
-        -> let (tag',fv) = fvExpr globals tag
-           in (Con (ConTag tag' arity),fv)
-      Note n e
-        -> let (expr',fv) = fvExpr globals e
-           in  (Note n expr',fv)
-      _
-        -> (expr,emptySet)
+instance FreeVar Binds where
+   freeVar binds =
+      case binds of
+         Rec bs   -> freeVar bs `diffSet` binder bs
+         NonRec b -> freeVar b
+         Strict b -> freeVar b
 
+instance FreeVar Bind where
+   freeVar (Bind _ e) = freeVar e -- non-recursive binder!
 
-fvAlts :: IdSet -> Alts -> (Alts,IdSet)
-fvAlts globals alts
-  = let alts' = mapAlts (\pat expr -> let (expr',fv)   = fvExpr globals expr                                          
-                                      in  Alt pat (Note (FreeVar fv) expr')) alts
-        fvs   = unionSets (map (\(Alt pat expr) -> diffSet (freeVar expr) (patBinders pat)) alts')
-    in  (alts',fvs)
+instance FreeVar a => FreeVar (Con a) where
+   freeVar (ConTag a _) = freeVar a
+   freeVar (ConId _)    = emptySet
+   
+class Binder a where
+   binder :: a -> IdSet
 
-fvBinds :: IdSet -> Binds -> (Binds,IdSet)
-fvBinds globals binds
-  = case binds of
-      NonRec (Bind x expr)
-        -> nonrec NonRec x expr
-      Strict (Bind x expr)
-        -> nonrec Strict x expr
-      _ 
-        -> let binds' = mapBinds (\x rhs -> Bind x (fst (fvBindExpr globals rhs))) binds
-               fvs    = unionSets (map (\(Bind _ rhs) -> freeVar rhs) (listFromBinds binds'))
-           in  (binds',fvs)
-  where
-    nonrec make x expr
-      = let (expr',fv) = fvBindExpr globals expr
-        in if elemSet x fv
-            then error "CoreFreeVar.fvBinds: non-recursive binding refers to itself? (do CoreNoShadow first?)"
-            else (make (Bind x expr'),fv)
+instance Binder a => Binder [a] where
+   binder = unionSets . map binder
 
-freeVar :: Expr -> IdSet
-freeVar expr
-  = case expr of
-      Note (FreeVar fv) _  -> fv
-      _                    -> error "CoreFreeVar.freeVar: no free variable annotation"
+instance Binder Pat where
+   binder (PatCon _ xs) = setFromList xs
+   binder _             = emptySet
+   
+instance Binder Bind where
+   binder (Bind x _) = singleSet x
+   
+instance Binder Binds where
+   binder (Rec bs)   = binder bs
+   binder (NonRec b) = binder b
+   binder (Strict b) = binder b
