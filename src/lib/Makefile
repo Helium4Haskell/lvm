@@ -21,6 +21,7 @@ coreasm:
 	$(HC) --make $(HC_OPTS) -o coreasm Lvm/Core/Main
 
 report:
+	mkdir -p out
 	$(HLINT) --report=$(DOCDIR)/report.html .
 
 # Clean	up
