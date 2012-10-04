@@ -16,6 +16,7 @@ module Lvm.Path
    , searchPathMaybe, splitPath
    ) where
 
+import qualified Control.Exception as CE (catch, IOException)
 import Data.List
 import System.Directory
 import System.Environment
@@ -65,7 +66,9 @@ getLvmPath
   = do{ xs <- getEnv "LVMPATH"
       ; return (splitPath xs)
       }
-  `catch` \_ -> return []
+  `CE.catch` (\exception ->
+            let message = show (exception :: CE.IOException)
+            in do { putStrLn message; return [] })
 
 splitPath :: String -> [String]
 splitPath = walk [] ""

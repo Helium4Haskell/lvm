@@ -18,7 +18,6 @@ import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.FreeVar
 import Lvm.Core.Utils
-import Lvm.Core.Module
 import Data.List
 
 ----------------------------------------------------------------

@@ -11,7 +11,7 @@
 
 module Lvm.Write (lvmWriteFile, lvmToBytes) where
 
-import Control.Exception (assert)
+import qualified Control.Exception as CE (assert, catch, IOException) 
 import Control.Monad
 import Data.Maybe
 import Lvm.Common.Byte
@@ -35,8 +35,8 @@ lvmWriteFile :: FilePath -> LvmModule -> IO ()
 lvmWriteFile path lvm
   = let bytes = lvmToBytes lvm
     in seq bytes $
-        writeBytes path bytes `catch` (\exception ->
-            let message = show exception ++ "\n\nUnable to write to file " ++ show path
+        writeBytes path bytes `CE.catch` (\exception ->
+            let message = show (exception :: CE.IOException) ++ "\n\nUnable to write to file " ++ show path
             in do { putStrLn message; exitWith (ExitFailure 1) })
 
 lvmToBytes :: LvmModule -> Bytes
@@ -152,7 +152,7 @@ emitDAbstract _ = error "LvmWrite.emitDAbstract: abstract values should be impor
 
 emitImport :: Id -> DeclKind -> Access -> [Custom] -> Emit Index
 emitImport x declkind access@(Imported _ modName impName kind majorVer minorVer) customs
-  = assert (declkind==kind) $ -- LvmWrite.emitImport: kinds don't match
+  = CE.assert (declkind==kind) $ -- LvmWrite.emitImport: kinds don't match
     do{ idxModule <- emitModule modName majorVer minorVer
       ; idxName   <- emitName impName
       ; idxId     <- emitName x
@@ -278,7 +278,7 @@ emit instr
 
 emitMatch :: Int -> [Alt] -> [Int]
 emitMatch entrySize alts
-  = assert (normalizedAlts alts) $ -- "LvmWrite.emitMatch: unnormalized alternatives"
+  = CE.assert (normalizedAlts alts) $ -- "LvmWrite.emitMatch: unnormalized alternatives"
     let (pats,iss) = unzipAlts alts
         altis      = map emits iss
         start      = 2 + entrySize*(length alts -1)
@@ -418,7 +418,7 @@ emitBlockEx mbId kindId kind bs custom
       ; kindenc <- encodeKind kind
       ; let bytes = mappend bs bcustom
             total = mappend (block [kindenc,encodeInt (bytesLength bytes)]) bytes
-      ; assert ((bytesLength bytes `mod` 4) == 0) $ -- "LvmWrite.emitBlock: unaligned size"
+      ; CE.assert ((bytesLength bytes `mod` 4) == 0) $ -- "LvmWrite.emitBlock: unaligned size"
         emitPrimBlock (maybe Nothing (\x -> Just (x,kindId)) mbId) kind total
       }
 
@@ -504,7 +504,7 @@ sharable _ = False
 -}
 
 find :: Eq a => Int -> a -> [a] -> Maybe Int
-find n _ []       = assert (n==0) Nothing -- "LvmWrite.find: count too large"
+find n _ []       = CE.assert (n==0) Nothing -- "LvmWrite.find: count too large"
 find n x (y:ys)   | x==y       = Just n
                   | otherwise  = (find $! (n-1)) x ys
 

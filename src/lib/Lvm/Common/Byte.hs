@@ -19,6 +19,7 @@ module Lvm.Common.Byte
    , readByteList, int32FromByteList, stringFromByteList, bytesFromByteList
    ) where
 
+import qualified Control.Exception as CE (catch, IOException) 
 import Data.Monoid
 import Data.Word
 import System.Exit
@@ -149,6 +150,6 @@ readByteList path
       ; xs <- hGetContents h
       ; seq (last xs) (hClose h)
       ; return (map (toEnum . fromEnum) xs)
-      } `catch` (\exception ->
-            let message =  show exception ++ "\n\nUnable to read from file " ++ show path
+      } `CE.catch` (\exception ->
+            let message =  show (exception :: CE.IOException) ++ "\n\nUnable to read from file " ++ show path
             in do { putStrLn message; exitWith (ExitFailure 1) })
