@@ -66,9 +66,7 @@ getLvmPath
   = do{ xs <- getEnv "LVMPATH"
       ; return (splitPath xs)
       }
-  `CE.catch` (\exception ->
-            let message = show (exception :: CE.IOException)
-            in do { putStrLn message; return [] })
+  `CE.catch` (\_ -> return [])
 
 splitPath :: String -> [String]
 splitPath = walk [] ""
