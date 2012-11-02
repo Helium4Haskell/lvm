@@ -173,6 +173,9 @@ case $basic_machine in
         i[34567]86)
           basic_machine=$basic_machine-pc
           ;;
+        x86*)
+          basic_machine=$basic_machine-pc
+          ;;          
         # Object if more than one company name word.
         *-*-*)
                 echo Invalid configuration \`$1\': machine \`$basic_machine\' not recognized 1>&2
@@ -784,7 +787,7 @@ case $os in
         -xenix)
                 os=-xenix
                 ;;
-        -macosx*)
+        -macosx* | -darwin* )
               os=-macosx
               ;;
         -none)

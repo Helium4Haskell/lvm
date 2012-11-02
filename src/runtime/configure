@@ -200,7 +200,7 @@ case "$cc,$host" in
     # GNU C extensions disabled, but __GNUC__ still defined!
     cccompopts="-fno-defer-pop $gcc_warnings -U__GNUC__ -posix"
     cclinkopts="-posix";;
-  cc,*-*-macosx*)
+  cc,*-*-darwin*)
     cccompopts="-m32 -fno-defer-pop $gcc_warnings -DSHRINKED_GNUC"
     cclinkopts="-arch i386" 
     mathlib="";;
@@ -240,7 +240,7 @@ case "$cc,$host" in
     cccompopts="-fno-defer-pop $gcc_warnings -D_XOPEN_SOURCE=500";;
   *,powerpc-*-aix4.3*)
     cccompopts="-D_XOPEN_SOURCE=500";;
-  gcc*,*-*-macosx*)
+  gcc*,*-*-darwin*)
     cccompopts="-m32 $gcc_warnings"
     cclinkopts="-arch i386";; 
   gcc*,*-*-cygwin*)
