@@ -1,0 +1,35 @@
+name:                   lvmrun
+version:                1.0
+synopsis:               The Lazy Virtual Machine (LVM) Runtime System.
+homepage:               http://www.cs.uu.nl/wiki/bin/view/Helium/WebHome
+description:
+
+   The Lazy Virtual Machine (LVM) defines a portable instruction set and file
+   format. It is specifically designed to execute languages with non-strict (or
+   lazy) semantics. This cabal package defines an LVM runtime written in C. 
+   The core assembler (coreasm) for compiling core programs into LVM instructions 
+   and a library is defined in the lvmlib cabal package. The LVM is used 
+   as a backend for the Helium compiler. More information about LVM can be 
+   found in Chapter 6 of Daan Leijen's PhD Thesis, The Lambda Abroad.
+
+category:               Compilers/Interpreters
+copyright:              (c) 2012
+license:                GPL
+license-file:           LICENSE.txt
+author:                 Daan Leijen, Bastiaan Heeren, Jurriaan Hage, *OCAMLers*
+maintainer:             helium@cs.uu.nl
+stability:              provisional
+extra-source-files:     CREDITS.txt
+build-type:             Make
+cabal-version:          >= 1.10.1.0
+tested-with:            GCC == 4.2.1
+
+source-repository head
+  type:     svn
+  location: https://svn.science.uu.nl/repos/sci.hage0101.lvm/trunk/src/runtime
+
+--------------------------------------------------------------------------------
+
+Executable lvmrun
+
+  

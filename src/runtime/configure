@@ -43,6 +43,8 @@ while : ; do
     "") break;;
     -prefix|--prefix)
         prefix=$2; shift;;
+    --with-hc*)  # Cabal passes it, but this config should ignore it.
+        shift;;  
     -bindir|--bindir)
         bindir=$2; shift;;
     -host*|--host*)
