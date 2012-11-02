@@ -9,7 +9,7 @@
 
 # $Id$ *
 
-include ../config/makefile
+include config/makefile
 
 NDEBUG = yes
 
