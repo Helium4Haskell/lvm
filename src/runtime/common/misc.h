@@ -58,17 +58,11 @@ void _failed_assert (char *, char *, int) Noreturn;
 
 
 /* Variable arguments */
-#ifdef HAS_STDARG_H
-# include <stdarg.h>
-# define FUN_VAR_ARGS1(name,tp,fst,args)  name ( tp fst, ... ) { va_list args; va_start(args,fst);
-# define FUN_VAR_ARGS2(name,tpfst,fst,tpsnd,snd,args)  name ( tpfst fst, tpsnd snd, ... ) { va_list args; va_start(args,snd);
-# define FUN_VAR_ARGS3(name,tpfst,fst,tpsnd,snd,tpthd,thd,args)  name ( tpfst fst, tpsnd snd, tpthd thd, ... ) { va_list args; va_start(args,thd);
-#else
-# include <varargs.h>
-# define FUN_VAR_ARGS1(name,tp,fst,args)  name ( fst, va_alist ) tp fst; va_dcl { va_list args; va_start(args);
-# define FUN_VAR_ARGS2(name,tpfst,fst,tpsnd,snd,args)  name ( fst, snd, va_alist ) tpfst fst; tpsnd snd; va_dcl { va_list args; va_start(args);
-# define FUN_VAR_ARGS3(name,tpfst,fst,tpsnd,snd,tpthd, thd, args)  name ( fst, snd, thd, va_alist ) tpfst fst; tpsnd snd; tpthd thd; va_dcl { va_list args; va_start(args);
-#endif
+#include <stdarg.h>
+#define FUN_VAR_ARGS1(name,tp,fst,args)  name ( tp fst, ... ) { va_list args; va_start(args,fst);
+#define FUN_VAR_ARGS2(name,tpfst,fst,tpsnd,snd,args)  name ( tpfst fst, tpsnd snd, ... ) { va_list args; va_start(args,snd);
+#define FUN_VAR_ARGS3(name,tpfst,fst,tpsnd,snd,tpthd,thd,args)  name ( tpfst fst, tpsnd snd, tpthd thd, ... ) { va_list args; va_start(args,thd);
+
 #define END_ARGS(args)          va_end(args); }
 
 

@@ -661,9 +661,9 @@ echo "MKDIR=mkdir -p" >> makefile
 
 case "$config" in
   cl-i[3456789]86-pc-windows*)
-     echo "CONFIGPATH=../config/$config" >> makefile;;
+     echo "CONFIGPATH=config/$config" >> makefile;;
   *)
-     echo "CONFIGPATH=../config" >> makefile;;
+     echo "CONFIGPATH=config" >> makefile;;
 esac
 
 echo "CCOPTS=$cccompopts -fno-strict-aliasing -I\$(CONFIGPATH)" >> makefile

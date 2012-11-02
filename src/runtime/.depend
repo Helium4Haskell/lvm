@@ -1,181 +1,175 @@
-core/ccall.o: core/ccall.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/memory.h common/mlvalues.h \
+core/ccall.o: core/ccall.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/memory.h common/mlvalues.h \
   common/alloc.h common/fail.h heap/heap.h common/mlvalues.h \
   common/memory.h heap/gc.h heap/gc_ctrl.h common/misc.h heap/minor_gc.h \
   heap/major_gc.h heap/freelist.h core/module.h common/fixed.h \
   core/thread.h core/primfloat.h core/signals.h core/ccall.h
-core/dynamic.o: core/dynamic.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/memory.h common/mlvalues.h \
+core/dynamic.o: core/dynamic.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/memory.h common/mlvalues.h \
   common/fail.h core/module.h common/fixed.h core/dynamic.h core/sys.h \
   common/custom.h
 core/evaluator.o: core/evaluator.c common/mlvalues.h common/config.h \
-  ../config/m.h ../config/s.h common/misc.h common/alloc.h \
-  common/mlvalues.h heap/heapfast.h heap/heap.h common/mlvalues.h \
-  common/memory.h heap/gc.h heap/gc_ctrl.h common/misc.h heap/minor_gc.h \
-  heap/major_gc.h heap/freelist.h common/fail.h core/failexn.h \
-  heap/heap.h core/print.h core/module.h common/fixed.h core/thread.h \
-  core/primfloat.h core/signals.h core/instr.h core/ccall.h core/stack.h \
-  core/evaluator.h
-core/fail.o: core/fail.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/memory.h common/mlvalues.h \
+  config/m.h config/s.h common/misc.h common/alloc.h common/mlvalues.h \
+  heap/heapfast.h heap/heap.h common/mlvalues.h common/memory.h heap/gc.h \
+  heap/gc_ctrl.h common/misc.h heap/minor_gc.h heap/major_gc.h \
+  heap/freelist.h common/fail.h core/failexn.h heap/heap.h core/print.h \
+  core/module.h common/fixed.h core/thread.h core/primfloat.h \
+  core/signals.h core/instr.h core/ccall.h core/stack.h core/evaluator.h
+core/fail.o: core/fail.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/memory.h common/mlvalues.h \
   common/alloc.h common/fail.h core/failexn.h heap/heap.h \
   common/mlvalues.h common/memory.h heap/gc.h heap/gc_ctrl.h \
   common/misc.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
   core/print.h core/module.h common/fixed.h core/signals.h core/thread.h \
   core/primfloat.h
-core/instr.o: core/instr.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h core/module.h common/fixed.h core/instr.h \
+core/instr.o: core/instr.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h core/module.h common/fixed.h core/instr.h \
   common/fail.h common/mlvalues.h
-core/loader.o: core/loader.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/memory.h common/mlvalues.h \
+core/loader.o: core/loader.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/memory.h common/mlvalues.h \
   common/alloc.h heap/heap.h common/mlvalues.h common/memory.h heap/gc.h \
   heap/gc_ctrl.h common/misc.h heap/minor_gc.h heap/major_gc.h \
   heap/freelist.h core/sys.h common/fail.h core/reverse.h common/bytes.h \
   common/custom.h core/instr.h core/module.h common/fixed.h \
   core/dynamic.h core/print.h prim/prims.h prim/../core/module.h \
   core/options.h
-core/main.o: core/main.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/memory.h common/mlvalues.h \
+core/main.o: core/main.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/memory.h common/mlvalues.h \
   core/module.h common/fixed.h core/loader.h core/schedule.h \
   core/options.h core/stats.h
-core/misc.o: core/misc.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h heap/heap.h common/mlvalues.h \
-  common/memory.h common/mlvalues.h heap/gc.h heap/gc_ctrl.h \
-  common/misc.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
-  core/dynamic.h core/module.h common/fixed.h core/signals.h \
-  core/thread.h core/primfloat.h common/fail.h core/options.h
-core/module.o: core/module.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/memory.h common/mlvalues.h \
+core/misc.o: core/misc.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h heap/heap.h common/mlvalues.h common/memory.h \
+  common/mlvalues.h heap/gc.h heap/gc_ctrl.h common/misc.h \
+  heap/minor_gc.h heap/major_gc.h heap/freelist.h core/dynamic.h \
+  core/module.h common/fixed.h core/signals.h core/thread.h \
+  core/primfloat.h common/fail.h core/options.h
+core/module.o: core/module.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/memory.h common/mlvalues.h \
   core/module.h common/fixed.h common/bytes.h common/custom.h
-core/options.o: core/options.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/memory.h common/mlvalues.h \
-  heap/heap.h common/mlvalues.h common/memory.h heap/gc.h heap/gc_ctrl.h \
+core/options.o: core/options.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/memory.h common/mlvalues.h heap/heap.h \
+  common/mlvalues.h common/memory.h heap/gc.h heap/gc_ctrl.h \
   common/misc.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
   core/dynamic.h core/module.h common/fixed.h common/custom.h \
   common/fail.h core/print.h core/loader.h core/evaluator.h core/thread.h \
   core/primfloat.h core/signals.h core/schedule.h core/stats.h core/sys.h
 core/primfloat.o: core/primfloat.c common/mlvalues.h common/config.h \
-  ../config/m.h ../config/s.h common/misc.h common/fail.h \
-  common/mlvalues.h heap/heapfast.h heap/heap.h common/mlvalues.h \
-  common/memory.h heap/gc.h heap/gc_ctrl.h common/misc.h heap/minor_gc.h \
-  heap/major_gc.h heap/freelist.h common/alloc.h core/primfloat.h
-core/print.o: core/print.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/memory.h common/mlvalues.h \
+  config/m.h config/s.h common/misc.h common/fail.h common/mlvalues.h \
+  heap/heapfast.h heap/heap.h common/mlvalues.h common/memory.h heap/gc.h \
+  heap/gc_ctrl.h common/misc.h heap/minor_gc.h heap/major_gc.h \
+  heap/freelist.h common/alloc.h core/primfloat.h
+core/print.o: core/print.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/memory.h common/mlvalues.h \
   core/module.h common/fixed.h core/instr.h core/print.h core/thread.h \
   core/primfloat.h common/fail.h core/signals.h
-core/schedule.o: core/schedule.c common/mlvalues.h common/config.h \
-  ../config/m.h ../config/s.h common/misc.h heap/heap.h common/mlvalues.h \
-  common/memory.h common/mlvalues.h heap/gc.h heap/gc_ctrl.h \
-  common/misc.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
-  core/print.h core/module.h common/fixed.h common/fail.h core/thread.h \
+core/schedule.o: core/schedule.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h heap/heap.h common/mlvalues.h common/memory.h \
+  common/mlvalues.h heap/gc.h heap/gc_ctrl.h common/misc.h \
+  heap/minor_gc.h heap/major_gc.h heap/freelist.h core/print.h \
+  core/module.h common/fixed.h common/fail.h core/thread.h \
   core/primfloat.h core/signals.h core/evaluator.h
-core/signals.o: core/signals.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/alloc.h common/mlvalues.h \
-  common/fail.h core/failexn.h heap/heap.h common/mlvalues.h \
-  common/memory.h heap/gc.h heap/gc_ctrl.h common/misc.h heap/minor_gc.h \
-  heap/major_gc.h heap/freelist.h core/thread.h core/primfloat.h \
-  core/signals.h core/systhread.h
-core/stack.o: core/stack.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/alloc.h common/mlvalues.h \
-  common/fail.h heap/heap.h common/mlvalues.h common/memory.h heap/gc.h \
+core/signals.o: core/signals.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/alloc.h common/mlvalues.h common/fail.h \
+  core/failexn.h heap/heap.h common/mlvalues.h common/memory.h heap/gc.h \
   heap/gc_ctrl.h common/misc.h heap/minor_gc.h heap/major_gc.h \
-  heap/freelist.h core/thread.h core/primfloat.h core/signals.h
-core/stats.o: core/stats.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h heap/heap.h common/mlvalues.h \
-  common/memory.h common/mlvalues.h heap/gc.h heap/gc_ctrl.h \
+  heap/freelist.h core/thread.h core/primfloat.h core/signals.h \
+  core/systhread.h
+core/stack.o: core/stack.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/alloc.h common/mlvalues.h common/fail.h \
+  heap/heap.h common/mlvalues.h common/memory.h heap/gc.h heap/gc_ctrl.h \
   common/misc.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
-  core/sys.h core/print.h core/module.h common/fixed.h core/options.h \
-  core/stats.h
-core/sys.o: core/sys.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/alloc.h common/mlvalues.h \
-  common/fail.h common/memory.h core/signals.h core/thread.h \
-  core/primfloat.h core/sys.h core/options.h
+  core/thread.h core/primfloat.h core/signals.h
+core/stats.o: core/stats.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h heap/heap.h common/mlvalues.h common/memory.h \
+  common/mlvalues.h heap/gc.h heap/gc_ctrl.h common/misc.h \
+  heap/minor_gc.h heap/major_gc.h heap/freelist.h core/sys.h core/print.h \
+  core/module.h common/fixed.h core/options.h core/stats.h
+core/sys.o: core/sys.c common/mlvalues.h common/config.h config/m.h config/s.h \
+  common/misc.h common/alloc.h common/mlvalues.h common/fail.h \
+  common/memory.h core/signals.h core/thread.h core/primfloat.h \
+  core/sys.h core/options.h
 core/systhread.o: core/systhread.c common/mlvalues.h common/config.h \
-  ../config/m.h ../config/s.h common/misc.h common/fail.h \
-  common/mlvalues.h core/sys.h core/systhread.h
-core/thread.o: core/thread.c common/config.h ../config/m.h ../config/s.h \
+  config/m.h config/s.h common/misc.h common/fail.h common/mlvalues.h \
+  core/sys.h core/systhread.h
+core/thread.o: core/thread.c common/config.h config/m.h config/s.h \
   common/mlvalues.h common/config.h common/misc.h common/alloc.h \
   common/mlvalues.h common/memory.h common/fail.h core/module.h \
   common/fixed.h core/signals.h core/thread.h core/primfloat.h
 heap/alloc.o: heap/alloc.c common/alloc.h common/mlvalues.h common/config.h \
-  ../config/m.h ../config/s.h common/misc.h common/mlvalues.h \
-  heap/heapfast.h heap/heap.h common/memory.h heap/gc.h heap/gc_ctrl.h \
-  common/misc.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
-  common/custom.h
-heap/bytes.o: heap/bytes.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/custom.h common/memory.h \
+  config/m.h config/s.h common/misc.h common/mlvalues.h heap/heapfast.h \
+  heap/heap.h common/memory.h heap/gc.h heap/gc_ctrl.h common/misc.h \
+  heap/minor_gc.h heap/major_gc.h heap/freelist.h common/custom.h
+heap/bytes.o: heap/bytes.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/custom.h common/memory.h \
   common/mlvalues.h common/bytes.h common/custom.h common/misc.h \
   common/fail.h
-heap/compact.o: heap/compact.c common/config.h ../config/m.h ../config/s.h \
+heap/compact.o: heap/compact.c common/config.h config/m.h config/s.h \
   heap/finalise.h heap/roots.h common/misc.h common/config.h \
   common/memory.h common/mlvalues.h common/misc.h heap/freelist.h \
   common/mlvalues.h heap/gc.h heap/gc_ctrl.h heap/major_gc.h heap/weak.h
-heap/custom.o: heap/custom.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/alloc.h common/mlvalues.h \
+heap/custom.o: heap/custom.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/alloc.h common/mlvalues.h \
   common/custom.h common/fail.h common/memory.h
-heap/finalise.o: heap/finalise.c common/mlvalues.h common/config.h \
-  ../config/m.h ../config/s.h common/misc.h common/fail.h \
-  common/mlvalues.h heap/heap.h common/memory.h heap/gc.h heap/gc_ctrl.h \
-  common/misc.h heap/minor_gc.h heap/major_gc.h heap/freelist.h \
-  heap/roots.h
-heap/fixed.o: heap/fixed.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/custom.h common/memory.h \
+heap/finalise.o: heap/finalise.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/fail.h common/mlvalues.h heap/heap.h \
+  common/memory.h heap/gc.h heap/gc_ctrl.h common/misc.h heap/minor_gc.h \
+  heap/major_gc.h heap/freelist.h heap/roots.h
+heap/fixed.o: heap/fixed.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/custom.h common/memory.h \
   common/mlvalues.h common/fail.h common/fixed.h
-heap/freelist.o: heap/freelist.c common/config.h ../config/m.h ../config/s.h \
+heap/freelist.o: heap/freelist.c common/config.h config/m.h config/s.h \
   heap/freelist.h common/misc.h common/config.h common/mlvalues.h \
   common/misc.h heap/gc.h heap/gc_ctrl.h heap/major_gc.h
-heap/gc_ctrl.o: heap/gc_ctrl.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/alloc.h common/mlvalues.h \
+heap/gc_ctrl.o: heap/gc_ctrl.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/alloc.h common/mlvalues.h \
   heap/compact.h common/custom.h heap/finalise.h heap/roots.h \
   common/misc.h common/memory.h heap/heap.h heap/gc.h heap/gc_ctrl.h \
   heap/minor_gc.h heap/major_gc.h heap/freelist.h core/thread.h \
   core/primfloat.h common/fail.h core/signals.h common/mlvalues.h \
   core/thread.h
 heap/globroots.o: heap/globroots.c common/memory.h common/mlvalues.h \
-  common/config.h ../config/m.h ../config/s.h common/misc.h common/misc.h \
+  common/config.h config/m.h config/s.h common/misc.h common/misc.h \
   common/mlvalues.h heap/globroots.h
-heap/major_gc.o: heap/major_gc.c common/mlvalues.h common/config.h \
-  ../config/m.h ../config/s.h common/misc.h heap/compact.h \
-  common/custom.h common/config.h common/fail.h common/mlvalues.h \
-  heap/finalise.h heap/roots.h common/misc.h common/memory.h heap/heap.h \
-  heap/gc.h heap/gc_ctrl.h heap/minor_gc.h heap/major_gc.h \
-  heap/freelist.h heap/weak.h
-heap/memory.o: heap/memory.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/fail.h common/mlvalues.h \
+heap/major_gc.o: heap/major_gc.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h heap/compact.h common/custom.h common/config.h \
+  common/fail.h common/mlvalues.h heap/finalise.h heap/roots.h \
+  common/misc.h common/memory.h heap/heap.h heap/gc.h heap/gc_ctrl.h \
+  heap/minor_gc.h heap/major_gc.h heap/freelist.h heap/weak.h
+heap/memory.o: heap/memory.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/fail.h common/mlvalues.h \
   common/memory.h heap/compact.h heap/heapfast.h heap/heap.h heap/gc.h \
   heap/gc_ctrl.h common/misc.h heap/minor_gc.h heap/major_gc.h \
   heap/freelist.h core/signals.h common/mlvalues.h core/thread.h \
   core/primfloat.h common/fail.h core/signals.h core/print.h \
   core/module.h common/fixed.h
-heap/minor_gc.o: heap/minor_gc.c common/mlvalues.h common/config.h \
-  ../config/m.h ../config/s.h common/misc.h common/fail.h \
-  common/mlvalues.h heap/finalise.h heap/roots.h common/misc.h \
-  common/memory.h heap/heap.h heap/gc.h heap/gc_ctrl.h heap/minor_gc.h \
-  heap/major_gc.h heap/freelist.h core/stats.h core/signals.h \
-  common/mlvalues.h core/thread.h core/primfloat.h common/fail.h \
-  core/signals.h
-heap/roots.o: heap/roots.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h heap/finalise.h heap/roots.h common/misc.h \
+heap/minor_gc.o: heap/minor_gc.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/fail.h common/mlvalues.h \
+  heap/finalise.h heap/roots.h common/misc.h common/memory.h heap/heap.h \
+  heap/gc.h heap/gc_ctrl.h heap/minor_gc.h heap/major_gc.h \
+  heap/freelist.h core/stats.h core/signals.h common/mlvalues.h \
+  core/thread.h core/primfloat.h common/fail.h core/signals.h
+heap/roots.o: heap/roots.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h heap/finalise.h heap/roots.h common/misc.h \
   common/memory.h common/mlvalues.h heap/heap.h heap/gc.h heap/gc_ctrl.h \
   heap/minor_gc.h heap/major_gc.h heap/freelist.h common/fixed.h \
   heap/globroots.h core/thread.h core/primfloat.h common/fail.h \
   core/signals.h common/mlvalues.h core/thread.h
-heap/weak.o: heap/weak.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/alloc.h common/mlvalues.h \
-  common/fail.h common/memory.h heap/heap.h heap/gc.h heap/gc_ctrl.h \
-  common/misc.h heap/minor_gc.h heap/major_gc.h heap/freelist.h
-prim/primio.o: prim/primio.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/fail.h common/mlvalues.h \
+heap/weak.o: heap/weak.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/alloc.h common/mlvalues.h common/fail.h \
+  common/memory.h heap/heap.h heap/gc.h heap/gc_ctrl.h common/misc.h \
+  heap/minor_gc.h heap/major_gc.h heap/freelist.h
+prim/primio.o: prim/primio.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/fail.h common/mlvalues.h \
   common/memory.h common/alloc.h common/custom.h prim/primio.h \
   common/misc.h prim/primsys.h
 prim/primmagic.o: prim/primmagic.c
-prim/prims.o: prim/prims.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/fail.h common/mlvalues.h \
-  prim/prims.h prim/../core/module.h common/fixed.h prim/primitives.h \
+prim/prims.o: prim/prims.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/fail.h common/mlvalues.h prim/prims.h \
+  prim/../core/module.h common/fixed.h prim/primitives.h \
   prim/../core/sys.h
 prim/primstring.o: prim/primstring.c common/mlvalues.h common/config.h \
-  ../config/m.h ../config/s.h common/misc.h common/memory.h \
-  common/mlvalues.h common/alloc.h common/fail.h prim/primstring.h
-prim/primsys.o: prim/primsys.c common/mlvalues.h common/config.h ../config/m.h \
-  ../config/s.h common/misc.h common/alloc.h common/mlvalues.h \
-  common/fail.h common/memory.h prim/primsys.h
+  config/m.h config/s.h common/misc.h common/memory.h common/mlvalues.h \
+  common/alloc.h common/fail.h prim/primstring.h
+prim/primsys.o: prim/primsys.c common/mlvalues.h common/config.h config/m.h \
+  config/s.h common/misc.h common/alloc.h common/mlvalues.h common/fail.h \
+  common/memory.h prim/primsys.h
