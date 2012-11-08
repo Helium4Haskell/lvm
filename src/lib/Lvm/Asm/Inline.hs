@@ -1,8 +1,7 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Bastiaan Heeren, Jurriaan Hage, Daan Leijen. This file 
--- is distributed under the terms of the GNU General Public License. For more 
--- information, see the file "LICENSE.txt", which is included in the 
--- distribution.
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
+-- is distributed under the terms of the BSD3 License. For more information, 
+-- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id$
 module Lvm.Asm.Inline (asmInline) where

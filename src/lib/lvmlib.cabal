@@ -14,7 +14,7 @@ description:
 
 category:               Compilers/Interpreters
 copyright:              (c) 2012
-license:                GPL
+license:                BSD3
 license-file:           LICENSE.txt
 author:                 Daan Leijen, Bastiaan Heeren, Jurriaan Hage
 maintainer:             helium@cs.uu.nl
