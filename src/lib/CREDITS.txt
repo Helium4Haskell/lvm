@@ -1,6 +1,6 @@
 AUTHORS
 
-Bastiaan Heeren, Jurriaan Hage, Daan Leijen
+Daan Leijen, Bastiaan Heeren, Jurriaan Hage
 
 CREDITS
 

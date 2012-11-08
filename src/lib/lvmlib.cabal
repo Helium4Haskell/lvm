@@ -16,7 +16,7 @@ category:               Compilers/Interpreters
 copyright:              (c) 2012
 license:                GPL
 license-file:           LICENSE.txt
-author:                 Bastiaan Heeren, Jurriaan Hage, Daan Leijen
+author:                 Daan Leijen, Bastiaan Heeren, Jurriaan Hage
 maintainer:             helium@cs.uu.nl
 stability:              provisional
 extra-source-files:     CREDITS.txt
