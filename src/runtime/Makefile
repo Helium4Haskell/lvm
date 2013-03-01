@@ -62,6 +62,19 @@ core/evaluator.o: core/evaluator.c
 .c.o:
 	$(CC) -o $@ -c $< $(CCOPT)
 
+install: lvmrun$(EXE)
+	echo "Copying..."
+	$(CP) lvmrun$(EXE) $(BINDIR)
+	echo "Done copying"
+
+docs: 
+
+register:
+
+unregister:
+
+dist:
+
 clean:
 	$(RM) core/*.o heap/*.o prim/*.o lvmrun$(EXE)
 	$(RM) runtime.ncb runtime.opt runtime.plg *.obj

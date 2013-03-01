@@ -12,17 +12,43 @@ description:
    as a backend for the Helium compiler. More information about LVM can be 
    found in Chapter 6 of Daan Leijen's PhD Thesis, The Lambda Abroad.
 
+   We use the Make build-type here, but it may be better to roll our own
+   in a Setup.hs (tweaking one from Cabal itself). An example is the grammatical
+   package by Angelov and others. We may need this anyway for Helium (compiling
+   the libs for example). The dependencies are provided in the Cabal file, and
+   their generation is not handled by Cabal. Instead, if you change dependencies
+   please run `make depend'. This occurs extremely rarely, though.
+   The Fornothing.hs is only there to please Cabal. Please, also ignore
+   the message of Cabal:
+     cabal: ..../some-ghc/lib/lvmrun-.../bin: does not exist
+   
 category:               Compilers/Interpreters
 copyright:              (c) 2012
-license:                GPL
+license:                LGPL
 license-file:           LICENSE.txt
 author:                 Daan Leijen, Bastiaan Heeren, Jurriaan Hage, *OCAMLers*
 maintainer:             helium@cs.uu.nl
 stability:              provisional
 extra-source-files:     CREDITS.txt
+                        Makefile
+                        .depend
+                        configure                      
+                        config/cl-i386-pc-windows/m.h 
+                        config/cl-i386-pc-windows/s.h 
+                        config/cl-i386-pc-windows/makefile 
+                        config/tests/*.c
+                        config/tests/config.guess
+                        config/tests/config.guess.old
+                        config/tests/config.sub
+                        config/tests/hasgot
+                        config/tests/runtest
+                        config/tests/searchpath
+                        common/*.h
+                        core/*.c core/*.h
+                        heap/*.c heap/*.h 
+                        prim/*.c prim/*.h                        
 build-type:             Make
 cabal-version:          >= 1.10.1.0
-tested-with:            GCC == 4.2.1
 
 source-repository head
   type:     svn
@@ -31,5 +57,7 @@ source-repository head
 --------------------------------------------------------------------------------
 
 Executable lvmrun
+  main-is: Fornothing.hs
+  hs-source-dirs:    .
+  default-language: Haskell98 
 
-  
