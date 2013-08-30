@@ -25,6 +25,7 @@
 # $Id$
 
 configure_options=$*
+echo $configure_options
 prefix=/usr/local
 bindir=''
 host_type=unknown
@@ -39,18 +40,31 @@ gcc_warnings="-Wall"
 # Parse command-line arguments
 
 while : ; do
-  case "$1" in
+  ac_option="$1"
+  case $ac_option in
+  *=*)  ac_optarg=`expr "X$ac_option" : '[^=]*=\(.*\)'` ;;
+  *)    ac_optarg=yes ;;
+  esac
+  case "$ac_option" in
     "") break;;
-    -prefix|--prefix)
-        prefix=$2; shift;;
+    -prefix*|--prefix*)
+        prefix= $ac_optarg ;;
     --with-hc*)  # Cabal passes it, but this config should ignore it.
-        shift;;  
-    -bindir|--bindir)
-        bindir=$2; shift;;
+        ;;  
+    -bindir*|--bindir*)
+        bindir=$ac_optarg ;;
+    -libdir*|--libdir*)  # Cabal passes it, but this config should ignore it.
+        ;;
+    -libexecdir*|--libexecdir*)  # Cabal passes it, but this config should ignore it.
+        ;;
+    -datadir*|--datadir*)  # Cabal passes it, but this config should ignore it.
+        ;;
+    -sysconfdir*|--sysconfdir*)  # Cabal passes it, but this config should ignore it.
+        ;;
     -host*|--host*)
-        host_type=$2; shift;;
+        host_type=$ac_optarg ;;
     -cc*)
-        ccoption="$2"; shift;;
+        ccoption=$ac_optarg;;
     -with-pthread*|--with-pthread*)
         posix_threads=yes;;
     -verbose|--verbose)

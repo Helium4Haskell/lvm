@@ -12,16 +12,13 @@ description:
    as a backend for the Helium compiler. More information about LVM can be 
    found in Chapter 6 of Daan Leijen's PhD Thesis, The Lambda Abroad.
 
-   We use the Make build-type here, but it may be better to roll our own
-   in a Setup.hs (tweaking one from Cabal itself). An example is the grammatical
-   package by Angelov and others. We may need this anyway for Helium (compiling
-   the libs for example). The dependencies are provided in the Cabal file, and
-   their generation is not handled by Cabal. Instead, if you change dependencies
-   please run `make depend'. This occurs extremely rarely, though.
-   The Fornothing.hs is only there to please Cabal. Please, also ignore
-   the message of Cabal:
-     cabal: ..../some-ghc/lib/lvmrun-.../bin: does not exist
+   We use the Make build-type here. The dependencies are provided in the Cabal
+   file, and their generation is not handled by Cabal. Instead, if you change 
+   dependencies please run `make depend'. This occurs extremely rarely, though,
+   because we do not plan to evolve lvmrun.
    
+   Fornothing.hs is only there to please Cabal.
+
 category:               Compilers/Interpreters
 copyright:              (c) 2012
 license:                LGPL
@@ -48,7 +45,7 @@ extra-source-files:     CREDITS.txt
                         heap/*.c heap/*.h 
                         prim/*.c prim/*.h                        
 build-type:             Make
-cabal-version:          >= 1.10.1.0
+cabal-version:          >= 1.18
 
 source-repository head
   type:     svn

@@ -63,6 +63,8 @@ core/evaluator.o: core/evaluator.c
 	$(CC) -o $@ -c $< $(CCOPT)
 
 install: lvmrun$(EXE)
+	echo "Making directory..."
+	mkdir -p $(BINDIR)
 	echo "Copying..."
 	$(CP) lvmrun$(EXE) $(BINDIR)
 	echo "Done copying"
