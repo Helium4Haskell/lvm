@@ -25,7 +25,6 @@
 # $Id$
 
 configure_options=$*
-echo $configure_options
 prefix=/usr/local
 bindir=''
 host_type=unknown
@@ -48,7 +47,7 @@ while : ; do
   case "$ac_option" in
     "") break;;
     -prefix*|--prefix*)
-        prefix= $ac_optarg ;;
+        prefix=$ac_optarg ;;
     --with-hc*)  # Cabal passes it, but this config should ignore it.
         ;;  
     -bindir*|--bindir*)
