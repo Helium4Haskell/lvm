@@ -214,7 +214,9 @@ case "$cc,$host" in
     cccompopts="-fno-defer-pop $gcc_warnings -U__GNUC__ -posix"
     cclinkopts="-posix";;
   cc,*-*-darwin*)
-    cccompopts="-m32 -fno-defer-pop $gcc_warnings -DSHRINKED_GNUC"
+    # On recent version of OSX, gcc is a symlink to clang, and we must
+    # avoid -fno-defer-pop
+    cccompopts="-m32 $gcc_warnings -DSHRINKED_GNUC"
     cclinkopts="-arch i386" 
     mathlib="";;
   *,*-*-rhapsody*)
@@ -269,7 +271,9 @@ case "$cc,$host" in
     dll=".dll"
     ostype="windows"
     mathlib="";;
-  gcc*)
+  gcc*,*-*-*-macosx*)
+    cccompopts="$gcc_warnings";;    
+  gcc*)  
     cccompopts="-fno-defer-pop $gcc_warnings";;
   cl*,*-*-windows*)
     cclinkopts="-nologo"

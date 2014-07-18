@@ -50,7 +50,7 @@ OBJS	= $(SRCS:.c=.o)
 #	$(LINK) -o $@ $(LINKOPT) $(OBJS) -g
 
 lvmrun$(EXE): $(OBJS)
-	$(LINK) -o $@ $(LINKOPT) $(OBJS)
+	$(LINK) -o $@ $(OBJS) $(LINKOPT)
 	$(STRIP) $@
 
 core/evaluator.o: core/evaluator.c
