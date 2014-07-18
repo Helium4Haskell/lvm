@@ -320,7 +320,7 @@ echo "PREFIX=$prefix" >> makefile
 case "$bindir" in
   "") echo 'BINDIR=$(PREFIX)/bin' >> makefile
       bindir="$prefix/bin";;
-   *) echo "BINDIR=$bindir" >> Makefile;;
+   *) echo "BINDIR=$bindir" >> makefile;;
 esac
 
 # write compiler/host information to m.h
