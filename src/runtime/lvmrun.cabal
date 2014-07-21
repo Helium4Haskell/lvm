@@ -52,7 +52,7 @@ source-repository head
   location: https://svn.science.uu.nl/repos/sci.hage0101.lvm/trunk/src/runtime
 
 --------------------------------------------------------------------------------
-
+  
 Executable lvmrun
   main-is: Fornothing.hs
   hs-source-dirs:    .
