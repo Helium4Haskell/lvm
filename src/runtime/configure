@@ -75,15 +75,17 @@ done
 
 # Sanity checks
 
-#case "$prefix" in
-#  /*) ;;
-#   *) echo "The -prefix directory must be absolute." 1>&2; exit 2;;
-#esac
-#case "$bindir" in
-#  /*) ;;
-#  "") ;;
-#   *) echo "The -bindir directory must be absolute." 1>&2; exit 2;;
-#esac
+case "$prefix" in
+  /*) ;;
+  ?\:*) ;;
+   *) echo "The -prefix directory must be absolute." 1>&2; exit 2;;
+esac
+case "$bindir" in
+  /*) ;;
+  "") ;;
+  ?\:*) ;;
+   *) echo "The -bindir directory must be absolute." 1>&2; exit 2;;
+esac
 
 # Generate the files
 
