@@ -13,6 +13,7 @@ import Lvm.Path
 import System.Console.GetOpt
 import System.Environment
 import System.Exit
+import System.FilePath
 import Text.PrettyPrint.Leijen
 
 import Lvm.Asm.Inline          (asmInline)         -- optimize Asm (ie. local inlining)
@@ -103,11 +104,13 @@ findSrc :: [String] -> String -> IO String
 findSrc paths = searchPath paths ".core"
 
 compile :: [Flag] -> FilePath -> IO ()
-compile flags src = do
+compile flags srcraw = do
    -- searching
-   message flags $ "Compiling " ++ showFile src
-   lvmPath <- getLvmPath
-   let path = "." : lvmPath
+   message flags $ "Compiling " ++ showFile srcraw
+   let (srcPath, srcFile, srcExt) = splitFilePath srcraw
+   let src = joinPath [srcFile, srcExt]
+   
+   let path = [srcPath, "."]
    source <- findSrc path src 
    verbose $ "Source file: " ++ showFile source
    

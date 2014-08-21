@@ -6,15 +6,32 @@
 --  $Id$
 
 module Lvm.Path 
-   ( getLvmPath, searchPath
-   , searchPathMaybe, splitPath
+   ( searchPath, searchPathMaybe, 
+     explodePath, slashify, splitFilePath, getLvmPath
    ) where
 
 import qualified Control.Exception as CE (catch, IOException)
 import Data.List
+import System.FilePath
 import System.Directory
 import System.Environment
 import System.Exit
+
+slash :: Char
+slash =  pathSeparator
+
+slashify :: String -> String
+slashify xs = if last xs == slash then xs else xs ++ [slash]
+
+-- Split file name
+-- e.g. /docs/haskell/Hello.hs =>
+--   filePath = /docs/haskell  baseName = Hello  ext = hs
+splitFilePath :: String -> (String, String, String)
+splitFilePath filePath = 
+    let slashes = [slash]
+        (revFileName, revPath) = span (`notElem` slashes) (reverse filePath)
+        (baseName, ext)  = span (/= '.') (reverse revFileName)
+    in (reverse revPath, baseName, dropWhile (== '.') ext)
 
 ----------------------------------------------------------------
 -- file searching
@@ -45,28 +62,30 @@ searchPathMaybe  path ext name
                            else walk xs
                         }
 
-    makeFName dir
-      | null dir          = nameext
+    makeFName dir = slashify dir  ++ nameext
+{-      | null dir          = nameext
       | last dir == '/' ||
         last dir == '\\'  = dir ++ nameext
       | otherwise         = dir ++ "/" ++ nameext
+-}
 
     nameext
       | ext `isSuffixOf` name = name
       | otherwise             = name ++ ext
 
+      
 getLvmPath :: IO [String]
 getLvmPath
   = do{ xs <- getEnv "LVMPATH"
-      ; return (splitPath xs)
+      ; return (explodePath xs)
       }
   `CE.catch` handler
   where
     handler :: CE.IOException -> IO [String] 
     handler _ = return []
 
-splitPath :: String -> [String]
-splitPath = walk [] ""
+explodePath :: String -> [String]
+explodePath = walk [] ""
   where
     walk ps p xs
       = case xs of

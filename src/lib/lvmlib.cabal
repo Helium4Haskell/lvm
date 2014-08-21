@@ -31,14 +31,14 @@ source-repository head
 --------------------------------------------------------------------------------
 
 Executable coreasm
-  Build-Depends:     base >= 3 && < 5, array, containers, directory, parsec, wl-pprint
+  Build-Depends:     base >= 3 && < 5, array, containers, directory, filepath, parsec, wl-pprint
   ghc-options:       -Wall
   default-language:  Haskell98
   hs-source-dirs:    .
   Main-is:           Lvm/Core/Main.hs
 
 Library
-  Build-Depends:     base >= 3 && < 5, array, containers, directory, parsec, wl-pprint
+  Build-Depends:     base >= 3 && < 5, array, containers, directory, filepath, parsec, wl-pprint
   ghc-options:       -Wall
   default-language:  Haskell98
   hs-source-dirs:    .
