@@ -9,6 +9,8 @@
 
 # $Id: makefile 241 2010-09-30 18:06:53Z jur $ *
 
+.PHONY : clean dist
+
 include config/makefile
 
 NDEBUG = yes
@@ -64,7 +66,7 @@ core/evaluator.o: core/evaluator.c
 
 install: lvmrun$(EXE) register
 	echo "Making directory..."
-	mkdir -p $(BINDIR)
+	$(MKDIR) $(BINDIR)
 	echo "Copying..."
 	$(CP) lvmrun$(EXE) $(BINDIR)
 	echo "Done copying"
@@ -75,11 +77,20 @@ register:
 
 unregister:
 
+DEST	:= dist/src/sdist.*/*/
+TMP1	:= tmp191919
+
 dist:
+	echo "Copying sources using svn export..."
+	$(RM) -r $(TMP1)
+	svn export . $(TMP1)
+	$(CP) -r $(TMP1)/* $(DEST)
+	$(RM) -r $(TMP1)
 
 clean:
 	$(RM) core/*.o heap/*.o prim/*.o lvmrun$(EXE)
 	$(RM) runtime.ncb runtime.opt runtime.plg *.obj
+	$(RM) -r dist
 
 # dependencies
 # [gcc -MM] generates the dependencies without the full
