@@ -85,6 +85,7 @@ dist:
 	$(RM) -r $(TMP1)
 	svn export . $(TMP1)
 	$(CP) -r $(TMP1)/* $(DEST)
+	$(CP) -r $(TMP1)/.depend $(DEST)
 	$(RM) -r $(TMP1)
 
 clean:
