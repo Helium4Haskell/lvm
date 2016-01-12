@@ -388,11 +388,15 @@ runRead (Read r) ns fname bs
 instance Functor (Read v) where
   fmap f (Read r) = Read (\env st1 -> case r env st1 of
                                         Result x st2 -> Result (f x) st2)
+
+instance Applicative (Read v) where
+  pure x = Read (\_  bs -> Result x bs)
+  (<*>)  = ap
+  
 instance Monad (Read v) where
-  return x        = Read (\_  bs -> Result x bs)
+  return          = pure
   (Read r) >>= f  = Read (\rs bs -> case r rs bs of
                                       Result x bsx -> unRead (f x) rs bsx) 
-
 
 readRaw :: Read v Int
 readRaw 

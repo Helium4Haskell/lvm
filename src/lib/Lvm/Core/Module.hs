@@ -16,6 +16,7 @@ module Lvm.Core.Module
    , public, private
    ) where
 
+import Prelude hiding ((<$>))
 import Lvm.Common.Byte
 import Lvm.Common.Id  
 import Lvm.Common.IdSet  

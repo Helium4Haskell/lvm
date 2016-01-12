@@ -12,6 +12,7 @@ module Lvm.Instr.Data
    , isCATCH, strictResult
    ) where
 
+import Prelude hiding ((<$>))
 import Data.Char
 import Data.Maybe
 import Lvm.Common.Byte

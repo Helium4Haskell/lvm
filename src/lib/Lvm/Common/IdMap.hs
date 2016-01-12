@@ -17,6 +17,7 @@ module Lvm.Common.IdMap
    , isEmptyMap, sizeMap
    ) where
 
+import Prelude hiding (foldMap)
 import Data.List
 import Data.Maybe
 import qualified Data.IntMap as IntMap

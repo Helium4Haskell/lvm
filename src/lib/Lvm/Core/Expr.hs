@@ -10,6 +10,7 @@ module Lvm.Core.Expr
    , Alts, Alt(..), Pat(..), Literal(..), Con(..)
    ) where
 
+import Prelude hiding ((<$>))
 import Lvm.Common.Byte
 import Lvm.Common.Id
 import Lvm.Core.Module

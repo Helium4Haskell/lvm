@@ -1,5 +1,5 @@
 name:                   lvmlib
-version:                1.1
+version:                1.2
 synopsis:               The Lazy Virtual Machine (LVM).
 homepage:               http://www.cs.uu.nl/wiki/bin/view/Helium/WebHome
 description:
@@ -22,11 +22,11 @@ stability:              provisional
 extra-source-files:     CREDITS.txt
 build-type:             Simple
 cabal-version:          >= 1.10.1.0
-tested-with:            GHC == 7.0.2, GHC == 7.0.3, GHC == 7.4.1, GHC == 7.6.3
+tested-with:            GHC == 7.10.3
 
 source-repository head
   type:     svn
-  location: https://svn.science.uu.nl/repos/sci.hage0101.lvm/trunk/src/lib
+  location: https://svn.science.uu.nl/repos/sci.hage0101.lvm/trunk/src/lib/
 
 --------------------------------------------------------------------------------
 

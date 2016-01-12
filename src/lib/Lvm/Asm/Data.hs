@@ -11,6 +11,8 @@ module Lvm.Asm.Data
    , Lit(..), Alt(..), Pat(..), Con(..)
    ) where
 
+import Prelude hiding ((<$>))
+
 import Lvm.Common.Byte
 import Lvm.Common.Id
 import Lvm.Core.Module

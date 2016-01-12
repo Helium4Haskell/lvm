@@ -30,8 +30,12 @@ find x env
 instance Functor Resolve where
   fmap f (R r)      = R (\ctx -> case r ctx of (x,d) -> (f x,d))
 
+instance Applicative Resolve where
+  pure x = R (\(_,_,d) -> (x,d))
+  f1 <*> f2 = f1 >>= \v1 -> f2 >>= (pure . v1)
+  
 instance Monad Resolve where
-  return x          = R (\(_,_,d) -> (x,d))
+  return            = pure 
   (R r) >>= f       = R (\ctx@(base,env,_) ->
                             case r ctx of
                               (x,depth') -> case f x of

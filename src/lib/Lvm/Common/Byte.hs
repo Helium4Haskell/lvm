@@ -13,7 +13,7 @@ module Lvm.Common.Byte
    ) where
 
 import qualified Control.Exception as CE (catch, IOException) 
-import Data.Monoid
+--import Data.Monoid
 import Data.Word
 import System.Exit
 import System.IO

@@ -463,8 +463,12 @@ instance Functor Emit where
   fmap f (Emit e)   = Emit (\env st -> case e env st of
                                          (x,stx) -> (f x,stx))
 
+instance Applicative Emit where
+  pure x = Emit (\_   st -> (x,st))
+  (<*>)  = ap
+  
 instance Monad Emit where
-  return x          = Emit (\_   st -> (x,st))
+  return            = pure
   (Emit e) >>= f    = Emit (\env st -> case e env st of
                                          (x,stx) -> case f x of
                                                       Emit ef -> ef env stx)
