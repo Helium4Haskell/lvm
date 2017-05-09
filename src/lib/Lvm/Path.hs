@@ -20,18 +20,17 @@ import System.Exit
 slash :: Char
 slash =  pathSeparator
 
+{-# DEPRECATED slashify "Please use the System.FilePath.</> operator instead of the partially defined, ill-named slashify function." #-}
 slashify :: String -> String
 slashify xs = if last xs == slash then xs else xs ++ [slash]
 
 -- Split file name
 -- e.g. /docs/haskell/Hello.hs =>
---   filePath = /docs/haskell  baseName = Hello  ext = hs
+--   directory = /docs/haskell  baseName = Hello  ext = hs
 splitFilePath :: String -> (String, String, String)
-splitFilePath filePath = 
-    let slashes = [slash]
-        (revFileName, revPath) = span (`notElem` slashes) (reverse filePath)
-        (baseName, ext)  = span (/= '.') (reverse revFileName)
-    in (reverse revPath, baseName, dropWhile (== '.') ext)
+splitFilePath filePath = let (dir, fullName) = splitFileName filePath
+                             (baseName, ext) = splitExtension fullName
+                         in (dir, baseName, ext)
 
 ----------------------------------------------------------------
 -- file searching
@@ -62,12 +61,7 @@ searchPathMaybe  path ext name
                            else walk xs
                         }
 
-    makeFName dir = slashify dir  ++ nameext
-{-      | null dir          = nameext
-      | last dir == '/' ||
-        last dir == '\\'  = dir ++ nameext
-      | otherwise         = dir ++ "/" ++ nameext
--}
+    makeFName dir = dir </> nameext
 
     nameext
       | ext `isSuffixOf` name = name
