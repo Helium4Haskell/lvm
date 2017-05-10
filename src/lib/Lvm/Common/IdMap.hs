@@ -24,10 +24,21 @@ import qualified Data.IntMap as IntMap
 import Lvm.Common.Id
 import Control.Arrow (first)
 
-----------------------------------------------------------------
--- IdMap
-----------------------------------------------------------------
+-- | An efficient finite map from 'Id's to @a@'s
 newtype IdMap a = IdMap (IntMap.IntMap a)
+
+instance Functor IdMap where
+  fmap = mapMap
+
+--instance Monoid IdMap where
+--  mappend = Ambiguity mine field...
+--  Three possibilities for mappend:
+--    unionlMap: Ignore the value on the right
+--       Like IntMap and Map do
+--    unionWith mappend: Combine values using a Monoid a constraint
+--       Probably more useful, but could lead to unexpected results
+--       because of IntMap and Map behavior.
+--    unionMap: Throw an error on duplicate keys
 
 emptyMap :: IdMap a
 emptyMap = IdMap IntMap.empty

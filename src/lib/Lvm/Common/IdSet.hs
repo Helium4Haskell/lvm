@@ -19,11 +19,16 @@ import Data.List (sort)
 import Lvm.Common.Id
 import qualified Data.IntSet as IntSet
 
-----------------------------------------------------------------
--- IdSet
-----------------------------------------------------------------
-
+-- | An efficient set of 'Id's
 newtype IdSet = IdSet IntSet
+
+instance Show IdSet where
+  showsPrec n a = showParen (n >= 11) (showString "IdSet.setFromList " . showsPrec 11 (listFromSet a))
+
+instance Monoid IdSet where
+  mempty = emptySet
+  mappend = unionSet
+  mconcat = unionSets
 
 emptySet :: IdSet
 emptySet = IdSet IntSet.empty

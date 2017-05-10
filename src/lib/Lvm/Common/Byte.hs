@@ -23,6 +23,7 @@ import System.IO
 ----------------------------------------------------------------}
 type Byte   = Word8
 
+-- | A spine-strict sequence of 'Byte's with @O(1)@ pairwise concatenation
 data Bytes  = Nil
             | Cons Byte   !Bytes    -- Byte is not strict since LvmWrite uses it lazily right now.
             | Cat  !Bytes !Bytes
