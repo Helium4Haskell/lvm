@@ -5,7 +5,21 @@
 --------------------------------------------------------------------------------
 --  $Id$
 
-module Lvm.Import (lvmImport, lvmImportDecls) where
+-- | This module performs import resolution for lazy virtual machine files.
+--
+-- Two versions of the import functions are provided.
+--
+-- A variation that runs in 'IO'
+--
+--     * Requires a function that, given a module 'Id', finds the 'FilePath' of a module.
+--
+-- A generalized version, suffixed by @'@
+--
+--     * Requires a function that, given a module 'Id', load a 'Module'.
+--     * Lets the caller determine the choice of monad. This is useful
+--       for testing and integration.
+--
+module Lvm.Import (lvmImport, lvmImport', lvmImportDecls, lvmImportDecls') where
 
 import Control.Monad
 import Data.List 
@@ -15,22 +29,39 @@ import Lvm.Data
 import Lvm.Read  (lvmReadFile)
 import qualified Lvm.Core.Module as Module
 
-{--------------------------------------------------------------
-  lvmImport: replace all import declarations with
-  abstract declarations or constructors/externs/customs
---------------------------------------------------------------}
+-- | Replace all import declarations with abstract declarations or
+-- constructors\/externs\/customs
+--
+-- @lvmImport findModulePath = lvmImport' (findModulePath >=> 'lvmReadFile')@
+--
 lvmImport :: (Id -> IO FilePath) -> Module v -> IO (Module v)
-lvmImport findModule m
+lvmImport findModule = lvmImport' (findModule >=> lvmReadFile)
+
+-- | A more general 'lvmImport'. Works in any monad, but requires the
+-- caller to provide a 'Module' instead of a 'FilePath'. Replace all
+-- import declarations with abstract declarations or
+-- constructors\/externs\/customs.
+lvmImport' :: Monad m => (Id -> m (Module v)) -> Module v -> m (Module v)
+lvmImport' findModule m
   = do{ mods <- lvmImportModules findModule m
-      ; let mods0 = lvmExpandModule mods (moduleName m) 
+      ; let mods0 = lvmExpandModule mods (moduleName m)
             mods1 = lvmResolveImports mods0
             mod1  = findMap (moduleName m) mods1
       ; return mod1{ moduleDecls = filter (not . isDeclImport) (moduleDecls mod1) }
       }
 
+-- | 
+--
+-- @lvmImportDecls findModulePath = lvmImportDecls' (findModulePath >=> 'lvmReadFile')@
+--
 lvmImportDecls :: (Id -> IO FilePath) -> [Decl v] -> IO [[Decl v]]
-lvmImportDecls findModule = mapM $ \importDecl -> do
-   m <- lvmImport findModule
+lvmImportDecls findModulePath = lvmImportDecls' (findModulePath >=> lvmReadFile)
+
+-- | More general version of 'lvmImportDecls''. Works in any monad, but requires the
+-- caller to provide a 'Module' instead of a 'FilePath'.
+lvmImportDecls' :: Monad m => (Id -> m (Module v)) -> [Decl v] -> m [[Decl v]]
+lvmImportDecls' findModule = mapM $ \importDecl -> do
+   m <- lvmImport' findModule
        Module.Module
            { Module.moduleName     = idFromString "Main"
            , Module.moduleMajorVer = 0
@@ -43,19 +74,18 @@ lvmImportDecls findModule = mapM $ \importDecl -> do
   lvmImportModules: 
     recursively read all imported modules
 --------------------------------------------------------------}
-lvmImportModules :: (Id -> IO FilePath) -> Module v -> IO (IdMap (Module v))
+lvmImportModules :: Monad m => (Id -> m (Module v)) -> Module v -> m (IdMap (Module v))
 lvmImportModules findModule m
   = readModuleImports findModule emptyMap (moduleName m) m
-    
-readModuleImports :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> Module v -> IO (IdMap (Module v))
+
+readModuleImports :: Monad m => (Id -> m (Module v)) -> IdMap (Module v) -> Id -> Module v -> m (IdMap (Module v))
 readModuleImports findModule loaded x m
   = foldM (readModule findModule) (insertMap x m loaded) (imported m)
 
-readModule :: (Id -> IO FilePath) -> IdMap (Module v) -> Id -> IO (IdMap (Module v))
+readModule :: Monad m => (Id -> m (Module v)) -> IdMap (Module v) -> Id -> m (IdMap (Module v))
 readModule findModule loaded x
   | elemMap x loaded  = return loaded
-  | otherwise         = do{ fname <- findModule x                        
-                          ; m     <- lvmReadFile fname
+  | otherwise         = do{ m <- findModule x
                           ; readModuleImports findModule loaded x (filterPublic m)
                           }
 
