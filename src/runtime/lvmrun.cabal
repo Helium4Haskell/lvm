@@ -24,7 +24,7 @@ copyright:              (c) 2012
 license:                LGPL
 license-file:           LICENSE.txt
 author:                 Daan Leijen, Bastiaan Heeren, Jurriaan Hage, *OCAMLers*
-maintainer:             helium@cs.uu.nl
+maintainer:             helium4haskell@gmail.com
 stability:              provisional
 extra-source-files:     CREDITS.txt
                         Makefile
@@ -48,8 +48,8 @@ build-type:             Make
 cabal-version:          >= 1.18
 
 source-repository head
-  type:     svn
-  location: https://svn.science.uu.nl/repos/sci.hage0101.lvm/trunk/src/runtime
+  type:     git
+  location: https://github.com/Helium4Haskell/lvm.git
 
 --------------------------------------------------------------------------------
   
