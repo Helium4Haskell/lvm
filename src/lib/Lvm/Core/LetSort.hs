@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
--- is distributed under the terms of the BSD3 License. For more information, 
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
+-- is distributed under the terms of the BSD3 License. For more information,
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id$
@@ -9,7 +9,7 @@
 -- Determine which bindings are really recursive and which are not.
 -- maintains free variable information & normalised structure
 ----------------------------------------------------------------
-module Lvm.Core.LetSort (coreLetSort) where
+module Lvm.Core.LetSort (coreLetSort, topSort) where
 
 import Data.Graph hiding (topSort)
 import Data.Tree
