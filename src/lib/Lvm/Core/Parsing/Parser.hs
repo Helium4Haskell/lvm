@@ -1,11 +1,11 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
--- is distributed under the terms of the BSD3 License. For more information, 
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
+-- is distributed under the terms of the BSD3 License. For more information,
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id$
 
-module Lvm.Core.Parsing.Parser (parseModuleExport, parseModule) where
+module Lvm.Core.Parsing.Parser (parseModuleExport, parseModule, ptype) where
 
 import Control.Monad
 import Data.List
@@ -33,7 +33,7 @@ parseModule fname = liftM (\(m, _, _) -> m) . parseModuleExport fname
 ----------------------------------------------------------------
 -- Basic parsers
 ----------------------------------------------------------------
-type TokenParser a  = GenParser Token () a   
+type TokenParser a  = GenParser Token () a
 
 ----------------------------------------------------------------
 -- Program
@@ -75,7 +75,7 @@ pmodule =
                   , False
                   , es
                   )
-            
+
       }
 
 ----------------------------------------------------------------
@@ -83,7 +83,7 @@ pmodule =
 ----------------------------------------------------------------
 data Export  = ExportValue Id
              | ExportCon   Id
-             | ExportData  Id 
+             | ExportData  Id
              | ExportDataCon Id
              | ExportModule Id
 
@@ -134,7 +134,7 @@ pexport
         -- no parenthesis: could be either a
         -- constructor or a type constructor
         return [ExportData x, ExportCon x]
-      }      
+      }
   <|>
     do{ lexeme LexMODULE
       ; x <- conid
@@ -272,16 +272,16 @@ pconDecl = do
 pConInfo :: TokenParser (Tag, Arity)
 pConInfo = (parens $ do
    lexeme LexAT
-   tag   <- lexInt <?> "tag" 
+   tag   <- lexInt <?> "tag"
    lexeme LexCOMMA
    arity <- lexInt <?> "arity"
    return (fromInteger tag, fromInteger arity))
  <|> do -- :: TypeSig = tag
    (tp, _) <- ptypeDecl
    lexeme LexASG
-   tag   <- lexInt <?> "tag" 
+   tag   <- lexInt <?> "tag"
    return (fromInteger tag, arityFromType tp)
- 
+
 
 ----------------------------------------------------------------
 -- value declarations
@@ -305,7 +305,7 @@ ptopDeclType x
             ++ stringFromId x2
             )
       ; (access,custom,expr) <- pbindTopRhs
-      ; return (DeclValue x access Nothing expr 
+      ; return (DeclValue x access Nothing expr
                 (customType tp : custom))
       }
 
@@ -368,8 +368,8 @@ pdata
       ; do{ lexeme LexASG
           ; let t1  = foldl TAp (TCon x) (map TVar args)
           ; cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
-          ; let con tag (cid,t2) = DeclCon cid public (arityFromType t2) tag 
-                                      [customType t2, 
+          ; let con tag (cid,t2) = DeclCon cid public (arityFromType t2) tag
+                                      [customType t2,
                                        CustomLink x customData]
           ; return (datadecl:zipWith con [0..] cons)
           }
@@ -396,10 +396,10 @@ ptypeTopDecl
       ; lexeme LexASG
       ; tp   <- ptype
       ; let kind  = foldr (KFun . const KStar) KStar args
-            tpstr = unwords $  stringFromId x 
+            tpstr = unwords $  stringFromId x
                             :  map stringFromId args
                             ++ ["=", show tp]
-      ; return [DeclCustom x private customTypeDecl 
+      ; return [DeclCustom x private customTypeDecl
                      [CustomBytes (bytesFromString tpstr)
                      ,customKind kind]]
       }
@@ -453,7 +453,7 @@ pcustom
   <|> do{ s <- lexString; return (CustomBytes (bytesFromString s)) }
   <|> do{ x <- variable <|> constructor; return (CustomName x) }
   <|> do{ lexeme LexNOTHING; return CustomNothing }
-  <|> do{ lexeme LexCUSTOM 
+  <|> do{ lexeme LexCUSTOM
         ; kind <- pdeclKind
         ; do{ x   <- customid
             ; return (CustomLink x kind)
@@ -507,14 +507,14 @@ pexpr
       ; (defid,alts) <- palts
       ; case alts of
           -- better approach is to optize these cases *after* parsing
-          [Alt PatDefault rhs] 
+          [Alt PatDefault rhs]
             | x == defid       -> return rhs
             | otherwise        -> return (Let (NonRec (Bind defid (Var x))) rhs)
           _ | x == defid       -> return (Match x alts)
             | defid == wildId  -> return (Match x alts)
             | otherwise        -> return (Let (NonRec (Bind defid (Var x))) (Match defid alts))
       }
-  <|> 
+  <|>
     do{ lexeme LexLETSTRICT
       ; binds <- semiBraces pbind
       ; lexeme LexIN
@@ -564,9 +564,9 @@ parenExpr
                   do{ x <- conopid
                     ; return (Con (ConId x))
                     }
-                <|> 
+                <|>
                   do{ lexeme LexAT
-                    ; tag   <- ptagExpr 
+                    ; tag   <- ptagExpr
                     ; lexeme LexCOMMA
                     ; arity <- lexInt <?> "arity"
                     ; return (Con (ConTag tag (fromInteger arity)))
@@ -639,7 +639,7 @@ paltSemis
       }
 
 palt :: TokenParser Alt
-palt  
+palt
   = do{ pat <- ppat
       ; lexeme LexRARROW
       ; expr <- pexpr
@@ -647,14 +647,14 @@ palt
       }
 
 ppat :: TokenParser Pat
-ppat  
+ppat
   = ppatCon <|> ppatLit <|> ppatParens
 
 ppatParens :: TokenParser Pat
 ppatParens
   = do{ lexeme LexLPAREN
       ; do{ lexeme LexAT
-          ; tag <- lexInt <?> "tag"        
+          ; tag <- lexInt <?> "tag"
           ; lexeme LexCOMMA
           ; arity <- lexInt <?> "arity"
           ; lexeme LexRPAREN
@@ -668,7 +668,7 @@ ppatParens
           ; return (PatCon (ConId x) ids)
           }
         <|>
-        do{ pat <- ppat <|> ppatTuple 
+        do{ pat <- ppat <|> ppatTuple
           ; lexeme LexRPAREN
           ; return pat
           }
@@ -676,7 +676,7 @@ ppatParens
 
 ppatCon :: TokenParser Pat
 ppatCon
-  = do{ x   <- conid <|> do{ lexeme LexLBRACKET; lexeme LexRBRACKET; return (idFromString "[]") }      
+  = do{ x   <- conid <|> do{ lexeme LexLBRACKET; lexeme LexRBRACKET; return (idFromString "[]") }
       ; args <- many bindid
       ; return (PatCon (ConId x) args)
       }
@@ -793,7 +793,7 @@ ptypeAp
 ptypeAtom :: TokenParser Type
 ptypeAtom
   = do{ x <- typeid
-      ; ptypeStrict (TCon x) 
+      ; ptypeStrict (TCon x)
       }
   <|>
     do{ x <- typevarid
@@ -809,7 +809,7 @@ ptypeStrict tp
       ; return (TStrict tp)
       }
   <|> return tp
-      
+
 parenType :: TokenParser Type
 parenType
   = do{ lexeme LexLPAREN
@@ -905,13 +905,13 @@ varid
   <?> "variable"
 
 qualifiedVar :: TokenParser (Id, Id)
-qualifiedVar 
+qualifiedVar
   = do{ (m,name) <- lexQualifiedId
       ; return (idFromString m, idFromString name)
       }
 
 bindid :: TokenParser Id
-bindid = varid {- 
+bindid = varid {-
   = do{ x <- varid
       ; do{ lexeme LexEXCL
           ; return x {- (setSortId SortStrict id) -}
