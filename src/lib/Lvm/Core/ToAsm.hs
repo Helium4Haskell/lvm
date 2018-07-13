@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
--- is distributed under the terms of the BSD3 License. For more information, 
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
+-- is distributed under the terms of the BSD3 License. For more information,
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id$
@@ -19,19 +19,21 @@ import Lvm.Core.Saturate  (coreSaturate)  -- saturate constructors, instructions
 import Lvm.Core.Normalize (coreNormalize) -- normalize core, ie. atomic arguments and lambda's at let bindings
 import Lvm.Core.LetSort   (coreLetSort)   -- find smallest recursive let binding groups
 import Lvm.Core.Lift      (coreLift)      -- lambda-lift, ie. make free variables arguments
+import Lvm.Core.Analyses  (coreAnalyses)  -- analyses of core (adds annotations)
 
 {---------------------------------------------------------------
   coreToAsm: translate Core expressions into Asm expressions
 ---------------------------------------------------------------}
 coreToAsm :: NameSupply -> CoreModule -> Asm.AsmModule
 coreToAsm supply
-  = exprToTop 
+  = exprToTop
+  . coreAnalyses
   . coreLift
   . coreLetSort
   . coreNormalize supply2
   . coreSaturate supply1
   . coreRename supply0
-  where        
+  where
     (supply0:supply1:supply2:_) = splitNameSupplies supply
 
 exprToTop :: CoreModule -> Asm.AsmModule
@@ -44,8 +46,8 @@ exprToTop m
 
 asmDecl :: IdSet -> Decl Expr -> [Decl Asm.Top]
 asmDecl prim decl =
-   case decl of 
-      DeclValue x acc enc expr custom -> 
+   case decl of
+      DeclValue x acc enc expr custom ->
          let (pars,(lifted,asmexpr)) = asmTop prim expr
          in DeclValue x acc enc (Asm.Top pars asmexpr) custom : concatMap (asmLifted prim (declName decl)) lifted
       _ -> [fmap (error "asmDecl") decl]
@@ -140,9 +142,9 @@ asmAtom atom args
       _ -> error "CoreToAsm.asmAtom: non atomic expression (do 'coreNormalise' first?)"
 
 asmCon :: Con Expr -> Asm.Con Asm.Atom
-asmCon con 
+asmCon con
   = case con of
-      ConId x          -> Asm.ConId x 
+      ConId x          -> Asm.ConId x
       ConTag tag arity  -> assert (simpleTag tag) $ -- "CoreToAsm.asmCon: tag expression too complex (should be integer or (strict) variable"
                            Asm.ConTag (asmAtom tag []) arity
   where

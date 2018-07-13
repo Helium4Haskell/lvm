@@ -6,10 +6,10 @@ description:
 
    The Lazy Virtual Machine (LVM) defines a portable instruction set and file
    format. It is specifically designed to execute languages with non-strict (or
-   lazy) semantics. This cabal package defines the core assembler (coreasm) for 
-   compiling core programs into LVM instructions and a library. The LVM is used 
-   as a backend for the Helium compiler. At the moment, one LVM runtime 
-   implementation is available (written in C). More information about LVM can be 
+   lazy) semantics. This cabal package defines the core assembler (coreasm) for
+   compiling core programs into LVM instructions and a library. The LVM is used
+   as a backend for the Helium compiler. At the moment, one LVM runtime
+   implementation is available (written in C). More information about LVM can be
    found in Chapter 6 of Daan Leijen's PhD Thesis, The Lambda Abroad.
 
 category:               Compilers/Interpreters
@@ -31,14 +31,14 @@ source-repository head
 --------------------------------------------------------------------------------
 
 Executable coreasm
-  Build-Depends:     base >= 3 && < 5, array, containers, directory, filepath, parsec, wl-pprint
+  Build-Depends:     base >= 3 && < 5, array, containers, directory, filepath, mtl, parsec, wl-pprint
   ghc-options:       -Wall
   default-language:  Haskell98
   hs-source-dirs:    .
   Main-is:           Lvm/Core/Main.hs
 
 Library
-  Build-Depends:     base >= 3 && < 5, array, containers, directory, filepath, parsec, wl-pprint
+  Build-Depends:     base >= 3 && < 5, array, containers, mtl, directory, filepath, parsec, wl-pprint
   ghc-options:       -Wall
   default-language:  Haskell98
   hs-source-dirs:    .
@@ -51,6 +51,7 @@ Library
     Lvm.Common.Id
     Lvm.Common.IdMap
     Lvm.Common.IdSet
+    Lvm.Core.Analyses
     Lvm.Core.Expr
     Lvm.Core.FreeVar
     Lvm.Core.LetSort
