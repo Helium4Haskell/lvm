@@ -1,11 +1,11 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
--- is distributed under the terms of the BSD3 License. For more information, 
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
+-- is distributed under the terms of the BSD3 License. For more information,
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id$
 
-module Lvm.Core.Expr 
+module Lvm.Core.Expr
    ( CoreModule, CoreDecl, Expr(..), Binds(..), Bind(..)
    , Alts, Alt(..), Pat(..), Literal(..), Con(..)
    ) where
@@ -26,7 +26,7 @@ type CoreDecl   = Decl Expr
 ----------------------------------------------------------------
 -- Core expressions:
 ----------------------------------------------------------------
-data Expr       = Let       !Binds Expr       
+data Expr       = Let       !Binds Expr
                 | Match     !Id Alts
                 | Ap        Expr Expr
                 | Lam       !Id Expr
@@ -53,7 +53,7 @@ data Literal    = LitInt    !Int
 
 data Con tag    = ConId  !Id
                 | ConTag tag !Arity
-                
+
 ----------------------------------------------------------------
 -- Pretty printing
 ----------------------------------------------------------------
@@ -83,7 +83,7 @@ instance Pretty a => Pretty (Con a) where
       case con of
          ConId x          -> ppConId x
          ConTag tag arity -> parens (char '@' <> pretty tag <> comma <> pretty arity)
- 
+
 ----------------------------------------------------------------
 --
 ----------------------------------------------------------------
@@ -116,15 +116,15 @@ instance Pretty Alt where
 --
 ----------------------------------------------------------------
 
-instance Pretty Pat where 
-   pretty pat = 
+instance Pretty Pat where
+   pretty pat =
       case pat of
          PatCon con ids -> hsep (pretty con : map ppVarId ids)
          PatLit lit  -> pretty lit
          PatDefault  -> text "_"
 
-instance Pretty Literal where 
-   pretty lit = 
+instance Pretty Literal where
+   pretty lit =
       case lit of
          LitInt i    -> pretty i
          LitDouble d -> pretty d

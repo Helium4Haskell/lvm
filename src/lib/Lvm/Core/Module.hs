@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
--- is distributed under the terms of the BSD3 License. For more information, 
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
+-- is distributed under the terms of the BSD3 License. For more information,
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id$
@@ -18,8 +18,8 @@ module Lvm.Core.Module
 
 import Prelude hiding ((<$>))
 import Lvm.Common.Byte
-import Lvm.Common.Id  
-import Lvm.Common.IdSet  
+import Lvm.Common.Id
+import Lvm.Common.IdSet
 import Lvm.Core.PrettyId
 import Lvm.Instr.Data
 import Text.PrettyPrint.Leijen
@@ -28,7 +28,7 @@ import Text.PrettyPrint.Leijen
   A general LVM module structure parameterised by the
   type of values (Core expression, Asm expression or [Instr])
 ---------------------------------------------------------------}
-data Module v   
+data Module v
   = Module{ moduleName     :: Id
           , moduleMajorVer :: !Int
           , moduleMinorVer :: !Int
@@ -36,13 +36,13 @@ data Module v
           }
 
 
-data Decl v     
+data Decl v
   = DeclValue     { declName :: Id, declAccess :: !Access, valueEnc :: Maybe Id, valueValue :: v, declCustoms :: ![Custom] }
   | DeclAbstract  { declName :: Id, declAccess :: !Access, declArity :: !Arity, declCustoms :: ![Custom] }
   | DeclCon       { declName :: Id, declAccess :: !Access, declArity :: !Arity, conTag :: !Tag, declCustoms :: [Custom] }
   | DeclExtern    { declName :: Id, declAccess :: !Access, declArity :: !Arity
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
-                  , externLib  :: !String, externName :: !ExternName, declCustoms :: ![Custom] } 
+                  , externLib  :: !String, externName :: !ExternName, declCustoms :: ![Custom] }
   | DeclCustom    { declName :: Id, declAccess :: !Access, declKind :: !DeclKind, declCustoms :: ![Custom] }
 
   | DeclImport    { declName :: Id, declAccess :: !Access, declCustoms :: ![Custom] }
@@ -55,7 +55,7 @@ data Custom
   | CustomDecl  !DeclKind ![Custom]
   | CustomNothing
 
-data DeclKind 
+data DeclKind
   = DeclKindName
   | DeclKindKind
   | DeclKindBytes
@@ -73,7 +73,7 @@ data Access
   = Defined  { accessPublic :: !Bool }
   | Imported { accessPublic :: !Bool, importModule :: Id, importName :: Id, importKind :: !DeclKind
              , importMajorVer :: !Int, importMinorVer :: !Int }
-            
+
 public, private :: Access
 public  = Defined True
 private = Defined False
@@ -87,7 +87,7 @@ data ExternName = Plain    !String
 data CallConv   = CallC | CallStd | CallInstr
                 deriving (Show, Eq, Enum)
 
-data LinkConv   = LinkStatic | LinkDynamic | LinkRuntime                
+data LinkConv   = LinkStatic | LinkDynamic | LinkRuntime
                 deriving (Show, Eq, Enum)
 
 
@@ -102,7 +102,7 @@ instance Ord DeclKind where
 
 
 instance Enum DeclKind where
-  toEnum i  
+  toEnum i
     = case i of
         0 -> DeclKindName
         1 -> DeclKindKind
@@ -116,7 +116,7 @@ instance Enum DeclKind where
         9 -> DeclKindExternType
         _ -> error ("Module.DeclKind.toEnum: unknown kind (" ++ show i ++ ")")
 
-  fromEnum kind 
+  fromEnum kind
     = case kind of
         DeclKindName      -> 0
         DeclKindKind      -> 1
@@ -166,7 +166,7 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
   where
     setPublic decl  | declPublic decl = decl{ declAccess = (declAccess decl){ accessPublic = True } }
                     | otherwise       = decl
-    
+
     isExported decl elemIdSet =
         let access = declAccess decl in
         if implicit then
@@ -184,7 +184,7 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
                 Defined{}
                     | elemSet (moduleName m) exportMods -> True
                     | otherwise                         -> elemIdSet
-    
+
     declPublic decl =
         let name = declName decl
         in
@@ -203,7 +203,7 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
             DeclImport{}    ->  not implicit && case importKind (declAccess decl) of
                                     DeclKindValue  -> isExported decl (elemSet name exports)
                                     DeclKindExtern -> isExported decl (elemSet name exports)
-                                    DeclKindCon    -> isExported decl (elemSet name exportCons) 
+                                    DeclKindCon    -> isExported decl (elemSet name exportCons)
                                     DeclKindModule -> isExported decl (elemSet name exportMods)
                                     dk@(DeclKindCustom _)
                                      | dk `elem` [customData, customTypeDecl] ->
@@ -221,19 +221,19 @@ instance Functor Module where
    fmap f m = m { moduleDecls = map (fmap f) (moduleDecls m) }
 
 instance Functor Decl where
-   fmap f decl = 
+   fmap f decl =
       case decl of
-         DeclValue x ac m v cs -> 
+         DeclValue x ac m v cs ->
             DeclValue x ac m (f v) cs
-         DeclAbstract x ac ar cs -> 
+         DeclAbstract x ac ar cs ->
             DeclAbstract x ac ar cs
-         DeclCon x ac ar t cs    -> 
+         DeclCon x ac ar t cs    ->
             DeclCon x ac ar t cs
-         DeclExtern x ac ar et el ec elib en cs -> 
+         DeclExtern x ac ar et el ec elib en cs ->
             DeclExtern x ac ar et el ec elib en cs
-         DeclCustom x ac k cs -> 
+         DeclCustom x ac k cs ->
             DeclCustom x ac k cs
-         DeclImport x ac cs   -> 
+         DeclImport x ac cs   ->
             DeclImport x ac cs
 
 ----------------------------------------------------------------
@@ -247,30 +247,30 @@ instance Pretty a => Pretty (Module a) where
       <$> empty
 
 instance Pretty a => Pretty (Decl a) where
-   pretty decl = nest 2 $ 
+   pretty decl = nest 2 $
       case decl of
-         DeclValue{}     -> ppVarId (declName decl) <+> ppAttrs decl 
+         DeclValue{}     -> ppVarId (declName decl) <+> ppAttrs decl
                             <$> text "=" <+> pretty (valueValue decl)
          DeclCon{}       -> case declAccess decl of
-                               imp@Imported{} -> 
+                               imp@Imported{} ->
                                   text "abstract" <+> ppConId (declName decl)
                                   <+> ppAttrs decl
                                   <$> text "=" <+> ppQualCon (importModule imp) (importName imp)
-                                  <+> parens (char '@' <> pretty (conTag decl) <> 
+                                  <+> parens (char '@' <> pretty (conTag decl) <>
                                              comma  <> pretty (declArity decl))
-                               
-                               _ -> text "con" <+> ppConId (declName decl) <+> ppAttrs decl 
-                                    <$> text "=" <+> parens (char '@' <> pretty (conTag decl) <> 
+
+                               _ -> text "con" <+> ppConId (declName decl) <+> ppAttrs decl
+                                    <$> text "=" <+> parens (char '@' <> pretty (conTag decl) <>
                                              comma  <> pretty (declArity decl))
          DeclCustom{}    -> text "custom" <+> pretty (declKind decl) <+> ppId (declName decl) <+> ppAttrs decl
-         DeclExtern{}    -> text "extern" 
+         DeclExtern{}    -> text "extern"
                                <> pretty (externLink decl) <> pretty (externCall decl)
                                <+> ppVarId (declName decl) -- <+> ppAttrs decl
                             <+> ppExternName (externLib decl) (externName decl) -- <+> pretty (declArity decl)
                             <+> ppExternType (externCall decl) (externType decl)
          DeclAbstract{}  -> text "abstract" <+> ppVarId (declName decl) <+> ppAttrs decl
                             <$> text "=" <+> ppImported (declAccess decl) <+> pretty (declArity decl)
-         DeclImport{}    -> text "import" <+> pretty (importKind (declAccess decl)) 
+         DeclImport{}    -> text "import" <+> pretty (importKind (declAccess decl))
                             <+> ppId (declName decl) <+> ppNoImpAttrs decl
                             <$> text "=" <+> ppImported (declAccess decl)
 
@@ -315,13 +315,13 @@ ppAttrsEx :: Bool -> Decl a -> Doc
 ppAttrsEx hideImp decl
   = if null (declCustoms decl) && not (accessPublic (declAccess decl))
      then empty
-     else text ":" <+> ppAccess (declAccess decl) 
-          <+> (if not hideImp then ppImportAttr (declAccess decl) else empty) 
+     else text ":" <+> ppAccess (declAccess decl)
+          <+> (if not hideImp then ppImportAttr (declAccess decl) else empty)
           <> pretty (declCustoms decl)
 
 ppAccess :: Access -> Doc
-ppAccess acc 
-   | accessPublic acc = text "public" 
+ppAccess acc
+   | accessPublic acc = text "public"
    | otherwise        = text "private"
 
 ppImportAttr :: Access -> Doc
@@ -330,7 +330,7 @@ ppImportAttr acc
       Defined _ -> empty
       Imported _ modid impid impkind _ _
         -> text "import" <+> pretty impkind <+> ppQualId modid impid <> space
-  
+
 ppImported :: Access -> Doc
 ppImported acc
   = case acc of
@@ -347,29 +347,29 @@ instance Pretty Custom where
          CustomLink x kind   -> text "custom" <+> pretty kind <+> ppId x
          CustomDecl kind cs  -> text "custom" <+> pretty kind <+> pretty cs
          CustomNothing       -> text "nothing"
-      
+
    prettyList customs
       | null customs = empty
       | otherwise    = list (map pretty customs)
 
 instance Pretty DeclKind where
-   pretty kind = 
+   pretty kind =
       case kind of
          DeclKindCustom x   -> ppId x
---         DeclKindName        
+--         DeclKindName
 --         DeclKindKind
---         DeclKindBytes       
+--         DeclKindBytes
 --         DeclKindCode
          DeclKindValue       -> ppId (idFromString "val")
          DeclKindCon         -> ppId (idFromString "con")
          DeclKindImport      -> ppId (idFromString "import")
          DeclKindModule      -> ppId (idFromString "module")
          DeclKindExtern      -> ppId (idFromString "extern")
---         DeclKindExternType      
+--         DeclKindExternType
          _                   -> pretty (fromEnum kind)
 
 makeDeclKind :: Id -> DeclKind
-makeDeclKind x = 
+makeDeclKind x =
    case stringFromId x of
       "val"    -> DeclKindValue
       "con"    -> DeclKindCon
