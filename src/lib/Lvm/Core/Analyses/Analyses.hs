@@ -5,7 +5,11 @@
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 
-module Lvm.Core.Analyses (coreAnalyses) where
+module Lvm.Core.Analyses.Analyses (coreAnalyses) where
+import Lvm.Core.Analyses.Annotations
+import Lvm.Core.Analyses.Constraints
+import Lvm.Core.Analyses.Types
+import Lvm.Core.Analyses.Utils
 
 import Control.Monad.State.Lazy (State, evalState, get, put)
 
@@ -62,7 +66,7 @@ deriving instance Ord Type.Type
 -- TODO: Maybe more?
 ----------------------------------------------------------------
 coreAnalyses :: CoreModule -> CoreModule
-coreAnalyses m = id $! trace (show $ annData (moduleDecls m)) corePrint $! tracePretty' "coreAnalyses => " m
+coreAnalyses m = id $! trace (show $ annData (moduleDecls m)) id $! tracePretty' "coreAnalyses => " m
 
 corePrint :: CoreModule -> CoreModule
 corePrint m = m{ moduleDecls = id $! declPrintCon $! declPrintData $! moduleDecls m }
@@ -111,87 +115,13 @@ printCustoms (custom:customs) = "\n    " ++ (case custom of
     CustomDecl declkind customs2 -> "CustomDecl " ++ show declkind ++ " :(" ++ printCustoms customs2 ++ ")"
     CustomNothing -> "CustomNothing") ++ printCustoms customs
 
--- more to come Cardinality and stuff
-
-
-----------------------------------------------------------------
--- counting analysis
-----------------------------------------------------------------
-
-{- Annotations -}
-data Ann = AnnVar Pi
-         | AnnVal AnnValue
-    deriving (Show, Eq, Ord)
-type AnnValue = Set AnnPrim
-data AnnPrim = Zero
-             | One
-             | Infinity
-    deriving (Show, Eq, Ord)
-
-annToInt :: AnnPrim -> Int
-annToInt Zero = 0
-annToInt One = 1
-annToInt Infinity = 2;
-
-annFromInt :: Int -> AnnPrim
-annFromInt 0 = Zero
-annFromInt 1 = One
-annFromInt _ = Infinity
-
-(.+) :: AnnPrim -> AnnPrim -> AnnPrim
-x .+ y = annFromInt $ annToInt x + annToInt y
-
-{- Named Annotations -}
-annBot', annZero', annOne', annW', annTop' :: AnnValue
-annBot' = Set.empty
-annZero' = Set.singleton Zero
-annOne' = Set.singleton One
-annW' = Set.singleton Infinity
-annTop' = Set.fromList [Zero, One, Infinity]
-
-annBot, annZero, annOne, annW, annTop :: Ann
-annBot = AnnVal annBot'
-annZero = AnnVal annZero'
-annOne = AnnVal annOne'
-annW = AnnVal annW'
-annTop = AnnVal annTop'
-
-{- Annotation Operations -}
-annPlus :: AnnValue -> AnnValue -> AnnValue
-annPlus a1 a2 = Set.fromList [x .+ y | x <- Set.toList a1, y <- Set.toList a2]
-
-annUnion :: AnnValue -> AnnValue -> AnnValue
-annUnion = Set.union
-
-annTimes :: AnnValue -> AnnValue -> AnnValue
-annTimes a1 a2 = Set.fromList [annFromInt (sum $ map annToInt y) | x <- Set.toList a1, y <- f (annToInt x) $ Set.toList a2]
-  where f 0 _ = [[]]
-        f _ [] = []
-        f n y@(x:xs) = f n xs ++ map (x:) (f (n-1) y)
-
-annCond :: AnnValue -> AnnValue -> AnnValue
-annCond a1 a2 = Set.unions $ map (\x -> if x == Zero then annZero' else a2) $ Set.toList a1
-
-{- Constraints -}
-type Constraints = Set Constraint
-data Constraint = Eq Ann Ann -- phi1 == phi2
-                | EqPlus Ann Ann Ann -- phi1 == phi2 (+) phi3
-                | EqUnion Ann Ann Ann -- phi1 == phi2 (U) phi3
-                | EqTimes Ann Ann Ann -- phi1 == phi2 (*) phi3
-                | EqCond Ann Ann Ann -- phi1 == phi2 |> phi3
-                | EqT T T -- t1 == t2
-                | EqTs Ts Ts -- ts1 == ts2
-                | InstEq Ts Ts -- inst(ts1) == t2
-                | GenEq (T, Constraints, Env) Ts -- gen(t1(upsilon1, delta1), constraints, gamma) == ts2(upsilon2, delta2)
-    deriving (Show, Eq, Ord)
-
 ----------------------------------------------------------------
 -- annotate datatypes
 ----------------------------------------------------------------
---                  Data
+--              Datatypes
 type DataAnns = Map Id DataAnn
---                                             Cons
-data DataAnn = DataAnn (Set Pi) (Set Ann) (Map Id T)
+--                      Varriables   Annotations Constructors
+data DataAnn = DataAnn (Set Pi)     (Set Ann)   (Map Id T)
     deriving (Show, Eq)
 
 dataAnn2cons :: DataAnn -> Set Id
@@ -314,11 +244,16 @@ dataAlg = annotateDatass . sortData
 
 -- zero -> no type annotations, one -> type annotations on each field, higher -> annotation variables generated inside types
 iota :: Int
-iota = 2 -- one level of annotation variables in types
+iota = 3 -- one level of annotation variables in types
 
 annotateDatass :: [DataAnns] -> DataAnns
-annotateDatass = foldl annotateDatas emptyDataEnv
-    where emptyDataEnv = Map.empty
+annotateDatass = foldl annotateDatas lvmioEnv --emptyDataEnv
+    where
+    emptyDataEnv = Map.empty
+    lvmioEnv = Map.unions [lvmio_channel, lvmio_input, lvmio_output]-- TODO: add [Channel, Input, Output]
+    lvmio_input = Map.singleton (idFromString "Input") (DataAnn Set.empty Set.empty Map.empty)
+    lvmio_output = Map.singleton (idFromString "Output") (DataAnn Set.empty Set.empty Map.empty)
+    lvmio_channel = Map.singleton (idFromString "Channel") (DataAnn Set.empty Set.empty Map.empty)
 
 type DataEnv = DataAnns
 --                    Data
@@ -331,7 +266,7 @@ annotateDatas :: DataEnv -> DataAnns -> DataEnv
 annotateDatas env datas = do
     let datas' = evalState (Map.traverseWithKey (\_ -> annotateData env datas) datas) 0
     if datas == datas'
-     then Map.unionWith (\x1 x2 -> error $ "datatype analysed multiple times : " ++ (show x1) ++ " : " ++ (show x2)) env datas
+     then Map.unionWith (\x1 x2 -> error $ "datatype analysed multiple times : " ++ (show x1) ++ " : " ++ (show x2)) env datas -- it is in env and in datas
      else annotateDatas env datas'
 
 
@@ -407,7 +342,7 @@ annotateType' env current t level = traceShow' <$> case traceShow' $ t of
                     return $ traceShow' $
                         ( TAnnD (foldl TAp (TCon con) ts) betas'''
                         , betas')
-                Nothing -> return $ traceShow' $ trace' ("Not a datatype : " ++ (show con) ++ (show ts') ++ " : aps => " ++ (show ts)) (foldl TAp (TCon con) ts, Set.empty)
+                Nothing -> return $ traceShow' $ trace ("Not a datatype : " ++ (show con) ++ (show ts') ++ " : aps => " ++ (show ts)) (foldl TAp (TCon con) ts, Set.empty)
     processAlpha :: Pi -> [T] -> Fresh (T, Set Ann)
     processAlpha pi ts' = do
         tsbetas <- sequence $ map (\t' -> annotateType' env current t' (level+1)) ts'
@@ -433,214 +368,3 @@ depends names (i1,t) = foldr depend [] $ dataAnn2cons t
     where
     index = Map.findWithDefault (error "Analyses.depends: id not in data group??") i1 names
     depend x ds = maybe ds (\i2 -> (index,i2):ds) $ Map.lookup x names
-
-
-
-
-----------------------------------------------------------------
--- typeCheck
-----------------------------------------------------------------
---typeCheck cm = const cm exprsCheck
---    where
---        exprs = mapMaybe declValue $ moduleDecls cm
---        declValue decl@(DeclValue _ _ _ expr _) = Just (decl, expr)
---        declValue _ = Nothing
---
---        exprsCheck = map (w envEmpty) exprs
-
-type Pi = Int
-type Name = String
-type Fresh a = State Int a
-
-fresh :: Fresh Int
-fresh = do
-    x <- get
-    put $ x + 1
-    return x
-
-freshPi :: Fresh T
-freshPi = Alpha <$> fresh
-
-freshAnn :: Fresh Ann
-freshAnn = AnnVar <$> fresh
-
-type TSub = Map Pi T
-type Env = Map Id Ts
-data Ts = Forall (Set Ann) (Set Pi) (Set Constraint) T
-        | TsAnn1 (Ts) Ann -- Usage annotation
-        | TsAnn2 (Ts) (Ann,Ann) -- Usage & Demand annotation
-        -- | Gamma Pi -- Maybe needed?
-    deriving (Show, Eq, Ord)
-data T = TFn T T
-       | TAp T T
-       | TCon Id
-       | TAnn1 T Ann -- Usage annotation
-       | TAnn2 T (Ann,Ann) -- Usage & Demand annotation
-       | TAnnD T [Ann] -- Usage & Demand annotation on datatype
-       | Alpha Pi
-    deriving (Show, Eq, Ord)
-
-{- Type to TypeScheme -}
-t2ts :: T -> Ts
-t2ts t = Forall Set.empty Set.empty Set.empty t
-
-{- Environment -}
-envLookup :: Env -> Id -> Ts
-envLookup env x = Map.findWithDefault (error $ show x ++ " : not found in env") x env
-
-envAppend :: Id -> Ts -> Env -> Env
-envAppend = Map.insert
-
-envEmpty :: Env
-envEmpty = Map.empty
-
-{- Constructors used -}
-consInT :: T -> Set Id
-consInT (TFn t1 t2) = Set.union (consInT t1) (consInT t2)
-consInT (TAp t1 t2) = Set.union (consInT t1) (consInT t2)
-consInT (TCon i) = Set.singleton i
-consInT (TAnn1 t _) = consInT t
-consInT (TAnn2 t _) = consInT t
-consInT (Alpha _) = Set.empty
-
-{- Free type variables -}
-isFreeIn :: Pi -> T -> Bool
-isFreeIn pi (TFn t1 t2) = pi `isFreeIn` t1 || pi `isFreeIn` t2
-isFreeIn pi (TAp t1 t2) = pi `isFreeIn` t1 || pi `isFreeIn` t2
-isFreeIn pi (TCon _) = False
-isFreeIn pi (TAnn1 t _) = pi `isFreeIn` t
-isFreeIn pi (TAnn2 t _) = pi `isFreeIn` t
-isFreeIn pi (Alpha x) = pi == x
-
-freeInEnv :: Env -> Set Pi
-freeInEnv = foldr (\ts acc -> Set.union acc $ freeInTs ts) Set.empty
-
-freeInTs :: Ts -> Set Pi
-freeInTs (Forall annotations alphas constraints t) = freeInT t Set.\\ alphas
-
-freeInT :: T -> Set Pi
-freeInT t = case t of
-    TFn t1 t2 -> Set.union (freeInT t1) (freeInT t2)
-    TAp t1 t2 -> Set.union (freeInT t1) (freeInT t2)
-    TCon _ -> Set.empty
-    TAnn1 t1 _ -> freeInT t1
-    TAnn2 t1 _ -> freeInT t1
-    Alpha pi -> Set.singleton pi
-
-{- Generalize -}
--- TODO: annotations & constraints
-generalize :: Env -> T -> Ts
-generalize env t = Forall betas alphas constraints t
-    where
-    betas = Set.empty
-    alphas = freeInT t Set.\\ freeInEnv env
-    constraints = Set.empty
-
-
-{- Instantiate -}
--- TODO: annotations & constraints
-instantiate :: Ts -> Fresh T
-instantiate (Forall annotations alphas constraints t) = (-$-) <$> sub <*> pure t
-    where
-    sub :: Fresh (TSub)
-    sub = do
-        freshs <- sequence $ take (Set.size alphas) $ repeat freshPi
-        return $ Map.fromList $ zip (Set.toList alphas) freshs
-
-{- Substitutions -}
-idSub :: TSub
-idSub = Map.empty
-
-alphasSub :: Set Pi -> TSub
-alphasSub = Map.fromSet Alpha
-
-sub :: Pi -> T -> TSub
-sub a t = Map.singleton a t
-
-(-.-) :: TSub -> TSub -> TSub
-(-.-) sub1 sub2 = Map.union sub1 $ Map.map (sub1 -$-) sub2
-
-(-$-) :: TSub -> T -> T
-(-$-) subs t = case t of
-    TFn t1 t2 -> TFn (subs -$- t1) (subs -$- t2)
-    TAp t1 t2 -> TAp (subs -$- t1) (subs -$- t2)
-    TCon _ -> t
-    a@(Alpha pi) -> Map.findWithDefault a pi subs
-
-{- Substitute Environment -}
--- TODO: check annotations & constraints
-envSubs :: TSub -> Env -> Env
-envSubs sub = Map.map (\(Forall annotations alphas constraints t) -> Forall annotations alphas constraints (alphasSub alphas -.- sub -$- t))
-
-{- Unify -}
-unify :: T -> T -> TSub
-unify t1 t2 = case tryUnify t1 t2 of
-    Right sub -> sub
-    Left err -> error err
-
-tryUnify :: T -> T -> Either String TSub
-tryUnify t1 t2 = traceUnify t1 t2 $ case (t1, t2) of
-    (TAp t3 t4, TAp t5 t6) -> do
-        subs1 <- tryUnify t3 t5
-        subs2 <- tryUnify (subs1 -$- t4) (subs1 -$- t6)
-        Right $ subs2 -.- subs1
-    (TFn t3 t4, TFn t5 t6) -> do
-        subs1 <- tryUnify t3 t5
-        subs2 <- tryUnify (subs1 -$- t4) (subs1 -$- t6)
-        Right $ subs2 -.- subs1
-    (TCon n1, TCon n2) -> if n1 == n2 then Right idSub else failUnify t1 t2
-    (Alpha a1, a2@(Alpha _)) -> Right $ sub a1 a2
-    (Alpha a1, t) -> if not $ a1 `isFreeIn` t then Right $ sub a1 t else failUnify t1 t2
-    (t, a2@(Alpha _)) -> tryUnify a2 t
-    _ -> failUnify t1 t2
-
-failUnify :: T -> T -> Either String TSub
-failUnify t1 t2 = Left $ "Unable to unify t1: " ++ show t1 ++ " | with t2: " ++ show t2
-traceUnify :: T -> T -> Either String TSub -> Either String TSub
-traceUnify t1 t2 trace = do -- creating a stacktrace on a fail
-    case trace of
-        Left err -> Left $ err ++ "\n=> trace: " ++ (fromLeft $ failUnify t1 t2)
-        otherwise -> trace
-    where fromLeft (Left err) = err -- failUnify always returns Left
-
-{- W algorithm -}
-w :: Env -> Expr -> Fresh (T, TSub)
-w env expr = case expr of
-    Lit lit -> return (TCon $ case lit of
-            LitInt _ -> idFromString "Int"
-            LitDouble _ -> idFromString "Double"
-            LitBytes _ -> idFromString "Bytes"
-        , idSub)
-    Var id -> do
-        t <- instantiate $ envLookup env id
-        return (t, idSub)
-    Con (ConId id) -> do
-        t <- instantiate $ envLookup env id
-        return (t, idSub)
-    Con (ConTag expr arity) -> todo $ "need: Con (ConTag expr arity) => expr: " ++ p2s expr ++ " | arity: " ++ p2s arity --TODO:
-    Lam id expr -> do
-        a <- freshPi
-        (t, subs) <- w (envAppend id (t2ts a) env) expr
-        return (TFn (subs -$- a) t, subs)
-    Ap  expr1 expr2 -> do
-        (t1, subs1) <- w env expr1
-        (t2, subs2) <- w (envSubs subs1 env) expr2
-        a <- freshPi
-        let subs3 = unify (subs2 -$- t1) (TFn t2 a)
-        return (subs3 -$- a, subs3 -.- subs2 -.- subs1)
-    Match id alts -> todo $ "need: Match id alts => id: " ++ p2s id ++ " | alts: " ++ p2s alts --TODO:
-    Let binds expr -> case binds of
-        Rec bs -> todo $ "need: Rec bs => bs: " ++ p2s bs --TODO:
-        Strict b -> todo $ "need: Strict b => b: " ++ p2s b --TODO:
-        NonRec b -> todo $ "need: NonRec b => b: " ++ p2s b --TODO:
-    where
-        p2s :: Pretty a => a -> String
-        p2s = show . pretty
-        todo :: String -> Fresh (T, TSub)
-        todo s = const undefined (error s)
-{-
-    | Let       !Binds Expr
-    | Match     !Id Alts
-    | Ap        Expr Expr
-    | Lam       !Id Expr
--}

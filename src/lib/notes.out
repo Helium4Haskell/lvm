@@ -1,0 +1,11 @@
+\BOOKMARK [1][-]{section.1}{Library structure}{}% 1
+\BOOKMARK [1][-]{section.2}{The Module library}{}% 2
+\BOOKMARK [1][-]{section.3}{Identifiers}{}% 3
+\BOOKMARK [1][-]{section.4}{Imports}{}% 4
+\BOOKMARK [1][-]{section.5}{Custom values}{}% 5
+\BOOKMARK [1][-]{section.6}{Core assembler syntax}{}% 6
+\BOOKMARK [2][-]{subsection.6.1}{Notational conventions}{section.6}% 7
+\BOOKMARK [2][-]{subsection.6.2}{General products}{section.6}% 8
+\BOOKMARK [2][-]{subsection.6.3}{Custom values in core assembly}{section.6}% 9
+\BOOKMARK [3][-]{subsubsection.6.3.1}{Toplevel values}{subsection.6.3}% 10
+\BOOKMARK [3][-]{subsubsection.6.3.2}{Custom declarations}{subsection.6.3}% 11

@@ -14,12 +14,12 @@ import Lvm.Core.Expr
 import Lvm.Core.Utils
 import qualified Lvm.Asm.Data as Asm
 
-import Lvm.Core.NoShadow  (coreRename)    -- rename local variables
-import Lvm.Core.Saturate  (coreSaturate)  -- saturate constructors, instructions and externs
-import Lvm.Core.Normalize (coreNormalize) -- normalize core, ie. atomic arguments and lambda's at let bindings
-import Lvm.Core.LetSort   (coreLetSort)   -- find smallest recursive let binding groups
-import Lvm.Core.Lift      (coreLift)      -- lambda-lift, ie. make free variables arguments
-import Lvm.Core.Analyses  (coreAnalyses)  -- analyses of core (adds annotations)
+import Lvm.Core.NoShadow          (coreRename)    -- rename local variables
+import Lvm.Core.Saturate          (coreSaturate)  -- saturate constructors, instructions and externs
+import Lvm.Core.Normalize         (coreNormalize) -- normalize core, ie. atomic arguments and lambda's at let bindings
+import Lvm.Core.LetSort           (coreLetSort)   -- find smallest recursive let binding groups
+import Lvm.Core.Lift              (coreLift)      -- lambda-lift, ie. make free variables arguments
+import Lvm.Core.Analyses.Analyses (coreAnalyses)  -- analyses of core (adds annotations)
 
 {---------------------------------------------------------------
   coreToAsm: translate Core expressions into Asm expressions

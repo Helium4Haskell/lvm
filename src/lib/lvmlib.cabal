@@ -51,7 +51,11 @@ Library
     Lvm.Common.Id
     Lvm.Common.IdMap
     Lvm.Common.IdSet
-    Lvm.Core.Analyses
+    Lvm.Core.Analyses.Analyses
+    Lvm.Core.Analyses.Annotations
+    Lvm.Core.Analyses.Constraints
+    Lvm.Core.Analyses.Types
+    Lvm.Core.Analyses.Utils
     Lvm.Core.Expr
     Lvm.Core.FreeVar
     Lvm.Core.LetSort
