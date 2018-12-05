@@ -9,7 +9,7 @@ module Lvm.Core.Module
    ( Module(..), Decl(..), Custom(..), DeclKind(..)
    , Arity, Tag, Access(..), ExternName(..), CallConv(..), LinkConv(..)
    , globalNames, externNames, filterPublic, mapDecls
-   , customDeclKind, customData, customTypeDecl, modulePublic
+   , customDeclKind, customData, customTypeDecl, customOrigin, modulePublic
    , declKindFromDecl, shallowKindFromDecl, makeDeclKind
    , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern
    , isDeclImport, isDeclGlobal
@@ -137,6 +137,7 @@ customDeclKind = DeclKindCustom . idFromString
 customData, customTypeDecl :: DeclKind
 customData     = customDeclKind "data"
 customTypeDecl = customDeclKind "typedecl"
+customOrigin   = customDeclKind "origin"
 
 declKindFromDecl :: Decl a -> DeclKind
 declKindFromDecl decl

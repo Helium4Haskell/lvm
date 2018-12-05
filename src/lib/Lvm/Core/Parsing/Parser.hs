@@ -14,6 +14,7 @@ import Lvm.Common.Id
 import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.Parsing.Token (Token, Lexeme(..))
+import Lvm.Core.Parsing.Lexer
 import Lvm.Core.Type
 import Lvm.Core.Utils
 import Prelude hiding (lex)
@@ -50,8 +51,9 @@ pmodule =
       ; exports <- pexports
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
-      ; declss <- semiList (wrap (ptopDecl <|> pconDecl <|> pabstract <|> pextern <|> pCustomDecl)
+      ; declss_ <- semiList (wrap (ptopDecl <|> pconDecl <|> pabstract <|> pextern <|> pCustomDecl)
                             <|> pdata <|> pimport <|> ptypeTopDecl)
+      ; let declss = map (addOrigininDecl moduleId) (concat declss_)
       ; lexeme LexRBRACE
       ; lexeme LexEOF
 
@@ -63,7 +65,7 @@ pmodule =
                   ( modulePublic
                       True
                       es
-                      (Module moduleId 0 0 (concat declss))
+                      (Module moduleId 0 0 (declss))
                   , True
                   , es
                   )
@@ -71,13 +73,17 @@ pmodule =
                   ( modulePublic
                       False
                       es
-                      (Module moduleId 0 0 (concat declss))
+                      (Module moduleId 0 0 (declss))
                   , False
                   , es
                   )
             
       }
 
+addOrigininDecl :: Id -> CoreDecl -> CoreDecl
+addOrigininDecl originalmod decl = let cs = declCustoms decl
+                                       makeOrigin = [CustomDecl customOrigin [CustomName originalmod]]
+                                   in decl {declCustoms = cs ++ makeOrigin}
 ----------------------------------------------------------------
 -- export list
 ----------------------------------------------------------------
