@@ -5,7 +5,7 @@
 --------------------------------------------------------------------------------
 --  $Id$
 
-module Lvm.Core.Parsing.Parser (parseModuleExport, parseModule) where
+module Lvm.Core.Parsing.Parser (parseModuleExport, parseModule, parseTypeFromString) where
 
 import Control.Monad
 import Data.List
@@ -948,7 +948,10 @@ qualifiedCon
 
 typeid :: TokenParser Id
 typeid
-  = identifier lexCon -- (setSortId SortType id)
+  = identifier lexCon <|> -- (setSortId SortType id)
+    do { (m,name) <- lexQualifiedCon
+       ; return (idFromString (m ++ "." ++ name))
+       }
   <?> "type"
 
 typevarid :: TokenParser Id
@@ -1018,3 +1021,20 @@ satisfy p
        = setSourceColumn (setSourceLine pos line) col
     nextpos pos _ []
        = pos
+
+parseFromString :: TokenParser a -> String -> Either String a
+parseFromString p str = 
+  let toks = lexer (0,0) str
+  in case runParser (waitForEOF p) () "Core.Parsing.Parser" toks of
+    Left _ -> Left str --error ("Core.Parsing.Parser parseFromString: parse error in " ++ string ++ show tokens)
+    Right x -> Right x
+
+waitForEOF :: TokenParser a -> TokenParser a
+waitForEOF p
+  = do{ x <- p
+      ; lexeme LexEOF
+      ; return x
+      }
+
+parseTypeFromString :: String -> Either String Type
+parseTypeFromString = parseFromString (ptype <|> do{(ty,_) <- ptypeString; return ty})

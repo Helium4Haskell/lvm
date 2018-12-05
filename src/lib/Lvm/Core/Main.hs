@@ -23,6 +23,7 @@ import Lvm.Core.Parsing.Layout (layout)            -- apply layout rule
 import Lvm.Core.Parsing.Lexer  (lexer)             -- lexical tokens
 import Lvm.Core.Parsing.Parser (parseModuleExport) -- parse text into Core
 import Lvm.Core.RemoveDead     (coreRemoveDead)    -- remove dead declarations
+import Lvm.Core.QualifiedTyping
 import Lvm.Core.ToAsm          (coreToAsm)         -- enriched lambda expressions (Core) to Asm
 import Lvm.Import              (lvmImport)         -- resolve import declarations
 import Lvm.Write               (lvmWriteFile)      -- write a binary Lvm file
@@ -129,10 +130,14 @@ compile flags srcraw = do
    chasedMod  <- lvmImport (findModule path) m
    let publicmod = modulePublic implExps es chasedMod
    dumpWith DumpCore flags "Core" publicmod
+
+   --Qualifying Types
+   verbose "Qualifying Types"
+   let qualifymod = qualifiedTypes publicmod
    
    -- compiling
    verbose "Remove dead declarations"
-   let coremod = coreRemoveDead publicmod
+   let coremod = coreRemoveDead qualifymod
    dumpWith DumpCoreOpt flags "Core (dead declarations removed)" coremod
 
    verbose "Generating code"
