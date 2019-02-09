@@ -17,6 +17,7 @@ import qualified Control.Exception as CE (catch, IOException)
 import Data.Word
 import System.Exit
 import System.IO
+import Data.Semigroup as Sem
 
 {----------------------------------------------------------------
   types
@@ -67,11 +68,14 @@ max32 = 2^(32::Int) -1 -- Bastiaan (Todo: check)
   Byte lists
 ----------------------------------------------------------------}
 
+instance Sem.Semigroup Bytes where
+   bs  <> Nil = bs
+   Nil <> cs  = cs
+   bs  <> cs  = Cat bs cs
+
 instance Monoid Bytes where
    mempty  = Nil
-   mappend bs  Nil = bs 
-   mappend Nil cs  = cs
-   mappend bs  cs  = Cat bs cs     
+   mappend = (<>)
 
 isEmpty :: Bytes -> Bool
 isEmpty Nil         = True
