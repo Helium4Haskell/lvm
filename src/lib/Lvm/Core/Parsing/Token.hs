@@ -73,7 +73,6 @@ data Lexeme     = LexUnknown Char
 
                 -- not standard
                 | LexLETSTRICT
-                | LexMATCH
                 | LexWITH
 
                 | LexPRIVATE

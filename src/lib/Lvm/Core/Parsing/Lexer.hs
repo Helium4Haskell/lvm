@@ -39,7 +39,6 @@ lexer pos ('i':'m':'p':'o':'r':'t':cs)      | nonId cs = (pos,LexIMPORT) : nexti
 -- not standard
 lexer pos ('c':'o':'n':cs)                  | nonId cs = (pos,LexCON)    : nextinc lexer pos 3 cs
 lexer pos ('w':'i':'t':'h':cs)              | nonId cs = (pos,LexWITH)   : nextinc lexer pos 4 cs
-lexer pos ('m':'a':'t':'c':'h':cs)          | nonId cs = (pos,LexMATCH)   : nextinc lexer pos 5 cs
 lexer pos ('c':'c':'a':'l':'l':cs)          | nonId cs = (pos,LexCCALL)   : nextinc lexer pos 5 cs
 lexer pos ('p':'u':'b':'l':'i':'c':cs)      | nonId cs = (pos,LexPUBLIC)   : nextinc lexer pos 6 cs
 lexer pos ('e':'x':'t':'e':'r':'n':cs)      | nonId cs = (pos,LexEXTERN)  : nextinc lexer pos 6 cs

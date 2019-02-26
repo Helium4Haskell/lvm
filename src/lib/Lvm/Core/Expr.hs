@@ -7,7 +7,7 @@
 
 module Lvm.Core.Expr 
    ( CoreModule, CoreDecl, Expr(..), Binds(..), Bind(..)
-   , Alts, Alt(..), Pat(..), Literal(..), Con(..)
+   , Alts, Alt(..), Pat(..), Literal(..), Con(..), Variable(..)
    ) where
 
 import Prelude hiding ((<$>))
@@ -15,6 +15,7 @@ import Lvm.Common.Byte
 import Lvm.Common.Id
 import Lvm.Core.Module
 import Lvm.Core.PrettyId
+import Lvm.Core.Type
 import Text.PrettyPrint.Leijen
 
 ----------------------------------------------------------------
@@ -29,16 +30,17 @@ type CoreDecl   = Decl Expr
 data Expr       = Let       !Binds Expr       
                 | Match     !Id Alts
                 | Ap        Expr Expr
-                | Lam       !Id Expr
+                | Lam       !Variable Expr
                 | Con       !(Con Expr)
                 | Var       !Id
                 | Lit       !Literal
 
+data Variable = Variable { variableName :: !Id, variableType :: !Type }
 data Binds      = Rec       ![Bind]
                 | Strict    !Bind
                 | NonRec    !Bind
 
-data Bind       = Bind      !Id Expr
+data Bind       = Bind      !Variable !Expr
 
 type Alts       = [Alt]
 data Alt        = Alt       !Pat Expr
@@ -53,7 +55,7 @@ data Literal    = LitInt    !Int
 
 data Con tag    = ConId  !Id
                 | ConTag tag !Arity
-                
+
 ----------------------------------------------------------------
 -- Pretty printing
 ----------------------------------------------------------------
@@ -69,7 +71,7 @@ ppExpr p expr
       Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <+> text "{" <$> indent 2 (pretty as)
                               <+> text "}")
       Let bs x    -> prec 0 $ align (ppLetBinds bs (text "in" <+> ppExpr 0 x))
-      Lam x e     -> prec 0 $ text "\\" <> ppVarId x <+> ppLams "->" (</>)  e
+      Lam (Variable x t) e     -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> pretty t <+> pretty e
       Ap e1 e2    -> prec 9 $ ppExpr  9 e1 <+> ppExpr  10 e2
       Var x       -> ppVarId  x
       Con con     -> pretty con
@@ -88,12 +90,6 @@ instance Pretty a => Pretty (Con a) where
 --
 ----------------------------------------------------------------
 
-ppLams :: String -> (Doc -> Doc -> Doc) -> Expr -> Doc
-ppLams arrow next expr
-  = case expr of
-      Lam x e -> ppVarId x <+> ppLams arrow next  e
-      _       -> text arrow `next` ppExpr  0 expr
-
 ppLetBinds :: Binds -> Doc -> Doc
 ppLetBinds binds doc
   = case binds of
@@ -103,8 +99,8 @@ ppLetBinds binds doc
       Rec recs    -> nest 4 (text "let" <+> pretty recs) <$> doc -- let rec not parsable
 
 instance Pretty Bind where
-   pretty (Bind x expr) =
-      nest 2 (ppId  x <+> ppLams "=" (</>)  expr <> semi)
+   pretty (Bind (Variable x t) expr) =
+      nest 2 (ppId  x <> text ": " <+> pretty t <> text " = " <+> pretty expr <> semi)
    prettyList = vcat . map pretty
 
 instance Pretty Alt where

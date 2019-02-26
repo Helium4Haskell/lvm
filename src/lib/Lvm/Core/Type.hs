@@ -7,7 +7,7 @@
 
 module Lvm.Core.Type 
    ( Type(..), Kind(..)
-   , addForall, arityFromType
+   , addForall, arityFromType, typeBool, typeToStrict
    ) where
 
 import Lvm.Common.Id
@@ -32,6 +32,13 @@ data Kind       = KFun {kind1::Kind, kind2::Kind}
                 | KString {kindString::String}
 
 -- data SuperKind  = Box
+
+typeToStrict :: Type -> Type
+typeToStrict t@(TStrict _) = t
+typeToStrict t = TStrict t
+
+typeBool :: Type
+typeBool = TCon $ idFromString "Bool"
 
 arityFromType :: Type -> Int
 arityFromType tp

@@ -163,7 +163,7 @@ pabstract
 
 pabstractValue :: TokenParser (Decl v)
 pabstractValue
-  = do{ x <- variable
+  = do{ x <- pVariableName
       ; (acc,custom) <- pAttributes private
       ; lexeme LexASG
       ; (mid,impid) <- qualifiedVar
@@ -212,24 +212,24 @@ pImportSpec mid
             <|>
             do { y <- conopid; return (DeclKindCon  , y) }
       ; lexeme LexRPAREN
-      ; impid <- option x (do{ lexeme LexASG; variable })
+      ; impid <- option x (do{ lexeme LexASG; pVariableName })
       ; return [DeclImport x (Imported False mid impid kind 0 0) []]
       }
   <|>
     do{ x <- varid
-      ; impid <- option x (do{ lexeme LexASG; variable })
+      ; impid <- option x (do{ lexeme LexASG; pVariableName })
       ; return [DeclImport x (Imported False mid impid DeclKindValue 0 0) []]
       }
   <|>
     do{ lexeme LexCUSTOM
       ; kind <- lexString
-      ; x   <- variable <|> constructor
-      ; impid <- option x (do { lexeme LexASG; variable <|> constructor })
+      ; x   <- pVariableName <|> constructor
+      ; impid <- option x (do { lexeme LexASG; pVariableName <|> constructor })
       ; return [DeclImport x (Imported False mid impid (customDeclKind kind) 0 0) []]
       }
   <|>
     do{ x <- typeid
-      ; impid <- option x (do{ lexeme LexASG; variable })
+      ; impid <- option x (do{ lexeme LexASG; pVariableName })
       ; do{ lexeme LexLPAREN
           ; cons <- pImportCons mid
           ; lexeme LexRPAREN
@@ -251,7 +251,7 @@ pImportCons mid
 pimportCon :: Id -> TokenParser CoreDecl
 pimportCon mid
   = do{ x    <- constructor
-      ; impid <- option x (do{ lexeme LexASG; variable })
+      ; impid <- option x (do{ lexeme LexASG; pVariableName })
       ; return (DeclImport x (Imported False mid impid DeclKindCon 0 0) [])
       }
 
@@ -289,7 +289,7 @@ pConInfo = (parens $ do
 
 ptopDecl :: TokenParser CoreDecl
 ptopDecl
-  = do{ x <- variable
+  = do{ x <- pVariableName
       ; ptopDeclType x <|> ptopDeclDirect x
       }
 
@@ -297,7 +297,7 @@ ptopDeclType :: Id -> TokenParser (Decl Expr)
 ptopDeclType x
   = do{ (tp,_) <- ptypeDecl
       ; lexeme LexSEMI
-      ; x2  <- variable
+      ; x2  <- pVariableName
       ; when (x /= x2) $ fail
             (  "identifier for type signature "
             ++ stringFromId x
@@ -317,12 +317,10 @@ ptopDeclDirect x
 
 pbindTopRhs :: TokenParser (Access, [Custom], Expr)
 pbindTopRhs
-  = do{ args <- many bindid
-      ; (access,custom) <- pAttributes public
+  = do{ (access,custom) <- pAttributes public
       ; lexeme LexASG
       ; body <- pexpr
-      ; let expr = foldr Lam body args
-      ; return (access,custom,expr)
+      ; return (access,custom,body)
       }
   <?> "declaration"
 
@@ -330,20 +328,11 @@ pbindTopRhs
 
 pbind :: TokenParser Bind
 pbind
-  = do{ x   <- variable
-      ; expr <- pbindRhs
-      ; return (Bind x expr)
-      }
-
-pbindRhs :: TokenParser Expr
-pbindRhs
-  = do{ args <- many bindid
+  = do{ var  <- variable
       ; lexeme LexASG
-      ; body <- pexpr
-      ; let expr = foldr Lam body args
-      ; return expr
+      ; expr <- pexpr
+      ; return (Bind var expr)
       }
-  <?> "declaration"
 
 ----------------------------------------------------------------
 -- data declarations
@@ -451,7 +440,7 @@ pcustom :: TokenParser Custom
 pcustom
   =   do{ i <- lexInt; return (CustomInt (fromInteger i)) }
   <|> do{ s <- lexString; return (CustomBytes (bytesFromString s)) }
-  <|> do{ x <- variable <|> constructor; return (CustomName x) }
+  <|> do{ x <- pVariableName <|> constructor; return (CustomName x) }
   <|> do{ lexeme LexNOTHING; return CustomNothing }
   <|> do{ lexeme LexCUSTOM 
         ; kind <- pdeclKind
@@ -479,10 +468,10 @@ pdeclKind
 pexpr :: TokenParser Expr
 pexpr
   = do{ lexeme LexBSLASH
-      ; args <- many bindid
+      ; arg <- variable
       ; lexeme LexRARROW
       ; expr <- pexpr
-      ; return (foldr Lam expr args)
+      ; return $ Lam arg expr
       }
   <|>
     do{ lexeme LexLET
@@ -493,14 +482,12 @@ pexpr
       }
   <|>
     do{ lexeme LexCASE
-      ; expr <- pexpr
+      ; var <- pVariableName
       ; lexeme LexOF
-      ; (x,alts) <- palts
-      ; case alts of
-          [Alt PatDefault rhs] -> return (Let (Strict (Bind x expr)) rhs)
-          _                    -> return (Let (Strict (Bind x expr)) (Match x alts))
+      ; alts <- palts
+      ; return (Match var alts)
       }
-  <|>
+  {- <|>
     do{ lexeme LexMATCH
       ; x <- variable
       ; lexeme LexWITH
@@ -509,11 +496,11 @@ pexpr
           -- better approach is to optize these cases *after* parsing
           [Alt PatDefault rhs] 
             | x == defid       -> return rhs
-            | otherwise        -> return (Let (NonRec (Bind defid (Var x))) rhs)
+            | otherwise        -> return (Let (NonRec (Bind defid TAny (Var x))) rhs)
           _ | x == defid       -> return (Match x alts)
             | defid == wildId  -> return (Match x alts)
-            | otherwise        -> return (Let (NonRec (Bind defid (Var x))) (Match defid alts))
-      }
+            | otherwise        -> return (Let (NonRec (Bind defid TAny (Var x))) (Match defid alts))
+      } -}
   <|> 
     do{ lexeme LexLETSTRICT
       ; binds <- semiBraces pbind
@@ -586,7 +573,7 @@ parenExpr
 ptagExpr :: TokenParser Expr
 ptagExpr
   =   do{ i <- lexInt; return (Lit (LitInt (fromInteger i))) }
-  <|> do{ x <- variable; return (Var x) }
+  <|> do{ x <- pVariableName; return (Var x) }
   <?> "tag (integer or variable)"
 
 pliteral :: TokenParser Literal
@@ -607,34 +594,31 @@ pnumber signint signdouble
 ----------------------------------------------------------------
 -- alternatives
 ----------------------------------------------------------------
-palts :: TokenParser (Id,Alts)
+palts :: TokenParser Alts
 palts
   = do{ lexeme LexLBRACE
-      ; (x,alts) <- paltSemis
-      ; return (x,alts)
+      ; paltSemis
       }
 
-paltSemis :: TokenParser (Id,Alts)
+paltSemis :: TokenParser Alts
 paltSemis
-  = do{ (x,alt) <- paltDefault
+  = do{ alt <- paltDefault
       ; optional (lexeme LexSEMI)
       ; lexeme LexRBRACE
-      ; return (x,[alt])
+      ; return [alt]
       }
   <|>
     do{ alt <- palt
       ;   do{ lexeme LexSEMI
-            ;     do{ (x,alts) <- paltSemis
-                    ; return (x,alt:alts)
+            ;     do{ alts <- paltSemis
+                    ; return (alt:alts)
                     }
               <|> do{ lexeme LexRBRACE
-                    ; x <- wildcard
-                    ; return (x,[alt])
+                    ; return [alt]
                     }
             }
       <|> do{ lexeme LexRBRACE
-            ; x <- wildcard
-            ; return (x,[alt])
+            ; return [alt]
             }
       }
 
@@ -691,12 +675,12 @@ ppatTuple
       ; return (PatCon (ConTag 0 (length ids)) ids)
       }
 
-paltDefault :: TokenParser (Id, Alt)
+paltDefault :: TokenParser Alt
 paltDefault
-  = do{ x <- bindid <|> do{ lexeme LexDEFAULT; wildcard }
+  = do{ lexeme LexDEFAULT
       ; lexeme LexRARROW
       ; expr <- pexpr
-      ; return (x,Alt PatDefault expr)
+      ; return $ Alt PatDefault expr
       }
 
 wildcard :: TokenParser Id
@@ -890,9 +874,16 @@ customid
   <|> do{ s <- lexString; return (idFromString s) }
   <?> "custom identifier"
 
-variable :: TokenParser Id
-variable
+pVariableName :: TokenParser Id
+pVariableName
   = varid <|> parens opid
+
+variable :: TokenParser Variable
+variable = do
+  name <- pVariableName
+  lexeme LexCOLON
+  t <- ptypeAp
+  return $ Variable name t
 
 opid :: TokenParser Id
 opid

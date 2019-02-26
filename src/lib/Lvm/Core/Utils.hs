@@ -7,11 +7,12 @@
 
 module Lvm.Core.Utils 
    ( module Lvm.Core.Module
-   , listFromBinds, unzipBinds, mapBinds, mapAccumBinds, zipBindsWith
+   , listFromBinds, mapBinds, mapAccumBinds, zipBindsWith
    , mapAlts, zipAltsWith, mapExprWithSupply, mapAccum
    ) where
 
 import Lvm.Core.Expr
+import Lvm.Core.Type
 import Lvm.Common.Id
 import Lvm.Core.Module
 
@@ -26,30 +27,27 @@ listFromBinds binds
       Strict bind -> [bind]
       Rec recs    -> recs
 
-unzipBinds :: [Bind] -> ([Id],[Expr])
-unzipBinds = unzip . map (\(Bind x rhs) -> (x,rhs))
-
-mapBinds :: (Id -> Expr -> Bind) -> Binds -> Binds
+mapBinds :: (Variable -> Expr -> Bind) -> Binds -> Binds
 mapBinds f binds
   = case binds of
-      NonRec (Bind x rhs)
-        -> NonRec (f x rhs)
-      Strict (Bind x rhs)
-        -> Strict (f x rhs)
+      NonRec (Bind var rhs)
+        -> NonRec (f var rhs)
+      Strict (Bind var rhs)
+        -> Strict (f var rhs)
       Rec recs
-        -> Rec (map (\(Bind x rhs) -> f x rhs) recs)
+        -> Rec (map (\(Bind var rhs) -> f var rhs) recs)
 
-mapAccumBinds :: (a -> Id -> Expr -> (Bind,a)) -> a -> Binds -> (Binds,a)
+mapAccumBinds :: (a -> Variable -> Expr -> (Bind,a)) -> a -> Binds -> (Binds, a)
 mapAccumBinds f x binds
   = case binds of
-      NonRec (Bind y rhs)
-        -> let (bind,z) = f x y rhs
+      NonRec (Bind var rhs)
+        -> let (bind,z) = f x var rhs
            in  (NonRec bind, z)
-      Strict (Bind y rhs)
-        -> let (bind,z) = f x y rhs
+      Strict (Bind var rhs)
+        -> let (bind,z) = f x var rhs
            in  (Strict bind, z)
       Rec recs
-        -> let (recs',z) = mapAccum (\a (Bind y rhs) -> f a y rhs) x recs
+        -> let (recs',z) = mapAccum (\a (Bind var rhs) -> f a var rhs) x recs
            in  (Rec recs',z)
 
 mapAccum               :: (a -> b -> (c,a)) -> a -> [b] -> ([c],a)
@@ -59,13 +57,13 @@ mapAccum f s (x:xs)     = (y:ys,s'')
                                (ys,s'') = mapAccum f s' xs
 
 
-zipBindsWith :: (a -> Id -> Expr -> Bind) -> [a] -> Binds -> Binds
-zipBindsWith f (x:_) (Strict (Bind y rhs))
-  = Strict (f x y rhs)
-zipBindsWith f (x:_) (NonRec (Bind y rhs))
-  = NonRec (f x y rhs)
+zipBindsWith :: (a -> Variable -> Expr -> Bind) -> [a] -> Binds -> Binds
+zipBindsWith f (x:_) (Strict (Bind var rhs))
+  = Strict (f x var rhs)
+zipBindsWith f (x:_) (NonRec (Bind var rhs))
+  = NonRec (f x var rhs)
 zipBindsWith f xs (Rec recs)
-  = Rec (zipWith (\x (Bind y rhs) -> f x y rhs) xs recs)
+  = Rec (zipWith (\x (Bind var rhs) -> f x var rhs) xs recs)
 zipBindsWith _ _ _ 
   = error "zipBindsWith"
 
