@@ -7,7 +7,7 @@
 
 module Lvm.Core.Type 
    ( Type(..), Kind(..)
-   , addForall, arityFromType, typeBool, typeToStrict
+   , addForall, arityFromType, typeBool, typeToStrict, typeFunction
    ) where
 
 import Lvm.Common.Id
@@ -27,11 +27,8 @@ data Type = TFun Type Type
           | TAny
           | TString String
 
-data Kind       = KFun {kind1::Kind, kind2::Kind}
-                | KStar
-                | KString {kindString::String}
-
--- data SuperKind  = Box
+data Kind = KFun Kind Kind
+          | KStar
 
 typeToStrict :: Type -> Type
 typeToStrict t@(TStrict _) = t
@@ -39,6 +36,10 @@ typeToStrict t = TStrict t
 
 typeBool :: Type
 typeBool = TCon $ idFromString "Bool"
+
+typeFunction :: [Type] -> Type -> Type
+typeFunction [] ret = ret
+typeFunction (a:as) ret = TFun a $ typeFunction as ret
 
 arityFromType :: Type -> Int
 arityFromType tp
@@ -52,14 +53,6 @@ arityFromType tp
       TCon    _       -> 0
       TAny            -> 0
       TString _       -> error "Core.arityFromType: string type"
-
-{-
-arityFromKind :: Kind -> Int
-arityFromKind kind
-  = case kind of
-      KFun k1 _ -> arityFromKind k1 + 1
-      KStar     -> 0
-      KString _ -> error "Core.arityFromKind: string kind" -}
 
 addForall :: Type -> Type
 addForall tp
@@ -123,7 +116,6 @@ ppKind level kind
     case kind of
       KFun k1 k2    -> ppHi k1 <+> text "->" <+> ppEq k2
       KStar         -> text "*"
-      KString s     -> string s
   where
     (klevel,parenthesized)
       | level <= levelFromKind kind   = (levelFromKind kind,id)
@@ -148,6 +140,5 @@ levelFromType tp
 levelFromKind :: Kind -> Int
 levelFromKind kind
   = case kind of
-      KString{} -> 1
-      KFun{}    -> 2
-      KStar{}   -> 3
+      KFun{}    -> 1
+      KStar{}   -> 2

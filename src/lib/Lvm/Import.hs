@@ -19,25 +19,17 @@
 --     * Lets the caller determine the choice of monad. This is useful
 --       for testing and integration.
 --
-module Lvm.Import (lvmImport, lvmImport', lvmImportDecls, lvmImportDecls') where
+module Lvm.Import (lvmImport', lvmImportDecls') where
 
 import Control.Monad
 import Data.List 
 import Lvm.Common.Id
 import Lvm.Common.IdMap
 import Lvm.Data
-import Lvm.Read  (lvmReadFile)
 import qualified Lvm.Core.Module as Module
 
 -- | Replace all import declarations with abstract declarations or
--- constructors\/externs\/customs
---
--- @lvmImport findModulePath = lvmImport' (findModulePath >=> 'lvmReadFile')@
---
-lvmImport :: (Id -> IO FilePath) -> Module v -> IO (Module v)
-lvmImport findModule = lvmImport' (findModule >=> lvmReadFile)
-
--- | A more general 'lvmImport'. Works in any monad, but requires the
+-- constructors\/externs\/customs. Works in any monad, but requires the
 -- caller to provide a 'Module' instead of a 'FilePath'. Replace all
 -- import declarations with abstract declarations or
 -- constructors\/externs\/customs.
@@ -50,14 +42,7 @@ lvmImport' findModule m
       ; return mod1{ moduleDecls = filter (not . isDeclImport) (moduleDecls mod1) }
       }
 
--- | 
---
--- @lvmImportDecls findModulePath = lvmImportDecls' (findModulePath >=> 'lvmReadFile')@
---
-lvmImportDecls :: (Id -> IO FilePath) -> [Decl v] -> IO [[Decl v]]
-lvmImportDecls findModulePath = lvmImportDecls' (findModulePath >=> lvmReadFile)
-
--- | More general version of 'lvmImportDecls''. Works in any monad, but requires the
+-- | Works in any monad, but requires the
 -- caller to provide a 'Module' instead of a 'FilePath'.
 lvmImportDecls' :: Monad m => (Id -> m (Module v)) -> [Decl v] -> m [[Decl v]]
 lvmImportDecls' findModule = mapM $ \importDecl -> do

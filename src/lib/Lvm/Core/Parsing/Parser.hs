@@ -167,11 +167,10 @@ pabstractValue
       ; (acc,custom) <- pAttributes private
       ; lexeme LexASG
       ; (mid,impid) <- qualifiedVar
-      ; arity <- liftM fromInteger lexInt
-                 <|> liftM (arityFromType . fst) ptypeDecl
+      ; t <- ptypeDecl
       ; let access | isImported acc = acc
                    | otherwise      = Imported False mid impid DeclKindValue 0 0
-      ; return (DeclAbstract x access arity custom)
+      ; return (DeclAbstract x access t custom)
       }
 
 pabstractCon :: TokenParser (Decl v)
@@ -180,10 +179,11 @@ pabstractCon
       ; (acc,custom) <- pAttributes private -- ignore access
       ; lexeme LexASG
       ; (mid,impid)  <- qualifiedCon
-      ; (tag, arity) <- pConInfo
+      ; lexeme LexCOLCOL
+      ; t <- ptype
       ; let access | isImported acc = acc
                    | otherwise      = Imported False mid impid DeclKindCon 0 0
-      ; return (DeclCon x access arity tag custom)
+      ; return (DeclCon x access t custom)
       }
 
 isImported :: Access -> Bool
@@ -264,9 +264,9 @@ pconDecl = do
    lexeme LexCON
    x <- constructor
    (access,custom) <- pAttributes public
-   lexeme LexASG
-   (tag, arity) <- pConInfo
-   return $ DeclCon x access arity tag custom
+   lexeme LexCOLCOL
+   t <- ptype
+   return $ DeclCon x access t custom
 
 -- constructor info: (@tag, arity)
 pConInfo :: TokenParser (Tag, Arity)
@@ -277,7 +277,7 @@ pConInfo = (parens $ do
    arity <- lexInt <?> "arity"
    return (fromInteger tag, fromInteger arity))
  <|> do -- :: TypeSig = tag
-   (tp, _) <- ptypeDecl
+   tp <- ptypeDecl
    lexeme LexASG
    tag   <- lexInt <?> "tag" 
    return (fromInteger tag, arityFromType tp)
@@ -290,12 +290,12 @@ pConInfo = (parens $ do
 ptopDecl :: TokenParser CoreDecl
 ptopDecl
   = do{ x <- pVariableName
-      ; ptopDeclType x <|> ptopDeclDirect x
+      ; ptopDeclType x
       }
 
 ptopDeclType :: Id -> TokenParser (Decl Expr)
 ptopDeclType x
-  = do{ (tp,_) <- ptypeDecl
+  = do{ tp <- ptypeDecl
       ; lexeme LexSEMI
       ; x2  <- pVariableName
       ; when (x /= x2) $ fail
@@ -305,14 +305,8 @@ ptopDeclType x
             ++ stringFromId x2
             )
       ; (access,custom,expr) <- pbindTopRhs
-      ; return (DeclValue x access Nothing expr 
+      ; return (DeclValue x access tp expr 
                 (customType tp : custom))
-      }
-
-ptopDeclDirect :: Id -> TokenParser (Decl Expr)
-ptopDeclDirect x
-  = do{ (access,custom,expr) <- pbindTopRhs
-      ; return (DeclValue x access Nothing expr custom)
       }
 
 pbindTopRhs :: TokenParser (Access, [Custom], Expr)
@@ -357,10 +351,10 @@ pdata
       ; do{ lexeme LexASG
           ; let t1  = foldl TAp (TCon x) (map TVar args)
           ; cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
-          ; let con tag (cid,t2) = DeclCon cid public (arityFromType t2) tag 
+          ; let con (cid,t2) = DeclCon cid public t2 
                                       [customType t2, 
                                        CustomLink x customData]
-          ; return (datadecl:zipWith con [0..] cons)
+          ; return (datadecl:map con cons)
           }
       <|> {- empty data types -}
         return [datadecl]
@@ -698,15 +692,15 @@ pextern
       ; x  <- varid
       ; m <- lexString <|> return (stringFromId x)
       ; (mname,name) <- pExternName m
-      ; (tp,arity)  <- ptypeDecl
-      ; return (DeclExtern x private arity (show tp) linkConv callConv mname name [])
+      ; tp  <- ptypeDecl
+      ; return (DeclExtern x private tp (show tp) linkConv callConv mname name [])
       }
   <|>
     do{ lexeme LexINSTR
       ; x <- varid
       ; s  <- lexString
-      ; (tp,arity) <- ptypeDecl
-      ; return (DeclExtern x private arity (show tp) LinkStatic CallInstr "" (Plain s) [])
+      ; tp <- ptypeDecl
+      ; return (DeclExtern x private tp (show tp) LinkStatic CallInstr "" (Plain s) [])
       }
 
 ------------------
@@ -745,16 +739,16 @@ pExternName mname
 -- types
 ----------------------------------------------------------------
 
-ptypeDecl :: TokenParser (Type, Int)
+ptypeDecl :: TokenParser Type
 ptypeDecl
   = do{ lexeme LexCOLCOL
-      ; ptypeNormal <|> ptypeString
+      ; ptypeNormal
       }
 
-ptypeNormal :: TokenParser (Type, Int)
+ptypeNormal :: TokenParser Type
 ptypeNormal
   = do{ tp <- ptype
-      ; return (tp,arityFromType tp)
+      ; return tp
       }
 
 
@@ -827,12 +821,6 @@ listType
           ; x <- identifier (return "[]")
           ; return (TCon x {-(setSortId SortType id)-})
           }
-      }
-
-ptypeString :: TokenParser (Type, Int)
-ptypeString
-  = do{ s <- lexString
-      ; return (TString s, length s-1)
       }
 
 ----------------------------------------------------------------

@@ -8,7 +8,7 @@
 module Lvm.Core.Module
    ( Module(..), Decl(..), Custom(..), DeclKind(..)
    , Arity, Tag, Access(..), ExternName(..), CallConv(..), LinkConv(..)
-   , globalNames, externNames, filterPublic, mapDecls
+   , globalNames, externNames, filterPublic, mapDecls, declArity
    , customDeclKind, customData, customTypeDecl, modulePublic
    , declKindFromDecl, shallowKindFromDecl, makeDeclKind
    , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern
@@ -21,6 +21,7 @@ import Lvm.Common.Byte
 import Lvm.Common.Id  
 import Lvm.Common.IdSet  
 import Lvm.Core.PrettyId
+import Lvm.Core.Type
 import Lvm.Instr.Data
 import Text.PrettyPrint.Leijen
 
@@ -37,15 +38,18 @@ data Module v
 
 
 data Decl v     
-  = DeclValue     { declName :: Id, declAccess :: !Access, valueEnc :: Maybe Id, valueValue :: v, declCustoms :: ![Custom] }
-  | DeclAbstract  { declName :: Id, declAccess :: !Access, declArity :: !Arity, declCustoms :: ![Custom] }
-  | DeclCon       { declName :: Id, declAccess :: !Access, declArity :: !Arity, conTag :: !Tag, declCustoms :: [Custom] }
-  | DeclExtern    { declName :: Id, declAccess :: !Access, declArity :: !Arity
+  = DeclValue     { declName :: Id, declAccess :: !Access, declType :: !Type, valueValue :: v, declCustoms :: ![Custom] }
+  | DeclAbstract  { declName :: Id, declAccess :: !Access, declType :: !Type, declCustoms :: ![Custom] }
+  | DeclCon       { declName :: Id, declAccess :: !Access, declType :: !Type, declCustoms :: [Custom] }
+  | DeclExtern    { declName :: Id, declAccess :: !Access, declType :: !Type
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
                   , externLib  :: !String, externName :: !ExternName, declCustoms :: ![Custom] } 
   | DeclCustom    { declName :: Id, declAccess :: !Access, declKind :: !DeclKind, declCustoms :: ![Custom] }
 
   | DeclImport    { declName :: Id, declAccess :: !Access, declCustoms :: ![Custom] }
+
+declArity :: Decl v -> Arity
+declArity = arityFromType . declType
 
 data Custom
   = CustomInt   !Int
@@ -73,7 +77,7 @@ data Access
   = Defined  { accessPublic :: !Bool }
   | Imported { accessPublic :: !Bool, importModule :: Id, importName :: Id, importKind :: !DeclKind
              , importMajorVer :: !Int, importMinorVer :: !Int }
-            
+
 public, private :: Access
 public  = Defined True
 private = Defined False
@@ -90,7 +94,6 @@ data CallConv   = CallC | CallStd | CallInstr
 data LinkConv   = LinkStatic | LinkDynamic | LinkRuntime                
                 deriving (Show, Eq, Enum)
 
-
 instance Ord DeclKind where
   compare k1 k2
     = case (k1,k2) of
@@ -98,8 +101,6 @@ instance Ord DeclKind where
         (DeclKindCustom _,_)                    -> GT
         (_,DeclKindCustom _)                    -> LT
         _                                       -> compare (fromEnum k1) (fromEnum k2)
-
-
 
 instance Enum DeclKind where
   toEnum i  
@@ -227,8 +228,8 @@ instance Functor Decl where
             DeclValue x ac m (f v) cs
          DeclAbstract x ac ar cs -> 
             DeclAbstract x ac ar cs
-         DeclCon x ac ar t cs    -> 
-            DeclCon x ac ar t cs
+         DeclCon x ac t cs -> 
+            DeclCon x ac t cs
          DeclExtern x ac ar et el ec elib en cs -> 
             DeclExtern x ac ar et el ec elib en cs
          DeclCustom x ac k cs -> 
@@ -256,12 +257,10 @@ instance Pretty a => Pretty (Decl a) where
                                   text "abstract" <+> ppConId (declName decl)
                                   <+> ppAttrs decl
                                   <$> text "=" <+> ppQualCon (importModule imp) (importName imp)
-                                  <+> parens (char '@' <> pretty (conTag decl) <> 
-                                             comma  <> pretty (declArity decl))
+                                  <+> text "::" <> pretty (declType decl)
                                
                                _ -> text "con" <+> ppConId (declName decl) <+> ppAttrs decl 
-                                    <$> text "=" <+> parens (char '@' <> pretty (conTag decl) <> 
-                                             comma  <> pretty (declArity decl))
+                                    <$> text "::" <+> pretty (declType decl)
          DeclCustom{}    -> text "custom" <+> pretty (declKind decl) <+> ppId (declName decl) <+> ppAttrs decl
          DeclExtern{}    -> text "extern" 
                                <> pretty (externLink decl) <> pretty (externCall decl)
