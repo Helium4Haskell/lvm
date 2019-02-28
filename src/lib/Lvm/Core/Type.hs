@@ -7,7 +7,7 @@
 
 module Lvm.Core.Type 
    ( Type(..), Kind(..), TypeConstant(..)
-   , addForall, arityFromType, typeBool, typeToStrict, typeFunction
+   , arityFromType, typeBool, typeToStrict, typeFunction
    ) where
 
 import Lvm.Common.Id
@@ -18,7 +18,7 @@ import Text.PrettyPrint.Leijen
 -- Types
 ----------------------------------------------------------------
 data Type = TAp !Type !Type
-          | TForall !Id !Type
+          | TForall !Id !Kind !Type
           | TExist !Id !Type
           | TStrict !Type
           | TVar !Id
@@ -51,21 +51,17 @@ arityFromType tp
   = case tp of
       TAp (TAp (TCon TConFun) _) t2 -> arityFromType t2 + 1
       TAp     _ _     -> 0 -- assumes saturated constructors!
-      TForall _ t     -> arityFromType t
+      TForall _ _ t   -> arityFromType t
       TExist  _ t     -> arityFromType t
       TStrict t       -> arityFromType t
       TVar    _       -> 0
       TCon    _       -> 0
       TAny            -> 0
 
-addForall :: Type -> Type
-addForall tp
-  = foldr TForall tp (listFromSet (varsInType tp))
-
 varsInType :: Type -> IdSet
 varsInType tp
   = case tp of
-      TForall a t     -> deleteSet a (varsInType t)
+      TForall a _ t   -> deleteSet a (varsInType t)
       TExist  a t     -> deleteSet a (varsInType t)
       TAp     t1 t2   -> unionSet (varsInType t1) (varsInType t2)
       TStrict t       -> varsInType t
@@ -102,7 +98,7 @@ ppType level tp
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> pretty t2 <> text "]" 
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
-      TForall a t     -> text "forall" <+> pretty a <> text "." <+> ppEq t
+      TForall a k t   -> text "forall" <+> pretty a <> text ":" <+> pretty k <> text "." <+> ppEq t
       TExist  a t     -> text "exist" <+> pretty a <> text "." <+> ppEq t
       TStrict t       -> ppHi t <> text "!"
       TVar    a       -> pretty a
