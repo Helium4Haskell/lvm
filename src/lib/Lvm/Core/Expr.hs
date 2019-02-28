@@ -66,14 +66,12 @@ instance Pretty Expr where
 ppExpr :: Int -> Expr -> Doc
 ppExpr p expr
   = case expr of
-   --   (Let (Strict (Bind id1 expr)) (Match id2 alts)) | id1 == id2
-   --               -> prec 0 $ hang 2 (text "case" <+> ppExpr 0 expr <+> text "of" <+> ppId id1 <$> ppAlts alts)
       Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <+> text "{" <$> indent 2 (pretty as)
                               <+> text "}")
       Let bs x    -> prec 0 $ align (ppLetBinds bs (text "in" <+> ppExpr 0 x))
-      Lam (Variable x t) e     -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> pretty t <+> pretty e
+      Lam (Variable x t) e -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> pretty t <+> text "->" <+> pretty e
       Ap e1 e2    -> prec 9 $ ppExpr  9 e1 <+> ppExpr  10 e2
-      Var x       -> ppVarId  x
+      Var x       -> ppVarId x
       Con con     -> pretty con
       Lit lit     -> pretty lit
   where

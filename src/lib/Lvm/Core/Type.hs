@@ -6,7 +6,7 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Type 
-   ( Type(..), Kind(..)
+   ( Type(..), Kind(..), TypeConstant(..)
    , addForall, arityFromType, typeBool, typeToStrict, typeFunction
    ) where
 
@@ -17,17 +17,22 @@ import Text.PrettyPrint.Leijen
 ----------------------------------------------------------------
 -- Types
 ----------------------------------------------------------------
-data Type = TFun Type Type
-          | TAp Type Type
-          | TForall Id Type
-          | TExist Id Type
-          | TStrict Type
-          | TVar Id
-          | TCon Id
+data Type = TAp !Type !Type
+          | TForall !Id !Type
+          | TExist !Id !Type
+          | TStrict !Type
+          | TVar !Id
+          | TCon !TypeConstant
           | TAny
-          | TString String
 
-data Kind = KFun Kind Kind
+data TypeConstant
+  = TConDataType !Id
+  | TConTuple !Int
+  | TConTypeClassDictionary !Id
+  | TConFun
+  deriving Eq
+
+data Kind = KFun !Kind !Kind
           | KStar
 
 typeToStrict :: Type -> Type
@@ -35,16 +40,16 @@ typeToStrict t@(TStrict _) = t
 typeToStrict t = TStrict t
 
 typeBool :: Type
-typeBool = TCon $ idFromString "Bool"
+typeBool = TCon $ TConDataType $ idFromString "Bool"
 
 typeFunction :: [Type] -> Type -> Type
 typeFunction [] ret = ret
-typeFunction (a:as) ret = TFun a $ typeFunction as ret
+typeFunction (a:as) ret = TAp (TAp (TCon TConFun) a) $ typeFunction as ret
 
 arityFromType :: Type -> Int
 arityFromType tp
   = case tp of
-      TFun    _ t2    -> arityFromType t2 + 1
+      TAp (TAp (TCon TConFun) _) t2 -> arityFromType t2 + 1
       TAp     _ _     -> 0 -- assumes saturated constructors!
       TForall _ t     -> arityFromType t
       TExist  _ t     -> arityFromType t
@@ -52,7 +57,6 @@ arityFromType tp
       TVar    _       -> 0
       TCon    _       -> 0
       TAny            -> 0
-      TString _       -> error "Core.arityFromType: string type"
 
 addForall :: Type -> Type
 addForall tp
@@ -63,8 +67,6 @@ varsInType tp
   = case tp of
       TForall a t     -> deleteSet a (varsInType t)
       TExist  a t     -> deleteSet a (varsInType t)
-      TString _       -> emptySet
-      TFun    t1 t2   -> unionSet (varsInType t1) (varsInType t2)
       TAp     t1 t2   -> unionSet (varsInType t1) (varsInType t2)
       TStrict t       -> varsInType t
       TVar    a       -> singleSet a
@@ -87,12 +89,18 @@ instance Pretty Type where
 instance Pretty Kind where
    pretty = ppKind 0
 
+instance Pretty TypeConstant where
+  pretty (TConDataType name) = pretty name
+  pretty (TConTypeClassDictionary name) = text "(@dictionary" <+> pretty name <+> text ")"
+  pretty (TConTuple arity) = text ('(' : (replicate (arity - 1) ',') ++ ")")
+  pretty TConFun = text "->"
+
 ppType :: Int -> Type -> Doc
 ppType level tp
   = parenthesized $
     case tp of
-      TAp (TCon a) t2 | a == idFromString "[]" -> text "[" <> pretty t2 <> text "]" 
-      TFun    t1 t2   -> ppHi t1 <+> text "->" <+> ppEq t2
+      TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> pretty t2 <> text "]" 
+      TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
       TForall a t     -> text "forall" <+> pretty a <> text "." <+> ppEq t
       TExist  a t     -> text "exist" <+> pretty a <> text "." <+> ppEq t
@@ -100,7 +108,6 @@ ppType level tp
       TVar    a       -> pretty a
       TCon    a       -> pretty a
       TAny            -> text "any"
-      TString s       -> string s
   where
     tplevel           = levelFromType tp
     parenthesized doc | level <= tplevel  = doc
@@ -127,10 +134,9 @@ ppKind level kind
 levelFromType :: Type -> Int
 levelFromType tp
   = case tp of
-      TString{} -> 1
       TForall{} -> 2
       TExist{}  -> 2
-      TFun{}    -> 3
+      TAp (TAp (TCon TConFun) _) _ -> 3
       TAp{}     -> 4
       TStrict{} -> 5
       TVar{}    -> 6

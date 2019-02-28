@@ -344,12 +344,12 @@ customKind = makeCustomBytes "kind" . bytesFromString . show
 pdata :: TokenParser [CoreDecl]
 pdata
   = do{ lexeme LexDATA
-      ; x   <- typeid
+      ; x <- typeid
       ; args <- many typevarid
       ; let kind     = foldr (KFun . const KStar) KStar args
             datadecl = DeclCustom x public customData [customKind kind]
       ; do{ lexeme LexASG
-          ; let t1  = foldl TAp (TCon x) (map TVar args)
+          ; let t1  = foldl TAp (TCon $ TConDataType x) (map TVar args)
           ; cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
           ; let con (cid,t2) = DeclCon cid public t2 
                                       [customType t2, 
@@ -364,7 +364,7 @@ pconstructor :: Type -> TokenParser (Id,Type)
 pconstructor tp
   = do{ x   <- constructor
       ; args <- many ptypeAtom
-      ; return (x,foldr TFun tp args)
+      ; return (x, foldr (\t1 t2 -> TAp (TAp (TCon TConFun) t1) t2) tp args)
       }
 
 ----------------------------------------------------------------
@@ -481,20 +481,6 @@ pexpr
       ; alts <- palts
       ; return (Match var alts)
       }
-  {- <|>
-    do{ lexeme LexMATCH
-      ; x <- variable
-      ; lexeme LexWITH
-      ; (defid,alts) <- palts
-      ; case alts of
-          -- better approach is to optize these cases *after* parsing
-          [Alt PatDefault rhs] 
-            | x == defid       -> return rhs
-            | otherwise        -> return (Let (NonRec (Bind defid TAny (Var x))) rhs)
-          _ | x == defid       -> return (Match x alts)
-            | defid == wildId  -> return (Match x alts)
-            | otherwise        -> return (Let (NonRec (Bind defid TAny (Var x))) (Match defid alts))
-      } -}
   <|> 
     do{ lexeme LexLETSTRICT
       ; binds <- semiBraces pbind
@@ -760,7 +746,7 @@ ptypeFun :: TokenParser Type
 ptypeFun
   = chainr1 ptypeAp pFun
   where
-    pFun  = do{ lexeme LexRARROW; return TFun }
+    pFun  = do{ lexeme LexRARROW; return (\t1 t2 -> TAp (TAp (TCon TConFun) t1) t2) }
 
 ptypeAp :: TokenParser Type
 ptypeAp
@@ -771,14 +757,15 @@ ptypeAp
 ptypeAtom :: TokenParser Type
 ptypeAtom
   = do{ x <- typeid
-      ; ptypeStrict (TCon x) 
+      ; ptypeStrict (TCon $ TConDataType x) 
       }
   <|>
     do{ x <- typevarid
-      ; ptypeStrict (TVar x)
+      ; let t = TVar x
+      ; ptypeStrict t
       }
   <|> listType
-  <|> parenType
+  <|> lexeme LexLPAREN *> parenType <* lexeme LexRPAREN
   <?> "atomic type"
 
 ptypeStrict :: Type -> TokenParser Type
@@ -790,23 +777,30 @@ ptypeStrict tp
       
 parenType :: TokenParser Type
 parenType
-  = do{ lexeme LexLPAREN
-      ; tps <- sepBy ptype (lexeme LexCOMMA)
-      ; lexeme LexRPAREN
-      ; case tps of
-          []    -> do{ x <- identifier (return "()"); return (TCon x) } -- (setSortId SortType id))
-          [tp]  -> return tp
-          _     -> return
-                (foldl
-                    TAp
-                    (TCon (idFromString
-                            (  "("
-                            ++ replicate (length tps - 1) ','
-                            ++ ")"
-                            )))
-                    tps
-                )
-      }
+  =   do{
+        ; lexeme LexAT
+        ; lexeme LexCOMMA
+        ; commas <- many (lexeme LexCOMMA)
+        ; let arity = length commas + 2
+        ; return $ TCon $ TConTuple $ fromIntegral arity
+        }
+  <|> do{
+        ; lexeme LexAT
+        ; lexeme (LexId "dictionary")
+        ; className <- typeid
+        ; return $ TCon $ TConTypeClassDictionary className
+        }
+  <|> do{
+        ; tps <- sepBy ptype (lexeme LexCOMMA)
+        ; case tps of
+            [tp]  -> return tp
+            _     -> return
+                  (foldl
+                      TAp
+                      (TCon $ TConTuple $ length tps)
+                      tps
+                  )
+        }
 
 listType :: TokenParser Type
 listType
@@ -814,12 +808,12 @@ listType
       ; do{ tp <- ptype
           ; lexeme LexRBRACKET
           ; x <- identifier (return "[]")
-          ; return (TAp (TCon x {- (setSortId SortType id) -}) tp)
+          ; return (TAp (TCon $ TConDataType x) tp)
           }
       <|>
         do{ lexeme LexRBRACKET
           ; x <- identifier (return "[]")
-          ; return (TCon x {-(setSortId SortType id)-})
+          ; return (TCon $ TConDataType x)
           }
       }
 

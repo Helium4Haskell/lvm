@@ -250,7 +250,7 @@ instance Pretty a => Pretty (Module a) where
 instance Pretty a => Pretty (Decl a) where
    pretty decl = nest 2 $ 
       case decl of
-         DeclValue{}     -> ppVarId (declName decl) <+> ppAttrs decl 
+         DeclValue{}     -> ppVarId (declName decl) <+> text "::" <+> pretty (declType decl) <+> ppAttrs decl 
                             <$> text "=" <+> pretty (valueValue decl)
          DeclCon{}       -> case declAccess decl of
                                imp@Imported{} -> 
