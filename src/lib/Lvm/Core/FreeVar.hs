@@ -25,6 +25,7 @@ instance FreeVar Expr where
          Match x e -> insertSet x (freeVar e)
          Ap e1 e2  -> freeVar e1 `unionSet` freeVar e2
          Lam (Variable x _) e -> deleteSet x (freeVar e)
+         Forall _ _ e -> freeVar e
          Con c     -> freeVar c
          Var x     -> singleSet x
          Lit _     -> emptySet

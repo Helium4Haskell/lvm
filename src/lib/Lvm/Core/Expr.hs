@@ -31,6 +31,7 @@ data Expr       = Let       !Binds Expr
                 | Match     !Id Alts
                 | Ap        Expr Expr
                 | Lam       !Variable Expr
+                | Forall    !Id !Kind !Expr
                 | Con       !(Con Expr)
                 | Var       !Id
                 | Lit       !Literal
@@ -70,6 +71,7 @@ ppExpr p expr
                               <+> text "}")
       Let bs x    -> prec 0 $ align (ppLetBinds bs (text "in" <+> ppExpr 0 x))
       Lam (Variable x t) e -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> pretty t <+> text "->" <+> pretty e
+      Forall tvar k e -> prec 0 $ text "forall" <+> ppVarId tvar <> text ": " <> pretty k <> text "." <+> pretty e
       Ap e1 e2    -> prec 9 $ ppExpr  9 e1 <+> ppExpr  10 e2
       Var x       -> ppVarId x
       Con con     -> pretty con

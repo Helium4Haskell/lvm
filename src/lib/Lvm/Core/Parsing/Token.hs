@@ -69,6 +69,7 @@ data Lexeme     = LexUnknown Char
                 | LexTYPE
                 | LexMODULE
                 | LexIMPORT
+                | LexFORALL
                 | LexEOF
 
                 -- not standard

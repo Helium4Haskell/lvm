@@ -7,7 +7,8 @@
 
 module Lvm.Core.Type 
    ( Type(..), Kind(..), TypeConstant(..)
-   , arityFromType, typeBool, typeToStrict, typeFunction
+   , arityFromType, typeBool, typeToStrict, typeConFromString, typeFunction
+   , typeUndefined, typeEmptyArray, typeInstantiate, typeSubstitute
    ) where
 
 import Lvm.Common.Id
@@ -35,6 +36,14 @@ data TypeConstant
 data Kind = KFun !Kind !Kind
           | KStar
 
+typeConFromString :: String -> TypeConstant
+typeConFromString "->" = TConFun
+typeConFromString ('(' : str)
+  | rest == ")" = TConTuple (length commas + 1)
+  where
+    (commas, rest) = span (== ',') str
+typeConFromString name = TConDataType $ idFromString name
+
 typeToStrict :: Type -> Type
 typeToStrict t@(TStrict _) = t
 typeToStrict t = TStrict t
@@ -45,6 +54,12 @@ typeBool = TCon $ TConDataType $ idFromString "Bool"
 typeFunction :: [Type] -> Type -> Type
 typeFunction [] ret = ret
 typeFunction (a:as) ret = TAp (TAp (TCon TConFun) a) $ typeFunction as ret
+
+typeUndefined :: Type
+typeUndefined = TForall (idFromString "a") KStar $ TVar $ idFromString "a"
+
+typeEmptyArray :: Type
+typeEmptyArray = TForall (idFromString "a") KStar $ TAp (TCon $ TConDataType $ idFromString "[]") $ TVar $ idFromString "a"
 
 arityFromType :: Type -> Int
 arityFromType tp
@@ -144,3 +159,22 @@ levelFromKind kind
   = case kind of
       KFun{}    -> 1
       KStar{}   -> 2
+
+typeInstantiate :: Id -> Type -> Type -> Type
+typeInstantiate var newType (TForall name k t)
+  | var == name = typeSubstitute var newType t
+  | otherwise = TForall name k $ typeInstantiate var newType t
+typeInstantiate _ _ t = t
+
+typeSubstitute :: Id -> Type -> Type -> Type
+typeSubstitute var newType = substitute
+  where
+    substitute (TAp t1 t2) = TAp (substitute t1) (substitute t2)
+    substitute (TForall name k t)
+      | name == var = TForall name k t
+      | otherwise = TForall name k $ substitute t
+    substitute (TStrict t) = substitute t
+    substitute (TVar name)
+      | name == var = newType
+      | otherwise = TVar name
+    substitute t = t
