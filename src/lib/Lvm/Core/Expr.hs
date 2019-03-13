@@ -30,6 +30,7 @@ type CoreDecl   = Decl Expr
 data Expr       = Let       !Binds Expr       
                 | Match     !Id Alts
                 | Ap        Expr Expr
+                | ApType    !Expr !Type
                 | Lam       !Variable Expr
                 | Forall    !Id !Kind !Expr
                 | Con       !(Con Expr)
@@ -73,6 +74,7 @@ ppExpr p expr
       Lam (Variable x t) e -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> pretty t <+> text "->" <+> pretty e
       Forall tvar k e -> prec 0 $ text "forall" <+> ppVarId tvar <> text ": " <> pretty k <> text "." <+> pretty e
       Ap e1 e2    -> prec 9 $ ppExpr  9 e1 <+> ppExpr  10 e2
+      ApType e1 t -> prec 9 $ ppExpr  9 e1 <+> text "{ " <> pretty t <> text " }"
       Var x       -> ppVarId x
       Con con     -> pretty con
       Lit lit     -> pretty lit

@@ -268,7 +268,7 @@ instance Pretty a => Pretty (Decl a) where
                             <+> ppExternName (externLib decl) (externName decl) -- <+> pretty (declArity decl)
                             <+> ppExternType (externCall decl) (externType decl)
          DeclAbstract{}  -> text "abstract" <+> ppVarId (declName decl) <+> ppAttrs decl
-                            <$> text "=" <+> ppImported (declAccess decl) <+> pretty (declArity decl)
+                            <$> text "=" <+> ppImported (declAccess decl) <> text ":: " <+> pretty (declType decl)
          DeclImport{}    -> text "import" <+> pretty (importKind (declAccess decl)) 
                             <+> ppId (declName decl) <+> ppNoImpAttrs decl
                             <$> text "=" <+> ppImported (declAccess decl)
