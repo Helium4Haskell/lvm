@@ -32,7 +32,7 @@ data Expr       = Let       !Binds Expr
                 | Ap        Expr Expr
                 | ApType    !Expr !Type
                 | Lam       !Variable Expr
-                | Forall    !Id !Kind !Expr
+                | Forall    !Quantor !Kind !Expr
                 | Con       !(Con Expr)
                 | Var       !Id
                 | Lit       !Literal
@@ -63,21 +63,27 @@ data Con tag    = ConId  !Id
 ----------------------------------------------------------------
 
 instance Pretty Expr where
-   pretty = ppExpr 0
+  pretty = ppExpr 0 []
 
-ppExpr :: Int -> Expr -> Doc
-ppExpr p expr
+ppExpr :: Int -> QuantorNames -> Expr -> Doc
+ppExpr p quantorNames expr
   = case expr of
-      Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <+> text "{" <$> indent 2 (pretty as)
+    Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <+> text "{" <$> indent 2 (ppAlts quantorNames as)
                               <+> text "}")
-      Let bs x    -> prec 0 $ align (ppLetBinds bs (text "in" <+> ppExpr 0 x))
-      Lam (Variable x t) e -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> pretty t <+> text "->" <+> pretty e
-      Forall tvar k e -> prec 0 $ text "forall" <+> ppVarId tvar <> text ": " <> pretty k <> text "." <+> pretty e
-      Ap e1 e2    -> prec 9 $ ppExpr  9 e1 <+> ppExpr  10 e2
-      ApType e1 t -> prec 9 $ ppExpr  9 e1 <+> text "{ " <> pretty t <> text " }"
-      Var x       -> ppVarId x
-      Con con     -> pretty con
-      Lit lit     -> pretty lit
+    Let bs x    -> prec 0 $ align (ppLetBinds quantorNames bs (text "in" <+> ppExpr 0 quantorNames x))
+    Lam (Variable x t) e -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> pretty t <+> text "->" <+> ppExpr 0 quantorNames e
+    Forall quantor k e ->
+      let
+        quantorNames' = case quantor of
+          Quantor idx (Just name) -> (idx, name) : quantorNames
+          _ -> quantorNames
+      in
+        prec 0 $ text "forall" <+> text (show quantor) <> text ": " <> pretty k <> text "." <+> ppExpr 0 quantorNames' e
+    Ap e1 e2    -> prec 9 $ ppExpr 9 quantorNames e1 <+> ppExpr 10 quantorNames e2
+    ApType e1 t -> prec 9 $ ppExpr 9 quantorNames e1 <+> text "{ " <> pretty t <> text " }"
+    Var x       -> ppVarId x
+    Con con     -> pretty con
+    Lit lit     -> pretty lit
   where
     prec p'  | p' >= p   = id
              | otherwise = parens
@@ -92,23 +98,26 @@ instance Pretty a => Pretty (Con a) where
 --
 ----------------------------------------------------------------
 
-ppLetBinds :: Binds -> Doc -> Doc
-ppLetBinds binds doc
+ppLetBinds :: QuantorNames -> Binds -> Doc -> Doc
+ppLetBinds quantorNames binds doc
   = case binds of
-      NonRec bind -> nest 4 (text "let" <+> pretty bind) <$> doc
-      Strict bind -> nest 5 (text "let!" <+> pretty bind) <$> doc
-      -- Rec recs    -> nest 8 (text "let rec" <+> pretty recs) <$> doc
-      Rec recs    -> nest 4 (text "let" <+> pretty recs) <$> doc -- let rec not parsable
+      NonRec bind -> nest 4 (text "let" <+> ppBind quantorNames bind) <$> doc
+      Strict bind -> nest 5 (text "let!" <+> ppBind quantorNames bind) <$> doc
+      Rec recs    -> nest 4 (text "let" <+> ppBindList quantorNames recs) <$> doc -- let rec not parsable
 
-instance Pretty Bind where
-   pretty (Bind (Variable x t) expr) =
-      nest 2 (ppId  x <> text ": " <+> pretty t <> text " = " <+> pretty expr <> semi)
-   prettyList = vcat . map pretty
+ppBind :: QuantorNames -> Bind -> Doc
+ppBind quantorNames (Bind (Variable x t) expr) =
+  nest 2 (ppId  x <> text ": " <+> pretty t <> text " = " <+> ppExpr 0 quantorNames expr <> semi)
 
-instance Pretty Alt where
-   pretty (Alt pat expr) =
-      nest 4 (pretty pat <+> text "->" </> ppExpr 0 expr <> semi)
-   prettyList = vcat . map pretty
+ppBindList :: QuantorNames -> [Bind] -> Doc
+ppBindList quantorNames = vcat . map (ppBind quantorNames)
+
+ppAlt :: QuantorNames -> Alt -> Doc
+ppAlt quantorNames (Alt pat expr) =
+      nest 4 (pretty pat <+> text "->" </> ppExpr 0 quantorNames expr <> semi)
+
+ppAlts :: QuantorNames -> [Alt] -> Doc
+ppAlts quantorNames = vcat . map (ppAlt quantorNames)
 
 ----------------------------------------------------------------
 --

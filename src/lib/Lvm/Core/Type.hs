@@ -6,10 +6,10 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Type 
-   ( Type(..), Kind(..), TypeConstant(..)
+   ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames, ppQuantor
    , arityFromType, typeUnit, typeBool, typeToStrict, typeConFromString, typeFunction
-   , typeUndefined, typeEmptyArray, typeInstantiate, typeSubstitute, typeTupleElements
-   , typeSubstitutions, typeExtractFunction
+   , typeInstantiate, typeSubstitute, typeTupleElements
+   , typeSubstitutions, typeExtractFunction, typeApply
    ) where
 
 import Lvm.Common.Id
@@ -20,12 +20,16 @@ import Text.PrettyPrint.Leijen
 -- Types
 ----------------------------------------------------------------
 data Type = TAp !Type !Type
-          | TForall !Id !Kind !Type
-          | TExist !Id !Type
+          | TForall !Quantor !Kind !Type
           | TStrict !Type
-          | TVar !Id
+          | TVar !Int
           | TCon !TypeConstant
           | TAny
+
+data Quantor
+  = Quantor !Int !(Maybe String)
+
+type QuantorNames = [(Int, String)]
 
 data TypeConstant
   = TConDataType !Id
@@ -59,50 +63,36 @@ typeFunction :: [Type] -> Type -> Type
 typeFunction [] ret = ret
 typeFunction (a:as) ret = TAp (TAp (TCon TConFun) a) $ typeFunction as ret
 
-typeUndefined :: Type
-typeUndefined = TForall (idFromString "a") KStar $ TVar $ idFromString "a"
-
-typeEmptyArray :: Type
-typeEmptyArray = TForall (idFromString "a") KStar $ TAp (TCon $ TConDataType $ idFromString "[]") $ TVar $ idFromString "a"
-
 arityFromType :: Type -> Int
 arityFromType tp
   = case tp of
       TAp (TAp (TCon TConFun) _) t2 -> arityFromType t2 + 1
       TAp     _ _     -> 0 -- assumes saturated constructors!
       TForall _ _ t   -> arityFromType t
-      TExist  _ t     -> arityFromType t
       TStrict t       -> arityFromType t
       TVar    _       -> 0
       TCon    _       -> 0
       TAny            -> 0
-
-varsInType :: Type -> IdSet
-varsInType tp
-  = case tp of
-      TForall a _ t   -> deleteSet a (varsInType t)
-      TExist  a t     -> deleteSet a (varsInType t)
-      TAp     t1 t2   -> unionSet (varsInType t1) (varsInType t2)
-      TStrict t       -> varsInType t
-      TVar    a       -> singleSet a
-      TCon    _       -> emptySet
-      TAny            -> emptySet
 
 ----------------------------------------------------------------
 -- Pretty printing
 ----------------------------------------------------------------
 
 instance Show Type where
-   show = show . pretty
+  show = show . pretty
 
 instance Show Kind where
-   show = show . pretty
+  show = show . pretty
 
 instance Pretty Type where
-   pretty = ppType 0
+  pretty = ppType 0 []
 
 instance Pretty Kind where
-   pretty = ppKind 0
+  pretty = ppKind 0
+
+instance Show Quantor where
+  show (Quantor _ (Just name)) = name
+  show (Quantor i _) = "v$" ++ show i
 
 instance Pretty TypeConstant where
   pretty (TConDataType name) = pretty name
@@ -110,27 +100,39 @@ instance Pretty TypeConstant where
   pretty (TConTuple arity) = text ('(' : (replicate (arity - 1) ',') ++ ")")
   pretty TConFun = text "->"
 
-ppType :: Int -> Type -> Doc
-ppType level tp
+ppQuantor :: QuantorNames -> Int -> Doc
+ppQuantor names i = case lookup i names of
+  Just name -> text name
+  Nothing -> text $ "v$" ++ show i
+
+ppType :: Int -> QuantorNames -> Type -> Doc
+ppType level quantorNames tp
   = parenthesized $
     case tp of
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> pretty t2 <> text "]" 
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
-      TForall a k t   -> text "forall" <+> pretty a <> text ":" <+> pretty k <> text "." <+> ppEq t
-      TExist  a t     -> text "exist" <+> pretty a <> text "." <+> ppEq t
+      TForall a k t   ->
+        let quantorNames' = case a of
+              Quantor idx (Just name) -> (idx, name) : quantorNames
+              _ -> quantorNames
+        in text "forall" <+> text (show a) <> text ":" <+> pretty k <> text "."
+            <+> ppType 0 quantorNames' t
       TStrict t       -> ppHi t <> text "!"
-      TVar    a       -> pretty a
+      TVar    a       -> ppQuantor quantorNames a
       TCon    a       -> pretty a
       TAny            -> text "any"
   where
-    tplevel           = levelFromType tp
-    parenthesized doc | level <= tplevel  = doc
-                      | otherwise         = parens doc
-    ppHi t            | level <= tplevel  = ppType (tplevel+1) t
-                      | otherwise         = ppType 0 t
-    ppEq  t           | level <= tplevel  = ppType tplevel t
-                      | otherwise         = ppType 0 t
+    tplevel = levelFromType tp
+    parenthesized doc
+      | level <= tplevel  = doc
+      | otherwise         = parens doc
+    ppHi t
+      | level <= tplevel  = ppType (tplevel+1) quantorNames t
+      | otherwise         = ppType 0 quantorNames t
+    ppEq t
+      | level <= tplevel  = ppType tplevel quantorNames t
+      | otherwise         = ppType 0 quantorNames t
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind
@@ -150,7 +152,6 @@ levelFromType :: Type -> Int
 levelFromType tp
   = case tp of
       TForall{} -> 2
-      TExist{}  -> 2
       TAp (TAp (TCon TConFun) _) _ -> 3
       TAp{}     -> 4
       TStrict{} -> 5
@@ -164,33 +165,34 @@ levelFromKind kind
       KFun{}    -> 1
       KStar{}   -> 2
 
-typeInstantiate :: Id -> Type -> Type -> Type
-typeInstantiate var newType (TForall name k t)
-  | var == name = typeSubstitute var newType t
-  | otherwise = TForall name k $ typeInstantiate var newType t
+typeInstantiate :: Int -> Type -> Type -> Type
+typeInstantiate var newType (TForall q@(Quantor idx _) k t)
+  | var == idx = typeSubstitute var newType t
+  | otherwise = TForall q k $ typeInstantiate var newType t
 typeInstantiate _ _ t = t
 
-typeSubstitute :: Id -> Type -> Type -> Type
+-- TODO: Handle shadowing
+typeSubstitute :: Int -> Type -> Type -> Type
 typeSubstitute var newType = substitute
   where
     substitute (TAp t1 t2) = TAp (substitute t1) (substitute t2)
-    substitute (TForall name k t)
-      | name == var = TForall name k t
-      | otherwise = TForall name k $ substitute t
+    substitute (TForall q@(Quantor idx _) k t)
+      | idx == var = TForall q k t
+      | otherwise = TForall q k $ substitute t
     substitute (TStrict t) = substitute t
     substitute (TVar name)
       | name == var = newType
       | otherwise = TVar name
     substitute t = t
   
-typeSubstitutions :: [(Id, Type)] -> Type -> Type
+typeSubstitutions :: [(Int, Type)] -> Type -> Type
 typeSubstitutions [] t = t
 typeSubstitutions substitutions (TAp t1 t2) = TAp (typeSubstitutions substitutions t1) (typeSubstitutions substitutions t2)
 typeSubstitutions substitutions (TStrict t) = TStrict $ typeSubstitutions substitutions t
-typeSubstitutions substitutions (TVar name) = case lookup name substitutions of
+typeSubstitutions substitutions (TVar idx) = case lookup idx substitutions of
   Just tp -> tp
-  Nothing -> TVar name
-typeSubstitutions substitutions (TForall name k t) = TForall name k $ typeSubstitutions (filter (\(n, _) -> name /= n) substitutions) t
+  Nothing -> TVar idx
+typeSubstitutions substitutions (TForall q@(Quantor idx _) k t) = TForall q k $ typeSubstitutions (filter (\(i, _) -> idx /= i) substitutions) t
 typeSubstitutions _ t = t
 
 typeListElement :: Type -> Type
@@ -216,3 +218,6 @@ typeExtractFunction (TAp (TAp (TCon TConFun) t1) t2) = (t1 : args, ret)
   where
     (args, ret) = typeExtractFunction t2
 typeExtractFunction tp = ([], tp)
+
+typeApply :: Type -> [Type] -> Type
+typeApply = foldl TAp

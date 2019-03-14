@@ -25,6 +25,7 @@ data Lexeme     = LexUnknown Char
                 | LexInt Integer
                 | LexFloat Double
                 | LexId String
+                | LexTypeVar Int
                 | LexQualId String String
                 | LexOp String
                 | LexCon String

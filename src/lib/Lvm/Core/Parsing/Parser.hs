@@ -9,6 +9,7 @@ module Lvm.Core.Parsing.Parser (parseModuleExport, parseModule) where
 
 import Control.Monad
 import Data.List
+import Data.Char (isDigit)
 import Lvm.Common.Byte
 import Lvm.Common.Id
 import Lvm.Common.IdSet
@@ -29,6 +30,23 @@ parseModuleExport fname ts =
 
 parseModule :: FilePath -> [Token] -> IO CoreModule
 parseModule fname = liftM (\(m, _, _) -> m) . parseModuleExport fname
+
+-- The types in Core differ from the types in Helium / UHA.
+-- The major problem is that unnamed type variables are printed as v$0,
+-- wheras the Haskell parser does not accept $ in a type variable name.
+-- We remove the dollar in this function. Furthermore we remove all forall quantifiers,
+-- as they are implicit in Haskell.
+-- This can be removed when we do not use Custom annotations for types any more.
+showType :: Type -> String
+showType = replace . show . skipForalls
+  where
+    replace ('v' : '$' : d : cs)
+      | isDigit d
+      = 'v' : d : replace cs
+    replace (c : cs) = c : replace cs
+    replace [] = []
+    skipForalls (TForall _ _ t) = skipForalls t
+    skipForalls t = t
 
 ----------------------------------------------------------------
 -- Basic parsers
@@ -336,7 +354,7 @@ makeCustomBytes :: String -> Bytes -> Custom
 makeCustomBytes k bs = CustomDecl (customDeclKind k) [CustomBytes bs]
 
 customType :: Type -> Custom
-customType = makeCustomBytes "type" . bytesFromString . show
+customType = makeCustomBytes "type" . bytesFromString . showType
 
 customKind :: Kind -> Custom
 customKind = makeCustomBytes "kind" . bytesFromString . show
@@ -345,7 +363,7 @@ pdata :: TokenParser [CoreDecl]
 pdata
   = do{ lexeme LexDATA
       ; x <- typeid
-      ; args <- many typevarid
+      ; args <- many lexTypeVar
       ; let kind     = foldr (KFun . const KStar) KStar args
             datadecl = DeclCustom x public customData [customKind kind]
       ; do{ lexeme LexASG
@@ -375,13 +393,13 @@ ptypeTopDecl :: TokenParser [CoreDecl]
 ptypeTopDecl
   = do{ lexeme LexTYPE
       ; x   <- typeid
-      ; args <- many typevarid
+      ; args <- many lexTypeVar
       ; lexeme LexASG
       ; tp   <- ptype
       ; let kind  = foldr (KFun . const KStar) KStar args
             tpstr = unwords $  stringFromId x 
-                            :  map stringFromId args
-                            ++ ["=", show tp]
+                            :  map (\arg -> 'v' : show arg) args
+                            ++ ["=", showType tp]
       ; return [DeclCustom x private customTypeDecl 
                      [CustomBytes (bytesFromString tpstr)
                      ,customKind kind]]
@@ -488,6 +506,14 @@ pexpr
       ; expr <- pexpr
       ; return (foldr (Let . Strict) expr binds)
       }
+  <|>
+    do{ lexeme LexFORALL
+      ; idx <- lexTypeVar
+      ; let kind = KStar
+      ; lexeme LexDOT
+      ; expr <- pexpr
+      ; return $ Forall (Quantor idx Nothing) kind expr
+      }
   <|> pexprAp
   <?> "expression"
 
@@ -496,9 +522,19 @@ wildId = idFromString "_"
 
 pexprAp :: TokenParser Expr
 pexprAp
-  = do{ atoms <- many1 patom
-      ; return (foldl1 Ap atoms)
+  = do{ e1 <- patom
+      ; args <- many pApArg
+      ; return (foldl (flip id) e1 args)
       }
+
+pApArg :: TokenParser (Expr -> Expr)
+pApArg
+  =   do { atom <- patom; return (`Ap` atom) }
+  <|> do { lexeme LexLBRACE
+         ; tp <- ptype
+         ; lexeme LexRBRACE
+         ; return (`ApType` tp)
+         }
 
 patom :: TokenParser Expr
 patom
@@ -679,14 +715,14 @@ pextern
       ; m <- lexString <|> return (stringFromId x)
       ; (mname,name) <- pExternName m
       ; tp  <- ptypeDecl
-      ; return (DeclExtern x private tp (show tp) linkConv callConv mname name [])
+      ; return (DeclExtern x private tp (showType tp) linkConv callConv mname name [])
       }
   <|>
     do{ lexeme LexINSTR
       ; x <- varid
       ; s  <- lexString
       ; tp <- ptypeDecl
-      ; return (DeclExtern x private tp (show tp) LinkStatic CallInstr "" (Plain s) [])
+      ; return (DeclExtern x private tp (showType tp) LinkStatic CallInstr "" (Plain s) [])
       }
 
 ------------------
@@ -741,6 +777,13 @@ ptypeNormal
 ptype :: TokenParser Type
 ptype
   = ptypeFun
+  <|> do{ lexeme LexFORALL
+        ; idx <- lexTypeVar
+        ; let kind = KStar
+        ; lexeme LexDOT
+        ; tp <- ptype
+        ; return $ TForall (Quantor idx Nothing) kind tp
+        }
 
 ptypeFun :: TokenParser Type
 ptypeFun
@@ -760,7 +803,7 @@ ptypeAtom
       ; ptypeStrict (TCon $ TConDataType x) 
       }
   <|>
-    do{ x <- typevarid
+    do{ x <- lexTypeVar
       ; let t = TVar x
       ; ptypeStrict t
       }
@@ -918,10 +961,6 @@ typeid
   = identifier lexCon -- (setSortId SortType id)
   <?> "type"
 
-typevarid :: TokenParser Id
-typevarid
-  = identifier lexId -- (setSortId SortType id)
-
 identifier :: TokenParser String -> TokenParser Id
 identifier = liftM idFromString
 
@@ -955,6 +994,10 @@ lexInt
 lexId :: TokenParser String
 lexId
   = satisfy (\lex -> case lex of { LexId s -> Just s; _ -> Nothing })
+
+lexTypeVar :: TokenParser Int
+lexTypeVar
+  = satisfy (\lex -> case lex of { LexTypeVar idx -> Just idx; _ -> Nothing })
 
 lexQualifiedId :: TokenParser (String, String)
 lexQualifiedId

@@ -56,7 +56,11 @@ lexer pos ('d':'e':'c':'o':'r':'a':'t':'e':cs) | nonId cs = (pos,LexDECORATE) : 
 lexer pos ('a':'b':'s':'t':'r':'a':'c':'t':cs) | nonId cs = (pos,LexABSTRACT) : nextinc lexer pos 8 cs
 lexer pos ('i':'n':'s':'t':'r':'c':'a':'l':'l':cs)  | nonId cs = (pos,LexINSTRCALL) : nextinc lexer pos 9 cs
 lexer pos ('i':'n':'s':'t':'r':'u':'c':'t':'i':'o':'n':cs) | nonId cs = (pos,LexINSTR) : nextinc lexer pos 11 cs
-
+lexer pos ('v':'$':cs)
+  | num /= "" && nonId cs' = (pos, LexTypeVar $ foldl (\x y -> x * 10 + (fromEnum y - fromEnum '0')) 0 num) : nextinc lexer pos (2 + length num) cs'
+  where
+    cs' = dropWhile isDigit cs
+    num = takeWhile isDigit cs
 
 lexer pos (':':':':cs)          | nonSym cs = (pos,LexCOLCOL) : nextinc lexer pos 2 cs
 lexer pos ('=':'>':cs)          | nonSym cs = (pos,LexARROW)  : nextinc lexer pos 2 cs
