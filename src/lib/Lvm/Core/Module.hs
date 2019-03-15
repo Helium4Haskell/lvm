@@ -45,7 +45,7 @@ data Decl v
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
                   , externLib  :: !String, externName :: !ExternName, declCustoms :: ![Custom] } 
   | DeclCustom    { declName :: Id, declAccess :: !Access, declKind :: !DeclKind, declCustoms :: ![Custom] }
-
+  | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declTypeVariables :: [Quantor], declType :: !Type, declCustoms :: ![Custom] }
   | DeclImport    { declName :: Id, declAccess :: !Access, declCustoms :: ![Custom] }
 
 declArity :: Decl v -> Arity
@@ -70,6 +70,7 @@ data DeclKind
   | DeclKindModule
   | DeclKindExtern
   | DeclKindExternType
+  | DeclKindTypeSynonym
   | DeclKindCustom !Id
   deriving (Eq,Show)
 
@@ -115,6 +116,7 @@ instance Enum DeclKind where
         7 -> DeclKindModule
         8 -> DeclKindExtern
         9 -> DeclKindExternType
+        10 -> DeclKindTypeSynonym
         _ -> error ("Module.DeclKind.toEnum: unknown kind (" ++ show i ++ ")")
 
   fromEnum kind 
@@ -129,6 +131,7 @@ instance Enum DeclKind where
         DeclKindModule    -> 7
         DeclKindExtern    -> 8
         DeclKindExternType-> 9
+        DeclKindTypeSynonym -> 10
 --      DeclKindCustom i  -> i
         _                 -> error "Module.DeclKind.fromEnum: unknown kind"
 
@@ -146,6 +149,7 @@ declKindFromDecl decl
       DeclAbstract{} -> DeclKindValue
       DeclCon{}      -> DeclKindCon
       DeclExtern{}   -> DeclKindExtern
+      DeclTypeSynonym{} -> DeclKindTypeSynonym
       DeclCustom{}   -> declKind decl
       DeclImport{}   -> importKind (declAccess decl)
       -- _          -> error "Module.kindFromDecl: unknown declaration"
@@ -157,8 +161,10 @@ shallowKindFromDecl decl
       DeclAbstract{} -> DeclKindValue
       DeclCon{}      -> DeclKindCon
       DeclExtern{}   -> DeclKindExtern
+      DeclTypeSynonym{} -> DeclKindTypeSynonym
       DeclCustom{}   -> declKind decl
       DeclImport{}   -> DeclKindImport
+
       -- _          -> error "Module.shallowKindFromDecl: unknown declaration"
 
 modulePublic :: Bool -> (IdSet,IdSet,IdSet,IdSet,IdSet) -> Module v -> Module v
@@ -201,6 +207,7 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
                                     ( declKind decl `elem` [customData, customTypeDecl]
                                     &&  elemSet name exportData
                                     )
+            DeclTypeSynonym{} -> isExported decl (elemSet name exportData)
             DeclImport{}    ->  not implicit && case importKind (declAccess decl) of
                                     DeclKindValue  -> isExported decl (elemSet name exports)
                                     DeclKindExtern -> isExported decl (elemSet name exports)
@@ -236,6 +243,7 @@ instance Functor Decl where
             DeclCustom x ac k cs
          DeclImport x ac cs   -> 
             DeclImport x ac cs
+         DeclTypeSynonym x as args t cs -> DeclTypeSynonym x as args t cs
 
 ----------------------------------------------------------------
 -- Pretty printing
@@ -272,6 +280,10 @@ instance Pretty a => Pretty (Decl a) where
          DeclImport{}    -> text "import" <+> pretty (importKind (declAccess decl)) 
                             <+> ppId (declName decl) <+> ppNoImpAttrs decl
                             <$> text "=" <+> ppImported (declAccess decl)
+         DeclTypeSynonym name _ args tp cs
+           ->
+            let names = [(idx, name) | Quantor idx (Just name) <- args]
+            in text "type" <+> ppVarId name <+> ppAttrs decl <+> hsep (map (text . show) args) <+> text "=" <+> ppType 0 names tp
 
 instance Pretty LinkConv where
    pretty linkConv =
@@ -364,6 +376,7 @@ instance Pretty DeclKind where
          DeclKindImport      -> ppId (idFromString "import")
          DeclKindModule      -> ppId (idFromString "module")
          DeclKindExtern      -> ppId (idFromString "extern")
+         DeclKindTypeSynonym -> ppId (idFromString "type")
 --         DeclKindExternType      
          _                   -> pretty (fromEnum kind)
 

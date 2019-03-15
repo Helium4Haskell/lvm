@@ -6,8 +6,9 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Type 
-   ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames, ppQuantor
-   , arityFromType, typeUnit, typeBool, typeToStrict, typeConFromString, typeFunction
+   ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames
+   , ppQuantor, ppType, arityFromType, typeUnit, typeBool
+   , typeToStrict, typeConFromString, typeFunction
    , typeInstantiate, typeSubstitute, typeTupleElements
    , typeSubstitutions, typeExtractFunction, typeApply
    ) where
