@@ -569,16 +569,14 @@ parenExpr
                     }
                 <|> 
                   do{ lexeme LexAT
-                    ; tag   <- ptagExpr 
-                    ; lexeme LexCOMMA
                     ; arity <- lexInt <?> "arity"
-                    ; return (Con (ConTag tag (fromInteger arity)))
+                    ; return (Con (ConTuple (fromInteger arity)))
                     }
                 <|>
                   do{ exprs <- pexpr `sepBy` lexeme LexCOMMA
                     ; case exprs of
                         [expr]  -> return expr
-                        _       -> let con = Con (ConTag (Lit (LitInt 0)) (length exprs))
+                        _       -> let con = Con (ConTuple (length exprs))
                                        tup = foldl Ap con exprs
                                    in return tup
                     }
@@ -654,18 +652,16 @@ ppatParens :: TokenParser Pat
 ppatParens
   = do{ lexeme LexLPAREN
       ; do{ lexeme LexAT
-          ; tag <- lexInt <?> "tag"        
-          ; lexeme LexCOMMA
           ; arity <- lexInt <?> "arity"
           ; lexeme LexRPAREN
           ; ids <- many bindid
-          ; return (PatCon (ConTag (fromInteger tag) (fromInteger arity)) ids)
+          ; return (PatCon (ConTuple (fromInteger arity)) [] ids)
           }
         <|>
         do{ x <- conopid
           ; lexeme LexRPAREN
           ; ids <- many bindid
-          ; return (PatCon (ConId x) ids)
+          ; return (PatCon (ConId x) [] ids)
           }
         <|>
         do{ pat <- ppat <|> ppatTuple 
@@ -678,7 +674,7 @@ ppatCon :: TokenParser Pat
 ppatCon
   = do{ x   <- conid <|> do{ lexeme LexLBRACKET; lexeme LexRBRACKET; return (idFromString "[]") }      
       ; args <- many bindid
-      ; return (PatCon (ConId x) args)
+      ; return (PatCon (ConId x) [] args)
       }
 
 ppatLit :: TokenParser Pat
@@ -688,7 +684,7 @@ ppatLit
 ppatTuple :: TokenParser Pat
 ppatTuple
   = do{ ids <- bindid `sepBy` lexeme LexCOMMA
-      ; return (PatCon (ConTag 0 (length ids)) ids)
+      ; return (PatCon (ConTuple (length ids)) [] ids)
       }
 
 paltDefault :: TokenParser Alt

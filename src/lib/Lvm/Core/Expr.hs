@@ -33,7 +33,7 @@ data Expr       = Let       !Binds Expr
                 | ApType    !Expr !Type
                 | Lam       !Variable Expr
                 | Forall    !Quantor !Kind !Expr
-                | Con       !(Con Expr)
+                | Con       !Con
                 | Var       !Id
                 | Lit       !Literal
 
@@ -47,16 +47,17 @@ data Bind       = Bind      !Variable !Expr
 type Alts       = [Alt]
 data Alt        = Alt       !Pat Expr
 
-data Pat        = PatCon    !(Con Tag) ![Id]
-                | PatLit    !Literal
-                | PatDefault
+data Pat
+  = PatCon    !Con ![Type] ![Id]
+  | PatLit    !Literal
+  | PatDefault
 
 data Literal    = LitInt    !Int
                 | LitDouble !Double
                 | LitBytes  !Bytes
 
-data Con tag    = ConId  !Id
-                | ConTag tag !Arity
+data Con        = ConId  !Id
+                | ConTuple !Arity
 
 ----------------------------------------------------------------
 -- Pretty printing
@@ -88,11 +89,11 @@ ppExpr p quantorNames expr
     prec p'  | p' >= p   = id
              | otherwise = parens
 
-instance Pretty a => Pretty (Con a) where
+instance Pretty Con where
    pretty con =
       case con of
-         ConId x          -> ppConId x
-         ConTag tag arity -> parens (char '@' <> pretty tag <> comma <> pretty arity)
+         ConId x        -> ppConId x
+         ConTuple arity -> parens (char '@' <> pretty arity)
  
 ----------------------------------------------------------------
 --
@@ -114,7 +115,7 @@ ppBindList quantorNames = vcat . map (ppBind quantorNames)
 
 ppAlt :: QuantorNames -> Alt -> Doc
 ppAlt quantorNames (Alt pat expr) =
-      nest 4 (pretty pat <+> text "->" </> ppExpr 0 quantorNames expr <> semi)
+      nest 4 (ppPattern quantorNames pat <+> text "->" </> ppExpr 0 quantorNames expr <> semi)
 
 ppAlts :: QuantorNames -> [Alt] -> Doc
 ppAlts quantorNames = vcat . map (ppAlt quantorNames)
@@ -123,12 +124,12 @@ ppAlts quantorNames = vcat . map (ppAlt quantorNames)
 --
 ----------------------------------------------------------------
 
-instance Pretty Pat where 
-   pretty pat = 
-      case pat of
-         PatCon con ids -> hsep (pretty con : map ppVarId ids)
-         PatLit lit  -> pretty lit
-         PatDefault  -> text "_"
+
+ppPattern :: QuantorNames -> Pat -> Doc 
+ppPattern quantorNames (PatCon con tps ids)
+  = hsep (pretty con : map (\tp -> text "{" <+> ppType 0 quantorNames tp <+> text "}") tps ++ map ppVarId ids)
+ppPattern _ (PatLit lit) = pretty lit
+ppPattern _ PatDefault = text "_"
 
 instance Pretty Literal where 
    pretty lit = 

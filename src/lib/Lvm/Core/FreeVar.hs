@@ -27,7 +27,7 @@ instance FreeVar Expr where
          Lam (Variable x _) e -> deleteSet x (freeVar e)
          Forall _ _ e -> freeVar e
          ApType e _ -> freeVar e
-         Con c     -> freeVar c
+         Con _     -> emptySet
          Var x     -> singleSet x
          Lit _     -> emptySet
 
@@ -44,10 +44,6 @@ instance FreeVar Binds where
 instance FreeVar Bind where
    freeVar (Bind _ e) = freeVar e -- non-recursive binder!
 
-instance FreeVar a => FreeVar (Con a) where
-   freeVar (ConTag a _) = freeVar a
-   freeVar (ConId _)    = emptySet
-   
 class Binder a where
    binder :: a -> IdSet
 
@@ -55,7 +51,7 @@ instance Binder a => Binder [a] where
    binder = unionSets . map binder
 
 instance Binder Pat where
-   binder (PatCon _ xs) = setFromList xs
+   binder (PatCon _ _ xs) = setFromList xs
    binder _             = emptySet
    
 instance Binder Bind where
