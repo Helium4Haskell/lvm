@@ -8,6 +8,7 @@
 module Lvm.Core.Expr 
    ( CoreModule, CoreDecl, Expr(..), Binds(..), Bind(..)
    , Alts, Alt(..), Pat(..), Literal(..), Con(..), Variable(..)
+   , ppPattern
    ) where
 
 import Prelude hiding ((<$>))

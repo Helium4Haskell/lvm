@@ -7,10 +7,10 @@
 
 module Lvm.Core.Type 
    ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames
-   , ppQuantor, ppType, arityFromType, typeUnit, typeBool
+   , ppQuantor, ppType, showType, arityFromType, typeUnit, typeBool
    , typeToStrict, typeConFromString, typeFunction
    , typeInstantiate, typeSubstitute, typeTupleElements
-   , typeSubstitutions, typeExtractFunction, typeApply
+   , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList
    ) where
 
 import Lvm.Common.Id
@@ -82,6 +82,9 @@ arityFromType tp
 instance Show Type where
   show = show . pretty
 
+showType :: QuantorNames -> Type -> String
+showType quantors tp = show $ ppType 0 quantors tp
+
 instance Show Kind where
   show = show . pretty
 
@@ -110,14 +113,14 @@ ppType :: Int -> QuantorNames -> Type -> Doc
 ppType level quantorNames tp
   = parenthesized $
     case tp of
-      TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> pretty t2 <> text "]" 
+      TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]" 
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
       TForall a k t   ->
         let quantorNames' = case a of
               Quantor idx (Just name) -> (idx, name) : quantorNames
               _ -> quantorNames
-        in text "forall" <+> text (show a) <> text ":" <+> pretty k <> text "."
+        in text "forall" <+> text (show a) {- <> text ":" <+> pretty k -} <> text "."
             <+> ppType 0 quantorNames' t
       TStrict t       -> ppHi t <> text "!"
       TVar    a       -> ppQuantor quantorNames a
@@ -206,7 +209,7 @@ typeTupleElements :: Type -> [Type]
 typeTupleElements = elements 0
   where
     elements n (TCon (TConTuple m))
-      | n < m = error $ "typeTupleElements: expected a saturated tuple type, got a partially applied tuple type"
+      | n < m = error $ "typeTupleElements: expected a saturated tuple type, got a partially applied tuple type (received " ++ show n ++ " arguments, expected " ++ show m ++ ")"
       | n > m = error $ "typeTupleElements: got an over applied tuple type"
       | otherwise = []
     elements n (TAp t1 t2) = t2 : elements (n + 1) t1
@@ -220,5 +223,9 @@ typeExtractFunction (TAp (TAp (TCon TConFun) t1) t2) = (t1 : args, ret)
     (args, ret) = typeExtractFunction t2
 typeExtractFunction tp = ([], tp)
 
-typeApply :: Type -> [Type] -> Type
-typeApply = foldl TAp
+typeApply :: Type -> Type -> Type
+typeApply (TForall (Quantor x _) _ t1) t2 = typeSubstitute x t2 t1
+typeApply t1 t2 = TAp t1 t2
+
+typeApplyList :: Type -> [Type] -> Type
+typeApplyList = foldl typeApply

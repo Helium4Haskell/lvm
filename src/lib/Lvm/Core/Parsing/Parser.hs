@@ -37,8 +37,8 @@ parseModule fname = liftM (\(m, _, _) -> m) . parseModuleExport fname
 -- We remove the dollar in this function. Furthermore we remove all forall quantifiers,
 -- as they are implicit in Haskell.
 -- This can be removed when we do not use Custom annotations for types any more.
-showType :: Type -> String
-showType = replace . show . skipForalls
+showAsUHAType :: Type -> String
+showAsUHAType = replace . show . skipForalls
   where
     replace ('v' : '$' : d : cs)
       | isDigit d
@@ -354,7 +354,7 @@ makeCustomBytes :: String -> Bytes -> Custom
 makeCustomBytes k bs = CustomDecl (customDeclKind k) [CustomBytes bs]
 
 customType :: Type -> Custom
-customType = makeCustomBytes "type" . bytesFromString . showType
+customType = makeCustomBytes "type" . bytesFromString . showAsUHAType
 
 customKind :: Kind -> Custom
 customKind = makeCustomBytes "kind" . bytesFromString . show
@@ -399,10 +399,13 @@ ptypeTopDecl
       ; let kind  = foldr (KFun . const KStar) KStar args
             tpstr = unwords $  stringFromId x 
                             :  map (\arg -> 'v' : show arg) args
-                            ++ ["=", showType tp]
-      ; return [DeclCustom x private customTypeDecl 
-                     [CustomBytes (bytesFromString tpstr)
-                     ,customKind kind]]
+                            ++ ["=", showAsUHAType tp]
+      ; return
+          [ DeclCustom x private customTypeDecl 
+                     [CustomBytes (bytesFromString tpstr) ,customKind kind]
+          , DeclTypeSynonym x private tp [] -- TODO: Handle type arguments
+          ]
+                  
       }
 
 ----------------------------------------------------------------
@@ -711,14 +714,14 @@ pextern
       ; m <- lexString <|> return (stringFromId x)
       ; (mname,name) <- pExternName m
       ; tp  <- ptypeDecl
-      ; return (DeclExtern x private tp (showType tp) linkConv callConv mname name [])
+      ; return (DeclExtern x private tp (showAsUHAType tp) linkConv callConv mname name [])
       }
   <|>
     do{ lexeme LexINSTR
       ; x <- varid
       ; s  <- lexString
       ; tp <- ptypeDecl
-      ; return (DeclExtern x private tp (showType tp) LinkStatic CallInstr "" (Plain s) [])
+      ; return (DeclExtern x private tp (showAsUHAType tp) LinkStatic CallInstr "" (Plain s) [])
       }
 
 ------------------

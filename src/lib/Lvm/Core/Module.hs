@@ -45,7 +45,7 @@ data Decl v
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
                   , externLib  :: !String, externName :: !ExternName, declCustoms :: ![Custom] } 
   | DeclCustom    { declName :: Id, declAccess :: !Access, declKind :: !DeclKind, declCustoms :: ![Custom] }
-  | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declTypeVariables :: [Quantor], declType :: !Type, declCustoms :: ![Custom] }
+  | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declType :: !Type, declCustoms :: ![Custom] }
   | DeclImport    { declName :: Id, declAccess :: !Access, declCustoms :: ![Custom] }
 
 declArity :: Decl v -> Arity
@@ -213,6 +213,7 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
                                     DeclKindExtern -> isExported decl (elemSet name exports)
                                     DeclKindCon    -> isExported decl (elemSet name exportCons) 
                                     DeclKindModule -> isExported decl (elemSet name exportMods)
+                                    DeclKindTypeSynonym -> isExported decl (elemSet name exportData)
                                     dk@(DeclKindCustom _)
                                      | dk `elem` [customData, customTypeDecl] ->
                                          isExported decl (elemSet name exportData)
@@ -243,7 +244,7 @@ instance Functor Decl where
             DeclCustom x ac k cs
          DeclImport x ac cs   -> 
             DeclImport x ac cs
-         DeclTypeSynonym x as args t cs -> DeclTypeSynonym x as args t cs
+         DeclTypeSynonym x as t cs -> DeclTypeSynonym x as t cs
 
 ----------------------------------------------------------------
 -- Pretty printing
@@ -280,10 +281,8 @@ instance Pretty a => Pretty (Decl a) where
          DeclImport{}    -> text "import" <+> pretty (importKind (declAccess decl)) 
                             <+> ppId (declName decl) <+> ppNoImpAttrs decl
                             <$> text "=" <+> ppImported (declAccess decl)
-         DeclTypeSynonym name _ args tp cs
-           ->
-            let names = [(idx, name) | Quantor idx (Just name) <- args]
-            in text "type" <+> ppVarId name <+> ppAttrs decl <+> hsep (map (text . show) args) <+> text "=" <+> ppType 0 names tp
+         DeclTypeSynonym name _ tp cs ->
+            text "type" <+> ppVarId name <+> ppAttrs decl <+> text "=" <+> pretty tp
 
 instance Pretty LinkConv where
    pretty linkConv =
