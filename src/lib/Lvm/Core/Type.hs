@@ -17,6 +17,9 @@ import Lvm.Common.Id
 import Lvm.Common.IdSet
 import Text.PrettyPrint.Leijen
 
+import qualified Data.Set as S
+import qualified Data.Map as M
+
 ----------------------------------------------------------------
 -- Types
 ----------------------------------------------------------------
@@ -104,6 +107,9 @@ instance Pretty TypeConstant where
   pretty (TConTuple arity) = text ('(' : (replicate (arity - 1) ',') ++ ")")
   pretty TConFun = text "->"
 
+instance Show TypeConstant where
+  show = show . pretty
+
 ppQuantor :: QuantorNames -> Int -> Doc
 ppQuantor names i = case lookup i names of
   Just name -> text name
@@ -175,19 +181,46 @@ typeInstantiate var newType (TForall q@(Quantor idx _) k t)
   | otherwise = TForall q k $ typeInstantiate var newType t
 typeInstantiate _ _ t = t
 
--- TODO: Handle shadowing
+-- When performing beta reduction on a term of the form (forall x. t1) t2
+-- we need to substitute x in t1 with t2. This may cause issues with
+-- capturing or shadowing. Consider the following substitution
+--    forall b. (forall a. forall b. a) b
+--    = forall b. forall c. b
+-- We need to rename type variable 'b' in the last 'forall' with a
+-- fresh type variable. As a general rule, we will rename quantors
+-- in t1 if the variable is free in t2. The fresh variable must be free in t2
+-- and must not occur in t1.
 typeSubstitute :: Int -> Type -> Type -> Type
-typeSubstitute var newType = substitute
+typeSubstitute var rightType leftType = fst $ substitute leftType M.empty $ filter (\idx -> idx `S.notMember` leftUsed && idx `S.notMember` rightFree) [0..]
   where
-    substitute (TAp t1 t2) = TAp (substitute t1) (substitute t2)
-    substitute (TForall q@(Quantor idx _) k t)
-      | idx == var = TForall q k t
-      | otherwise = TForall q k $ substitute t
-    substitute (TStrict t) = substitute t
-    substitute (TVar name)
-      | name == var = newType
-      | otherwise = TVar name
-    substitute t = t
+    rightFree = typeFreeVars rightType
+    leftUsed = typeUsedVars leftType
+
+    substitute :: Type -> M.Map Int Int -> [Int] -> (Type, [Int])
+    substitute (TAp t1 t2) mapping free = (TAp t1' t2', free'')
+      where
+        (t1', free') = substitute t1 mapping free
+        (t2', free'') = substitute t2 mapping free'
+    substitute (TForall q@(Quantor idx _) k t) mapping free
+      | idx `S.member` rightFree =
+        let
+          idx' : free' = free
+          mapping' = M.insert idx idx' mapping
+          (t', free'') = substitute t mapping' free'
+        in
+          (TForall (Quantor idx' Nothing) k t', free'')
+      | otherwise =
+        let
+          (t', free') = substitute t mapping free
+        in
+          (TForall (Quantor idx Nothing) k t', free')
+    substitute (TStrict t) mapping free = substitute t mapping free
+    substitute (TVar idx) mapping free = case M.lookup idx mapping of
+      Just idx' -> (TVar idx', free)
+      Nothing
+        | idx == var -> (rightType, free)
+        | otherwise -> (TVar idx, free)
+    substitute t _ free = (t, free)
   
 typeSubstitutions :: [(Int, Type)] -> Type -> Type
 typeSubstitutions [] t = t
@@ -229,3 +262,19 @@ typeApply t1 t2 = TAp t1 t2
 
 typeApplyList :: Type -> [Type] -> Type
 typeApplyList = foldl typeApply
+
+typeUsedVars :: Type -> S.Set Int
+typeUsedVars (TAp t1 t2) = typeUsedVars t1 `S.union` typeUsedVars t2
+typeUsedVars (TForall (Quantor idx _) _ tp) = S.insert idx $ typeUsedVars tp
+typeUsedVars (TStrict tp) = typeUsedVars tp
+typeUsedVars (TVar idx) = S.singleton idx
+typeUsedVars (TCon _) = S.empty
+typeUsedVars TAny = S.empty
+
+typeFreeVars :: Type -> S.Set Int
+typeFreeVars (TAp t1 t2) = typeFreeVars t1 `S.union` typeFreeVars t2
+typeFreeVars (TForall (Quantor idx _) _ tp) = S.delete idx $ typeFreeVars tp
+typeFreeVars (TStrict tp) = typeFreeVars tp
+typeFreeVars (TVar idx) = S.singleton idx
+typeFreeVars (TCon _) = S.empty
+typeFreeVars TAny = S.empty

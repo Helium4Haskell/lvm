@@ -29,7 +29,7 @@ import Lvm.Data
 import qualified Lvm.Core.Module as Module
 
 -- | Replace all import declarations with abstract declarations or
--- constructors\/externs\/customs. Works in any monad, but requires the
+-- constructors\/externs\/customs\/type synonyms. Works in any monad, but requires the
 -- caller to provide a 'Module' instead of a 'FilePath'. Replace all
 -- import declarations with abstract declarations or
 -- constructors\/externs\/customs.

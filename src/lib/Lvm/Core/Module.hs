@@ -387,6 +387,7 @@ makeDeclKind x =
       "import" -> DeclKindImport
       "module" -> DeclKindModule
       "extern" -> DeclKindExtern
+      "type"   -> DeclKindTypeSynonym
       _        -> DeclKindCustom x
 
 {---------------------------------------------------------------

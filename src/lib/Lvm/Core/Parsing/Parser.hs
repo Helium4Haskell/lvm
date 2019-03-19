@@ -246,6 +246,12 @@ pImportSpec mid
       ; return [DeclImport x (Imported False mid impid (customDeclKind kind) 0 0) []]
       }
   <|>
+    do{ lexeme LexTYPE
+      ; x <- constructor
+      ; impid <- option x (do { lexeme LexASG; pVariableName <|> constructor })
+      ; return [DeclImport x (Imported False mid impid DeclKindTypeSynonym 0 0) []]
+      }
+  <|>
     do{ x <- typeid
       ; impid <- option x (do{ lexeme LexASG; pVariableName })
       ; do{ lexeme LexLPAREN
@@ -472,6 +478,7 @@ pcustom
 pdeclKind :: TokenParser DeclKind
 pdeclKind
   =   do{ x <- varid;     return (makeDeclKind x) }
+  <|> do{ lexeme LexTYPE; return DeclKindTypeSynonym }
   <|> do{ i <- lexInt;    return (toEnum (fromInteger i)) }
   <|> do{ s <- lexString; return (customDeclKind s) }
   <?> "custom kind"
