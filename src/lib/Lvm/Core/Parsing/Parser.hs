@@ -399,19 +399,10 @@ ptypeTopDecl :: TokenParser [CoreDecl]
 ptypeTopDecl
   = do{ lexeme LexTYPE
       ; x   <- typeid
-      ; args <- many lexTypeVar
+      -- ; args <- many lexTypeVar
       ; lexeme LexASG
       ; tp   <- ptype
-      ; let kind  = foldr (KFun . const KStar) KStar args
-            tpstr = unwords $  stringFromId x 
-                            :  map (\arg -> 'v' : show arg) args
-                            ++ ["=", showAsUHAType tp]
-      ; return
-          [ DeclCustom x private customTypeDecl 
-                     [CustomBytes (bytesFromString tpstr) ,customKind kind]
-          , DeclTypeSynonym x private tp [] -- TODO: Handle type arguments
-          ]
-                  
+      ; return [ DeclTypeSynonym x private tp [] ] -- TODO: Handle type arguments
       }
 
 ----------------------------------------------------------------

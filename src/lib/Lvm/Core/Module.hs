@@ -9,7 +9,7 @@ module Lvm.Core.Module
    ( Module(..), Decl(..), Custom(..), DeclKind(..)
    , Arity, Tag, Access(..), ExternName(..), CallConv(..), LinkConv(..)
    , globalNames, externNames, filterPublic, mapDecls, declArity
-   , customDeclKind, customData, customTypeDecl, modulePublic
+   , customDeclKind, customData, modulePublic
    , declKindFromDecl, shallowKindFromDecl, makeDeclKind
    , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern
    , isDeclImport, isDeclGlobal
@@ -138,9 +138,8 @@ instance Enum DeclKind where
 customDeclKind :: String -> DeclKind
 customDeclKind = DeclKindCustom . idFromString
 
-customData, customTypeDecl :: DeclKind
-customData     = customDeclKind "data"
-customTypeDecl = customDeclKind "typedecl"
+customData :: DeclKind
+customData = customDeclKind "data"
 
 declKindFromDecl :: Decl a -> DeclKind
 declKindFromDecl decl
@@ -204,7 +203,7 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
                                     || elemSet (conTypeName decl) exportDataCon
                                     )
             DeclCustom{}    ->  isExported decl
-                                    ( declKind decl `elem` [customData, customTypeDecl]
+                                    ( declKind decl `elem` [customData]
                                     &&  elemSet name exportData
                                     )
             DeclTypeSynonym{} -> isExported decl (elemSet name exportData)
@@ -215,7 +214,7 @@ modulePublic implicit (exports,exportCons,exportData,exportDataCon,exportMods) m
                                     DeclKindModule -> isExported decl (elemSet name exportMods)
                                     DeclKindTypeSynonym -> isExported decl (elemSet name exportData)
                                     dk@(DeclKindCustom _)
-                                     | dk `elem` [customData, customTypeDecl] ->
+                                     | dk `elem` [customData] ->
                                          isExported decl (elemSet name exportData)
                                     _          -> False
 
