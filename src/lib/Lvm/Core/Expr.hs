@@ -8,7 +8,7 @@
 module Lvm.Core.Expr 
    ( CoreModule, CoreDecl, Expr(..), Binds(..), Bind(..)
    , Alts, Alt(..), Pat(..), Literal(..), Con(..), Variable(..)
-   , ppPattern
+   , ppPattern, IntType(..)
    ) where
 
 import Prelude hiding ((<$>))
@@ -53,7 +53,15 @@ data Pat
   | PatLit    !Literal
   | PatDefault
 
-data Literal    = LitInt    !Int
+data IntType
+  = IntTypeInt
+  | IntTypeChar
+
+instance Show IntType where
+  show IntTypeInt = "Int"
+  show IntTypeChar = "Char"
+
+data Literal    = LitInt    !Int !IntType
                 | LitDouble !Double
                 | LitBytes  !Bytes
 
@@ -73,7 +81,7 @@ ppExpr p quantorNames expr
     Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <+> text "{" <$> indent 2 (ppAlts quantorNames as)
                               <+> text "}")
     Let bs x    -> prec 0 $ align (ppLetBinds quantorNames bs (text "in" <+> ppExpr 0 quantorNames x))
-    Lam (Variable x t) e -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> pretty t <+> text "->" <+> ppExpr 0 quantorNames e
+    Lam (Variable x t) e -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> ppType 0 quantorNames t <+> text "->" <+> ppExpr 0 quantorNames e
     Forall quantor k e ->
       let
         quantorNames' = case quantor of
@@ -82,7 +90,7 @@ ppExpr p quantorNames expr
       in
         prec 0 $ text "forall" <+> text (show quantor) <> text ": " <> pretty k <> text "." <+> ppExpr 0 quantorNames' e
     Ap e1 e2    -> prec 9 $ ppExpr 9 quantorNames e1 <+> ppExpr 10 quantorNames e2
-    ApType e1 t -> prec 9 $ ppExpr 9 quantorNames e1 <+> text "{ " <> pretty t <> text " }"
+    ApType e1 t -> prec 9 $ ppExpr 9 quantorNames e1 <+> text "{ " <> ppType 0 quantorNames t <> text " }"
     Var x       -> ppVarId x
     Con con     -> pretty con
     Lit lit     -> pretty lit
@@ -109,7 +117,7 @@ ppLetBinds quantorNames binds doc
 
 ppBind :: QuantorNames -> Bind -> Doc
 ppBind quantorNames (Bind (Variable x t) expr) =
-  nest 2 (ppId  x <> text ": " <+> pretty t <> text " = " <+> ppExpr 0 quantorNames expr <> semi)
+  nest 2 (ppId  x <> text ": " <+> ppType 0 quantorNames t <> text " = " <+> ppExpr 0 quantorNames expr <> semi)
 
 ppBindList :: QuantorNames -> [Bind] -> Doc
 ppBindList quantorNames = vcat . map (ppBind quantorNames)
@@ -135,6 +143,6 @@ ppPattern _ PatDefault = text "_"
 instance Pretty Literal where 
    pretty lit = 
       case lit of
-         LitInt i    -> pretty i
+         LitInt i t  -> text "(@" <> text (show t) <+> pretty i <> text ")"
          LitDouble d -> pretty d
          LitBytes s  -> text (show (stringFromBytes s))

@@ -5,10 +5,11 @@
 --------------------------------------------------------------------------------
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
-module Lvm.Core.Utils 
+module Lvm.Core.Utils
    ( module Lvm.Core.Module
    , listFromBinds, mapBinds, mapAccumBinds, zipBindsWith
    , mapAlts, zipAltsWith, mapExprWithSupply, mapAccum
+   , createFunction
    ) where
 
 import Lvm.Core.Expr
@@ -87,3 +88,14 @@ mapExprWithSupply f supply m
   where
     fvalue sup decl@(DeclValue{}) = decl{ valueValue = f sup (valueValue decl)}
     fvalue _   decl               = decl
+
+
+createFunction :: [Quantor] -> [Variable] -> Expr -> Type -> (Expr, Type)
+createFunction quantors arguments bodyExpr bodyType =
+  ( foldr (\quantor ->  Forall quantor KStar) functionExpr quantors
+  , foldr (\quantor -> TForall quantor KStar) functionType quantors
+  )
+  where
+    functionExpr = foldr Lam bodyExpr arguments
+    functionType = typeFunction (map variableType arguments) bodyType
+

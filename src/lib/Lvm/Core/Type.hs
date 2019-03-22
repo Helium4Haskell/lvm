@@ -239,16 +239,16 @@ typeListElement TAny = TAny
 typeListElement tp = error $ "typeListElement: expected a list type, got " ++ show tp ++ " instead"
 
 typeTupleElements :: Type -> [Type]
-typeTupleElements = elements 0
+typeTupleElements tupleType = elements 0 tupleType []
   where
-    elements n (TCon (TConTuple m))
+    elements n (TCon (TConTuple m)) accum
       | n < m = error $ "typeTupleElements: expected a saturated tuple type, got a partially applied tuple type (received " ++ show n ++ " arguments, expected " ++ show m ++ ")"
       | n > m = error $ "typeTupleElements: got an over applied tuple type"
-      | otherwise = []
-    elements n (TAp t1 t2) = t2 : elements (n + 1) t1
-    elements _ TAny = repeat TAny
-    elements _ (TVar _) = error $ "typeTupleElements: expected a tuple type, got a type variable instead"
-    elements _ tp = error $ "typeTupleElements: expected a tuple type, got " ++ show tp ++ " instead"
+      | otherwise = accum
+    elements n (TAp t1 t2) accum = elements (n + 1) t1 (t2 : accum)
+    elements _ TAny _ = repeat TAny
+    elements _ (TVar _) _ = error $ "typeTupleElements: expected a tuple type, got a type variable instead"
+    elements _ tp _ = error $ "typeTupleElements: expected a tuple type, got " ++ show tp ++ " instead"
 
 typeExtractFunction :: Type -> ([Type], Type)
 typeExtractFunction (TAp (TAp (TCon TConFun) t1) t2) = (t1 : args, ret)

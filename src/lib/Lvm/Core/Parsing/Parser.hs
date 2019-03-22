@@ -585,17 +585,11 @@ parenExpr
       ; return expr
       }
 
-ptagExpr :: TokenParser Expr
-ptagExpr
-  =   do{ i <- lexInt; return (Lit (LitInt (fromInteger i))) }
-  <|> do{ x <- pVariableName; return (Var x) }
-  <?> "tag (integer or variable)"
-
 pliteral :: TokenParser Literal
 pliteral
   =   pnumber id id
   <|> do{ s <- lexString; return (LitBytes (bytesFromString s)) }
-  <|> do{ c <- lexChar;   return (LitInt (fromEnum c))   }
+  <|> do{ c <- lexChar;   return (LitInt (fromEnum c) IntTypeChar)   }
   <|> do{ lexeme LexDASH
         ; pnumber negate negate
         }
@@ -603,7 +597,7 @@ pliteral
 
 pnumber :: (Int -> Int) -> (Double -> Double) -> TokenParser Literal
 pnumber signint signdouble
-  =   do{ i <- lexInt;    return (LitInt (signint (fromInteger i))) }
+  =   do{ i <- lexInt;    return (LitInt (signint (fromInteger i)) IntTypeInt) }
   <|> do{ d <- lexDouble; return (LitDouble (signdouble d)) }
 
 ----------------------------------------------------------------
