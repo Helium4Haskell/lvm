@@ -10,7 +10,7 @@
 module Lvm.Common.IdSet
    ( IdSet, Id
    , emptySet, singleSet, elemSet, filterSet, foldSet
-   , insertSet, deleteSet, unionSet, unionSets, diffSet
+   , insertSet, deleteSet, unionSet, unionSets, intersectionSet, diffSet
    , listFromSet, setFromList, sizeSet, isEmptySet
    ) where
 
@@ -56,6 +56,9 @@ unionSet (IdSet s1) (IdSet s2) = IdSet (s1 `IntSet.union` s2)
 
 unionSets :: [IdSet] -> IdSet
 unionSets xs = IdSet (IntSet.unions [ s | IdSet s <- xs ])
+
+intersectionSet :: IdSet -> IdSet -> IdSet
+intersectionSet (IdSet s1) (IdSet s2) = IdSet (s1 `IntSet.intersection` s2)
 
 diffSet :: IdSet -> IdSet -> IdSet
 diffSet (IdSet s1) (IdSet s2) = IdSet (IntSet.difference s1 s2)

@@ -8,7 +8,7 @@
 module Lvm.Core.Module
    ( Module(..), Decl(..), Custom(..), DeclKind(..)
    , Arity, Tag, Access(..), ExternName(..), CallConv(..), LinkConv(..)
-   , globalNames, externNames, filterPublic, mapDecls, declArity
+   , globalNames, externNames, filterPublic, mapDecls
    , customDeclKind, customData, modulePublic
    , declKindFromDecl, shallowKindFromDecl, makeDeclKind
    , isDeclValue, isDeclAbstract, isDeclCon, isDeclExtern
@@ -39,7 +39,7 @@ data Module v
 
 data Decl v     
   = DeclValue     { declName :: Id, declAccess :: !Access, declType :: !Type, valueValue :: v, declCustoms :: ![Custom] }
-  | DeclAbstract  { declName :: Id, declAccess :: !Access, declType :: !Type, declCustoms :: ![Custom] }
+  | DeclAbstract  { declName :: Id, declAccess :: !Access, declArity :: !Arity, declType :: !Type, declCustoms :: ![Custom] }
   | DeclCon       { declName :: Id, declAccess :: !Access, declType :: !Type, declCustoms :: [Custom] }
   | DeclExtern    { declName :: Id, declAccess :: !Access, declType :: !Type
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
@@ -47,9 +47,6 @@ data Decl v
   | DeclCustom    { declName :: Id, declAccess :: !Access, declKind :: !DeclKind, declCustoms :: ![Custom] }
   | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declType :: !Type, declCustoms :: ![Custom] }
   | DeclImport    { declName :: Id, declAccess :: !Access, declCustoms :: ![Custom] }
-
-declArity :: Decl v -> Arity
-declArity = arityFromType . declType
 
 data Custom
   = CustomInt   !Int
@@ -233,8 +230,8 @@ instance Functor Decl where
       case decl of
          DeclValue x ac m v cs -> 
             DeclValue x ac m (f v) cs
-         DeclAbstract x ac ar cs -> 
-            DeclAbstract x ac ar cs
+         DeclAbstract x ac ar tp cs -> 
+            DeclAbstract x ac ar tp cs
          DeclCon x ac t cs -> 
             DeclCon x ac t cs
          DeclExtern x ac ar et el ec elib en cs -> 

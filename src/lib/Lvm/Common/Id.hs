@@ -47,9 +47,13 @@ emptyNames = Names 0 IntMap.empty
 idFromString :: String -> Id
 idFromString = idFromStringEx (0::Int)
 
+seqString :: String -> a -> a
+seqString str a = foldr seq a str
+
 idFromStringEx :: Enum a => a -> String -> Id
 idFromStringEx ns name
-  = unsafePerformIO $
+  = seqString name $
+    unsafePerformIO $
     do{ names <- readIORef namesRef
       ; let (x, names') = insertName (fromEnum ns) name names
       ; writeIORef namesRef names'

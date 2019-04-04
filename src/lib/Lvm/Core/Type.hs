@@ -6,9 +6,9 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Type 
-   ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames
+   ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..)
    , ppQuantor, ppType, showType, arityFromType, typeUnit, typeBool
-   , typeToStrict, typeConFromString, typeFunction
+   , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
    , typeInstantiate, typeSubstitute, typeTupleElements
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList
    ) where
@@ -25,13 +25,17 @@ import qualified Data.Map as M
 ----------------------------------------------------------------
 data Type = TAp !Type !Type
           | TForall !Quantor !Kind !Type
+          -- * The inner type should have kind *. The inner type
+          -- may not be TStrict
           | TStrict !Type
           | TVar !Int
           | TCon !TypeConstant
           | TAny
+          deriving (Eq, Ord)
 
 data Quantor
   = Quantor !Int !(Maybe String)
+  deriving (Eq, Ord)
 
 type QuantorNames = [(Int, String)]
 
@@ -40,10 +44,20 @@ data TypeConstant
   | TConTuple !Int
   | TConTypeClassDictionary !Id
   | TConFun
-  deriving Eq
+  deriving (Eq, Ord)
+
+data IntType
+  = IntTypeInt
+  | IntTypeChar
+  deriving (Eq, Ord)
+
+instance Show IntType where
+  show IntTypeInt = "Int"
+  show IntTypeChar = "Char"
 
 data Kind = KFun !Kind !Kind
           | KStar
+          deriving (Eq, Ord)
 
 typeConFromString :: String -> TypeConstant
 typeConFromString "->" = TConFun
@@ -54,8 +68,23 @@ typeConFromString ('(' : str)
 typeConFromString name = TConDataType $ idFromString name
 
 typeToStrict :: Type -> Type
+typeToStrict (TForall quantor kind t) = TForall quantor kind $ typeToStrict t
 typeToStrict t@(TStrict _) = t
 typeToStrict t = TStrict t
+
+typeNotStrict :: Type -> Type
+typeNotStrict (TForall quantor kind t) = TForall quantor kind $ typeNotStrict t
+typeNotStrict (TStrict t) = typeNotStrict t
+typeNotStrict t = t
+
+typeIsStrict :: Type -> Bool
+typeIsStrict (TForall _ _ t) = typeIsStrict t
+typeIsStrict (TStrict _) = True
+typeIsStrict _ = False
+
+typeSetStrict :: Bool -> Type -> Type
+typeSetStrict True = typeToStrict
+typeSetStrict False = typeNotStrict
 
 typeUnit :: Type
 typeUnit = TCon $ TConTuple 0
@@ -82,11 +111,8 @@ arityFromType tp
 -- Pretty printing
 ----------------------------------------------------------------
 
-instance Show Type where
-  show = show . pretty
-
 showType :: QuantorNames -> Type -> String
-showType quantors tp = show $ ppType 0 quantors tp
+showType quantors tp = show $ ppType 5 quantors tp
 
 instance Show Kind where
   show = show . pretty
@@ -128,7 +154,7 @@ ppType level quantorNames tp
               _ -> quantorNames
         in text "forall" <+> text (show a) {- <> text ":" <+> pretty k -} <> text "."
             <+> ppType 0 quantorNames' t
-      TStrict t       -> ppHi t <> text "!"
+      TStrict t       -> text "!" <> ppHi t
       TVar    a       -> ppQuantor quantorNames a
       TCon    a       -> pretty a
       TAny            -> text "any"
@@ -137,12 +163,8 @@ ppType level quantorNames tp
     parenthesized doc
       | level <= tplevel  = doc
       | otherwise         = parens doc
-    ppHi t
-      | level <= tplevel  = ppType (tplevel+1) quantorNames t
-      | otherwise         = ppType 0 quantorNames t
-    ppEq t
-      | level <= tplevel  = ppType tplevel quantorNames t
-      | otherwise         = ppType 0 quantorNames t
+    ppHi t = ppType (tplevel+1) quantorNames t
+    ppEq t = ppType tplevel quantorNames t
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind
@@ -214,7 +236,9 @@ typeSubstitute var rightType leftType = fst $ substitute leftType M.empty $ filt
           (t', free') = substitute t mapping free
         in
           (TForall (Quantor idx Nothing) k t', free')
-    substitute (TStrict t) mapping free = substitute t mapping free
+    substitute (TStrict t) mapping free = (TStrict t', free')
+      where
+        (t', free') = substitute t mapping free
     substitute (TVar idx) mapping free = case M.lookup idx mapping of
       Just idx' -> (TVar idx', free)
       Nothing
@@ -236,7 +260,7 @@ typeListElement :: Type -> Type
 typeListElement (TAp (TCon (TConDataType dataType)) a)
   | dataType == idFromString "[]" = a
 typeListElement TAny = TAny
-typeListElement tp = error $ "typeListElement: expected a list type, got " ++ show tp ++ " instead"
+typeListElement tp = error $ "typeListElement: expected a list type, got " ++ showType [] tp ++ " instead"
 
 typeTupleElements :: Type -> [Type]
 typeTupleElements tupleType = elements 0 tupleType []
@@ -248,7 +272,7 @@ typeTupleElements tupleType = elements 0 tupleType []
     elements n (TAp t1 t2) accum = elements (n + 1) t1 (t2 : accum)
     elements _ TAny _ = repeat TAny
     elements _ (TVar _) _ = error $ "typeTupleElements: expected a tuple type, got a type variable instead"
-    elements _ tp _ = error $ "typeTupleElements: expected a tuple type, got " ++ show tp ++ " instead"
+    elements _ tp _ = error $ "typeTupleElements: expected a tuple type, got " ++ showType [] tp ++ " instead"
 
 typeExtractFunction :: Type -> ([Type], Type)
 typeExtractFunction (TAp (TAp (TCon TConFun) t1) t2) = (t1 : args, ret)

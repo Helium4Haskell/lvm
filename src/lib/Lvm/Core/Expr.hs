@@ -53,14 +53,6 @@ data Pat
   | PatLit    !Literal
   | PatDefault
 
-data IntType
-  = IntTypeInt
-  | IntTypeChar
-
-instance Show IntType where
-  show IntTypeInt = "Int"
-  show IntTypeChar = "Char"
-
 data Literal    = LitInt    !Int !IntType
                 | LitDouble !Double
                 | LitBytes  !Bytes

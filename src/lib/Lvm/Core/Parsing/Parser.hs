@@ -38,7 +38,7 @@ parseModule fname = liftM (\(m, _, _) -> m) . parseModuleExport fname
 -- as they are implicit in Haskell.
 -- This can be removed when we do not use Custom annotations for types any more.
 showAsUHAType :: Type -> String
-showAsUHAType = replace . show . skipForalls
+showAsUHAType = replace . showType [] . skipForalls
   where
     replace ('v' : '$' : d : cs)
       | isDigit d
@@ -183,12 +183,14 @@ pabstractValue :: TokenParser (Decl v)
 pabstractValue
   = do{ x <- pVariableName
       ; (acc,custom) <- pAttributes private
+      ; lexeme LexCOLON
+      ; arity <- lexInt
       ; lexeme LexASG
       ; (mid,impid) <- qualifiedVar
       ; t <- ptypeDecl
       ; let access | isImported acc = acc
                    | otherwise      = Imported False mid impid DeclKindValue 0 0
-      ; return (DeclAbstract x access t custom)
+      ; return (DeclAbstract x access (fromIntegral arity) t custom)
       }
 
 pabstractCon :: TokenParser (Decl v)
@@ -639,6 +641,9 @@ palt
       ; return (Alt pat expr)
       }
 
+pInstantiation :: TokenParser [Type]
+pInstantiation = many (lexeme LexLBRACE *> ptype <* lexeme LexRBRACE)
+
 ppat :: TokenParser Pat
 ppat  
   = ppatCon <|> ppatLit <|> ppatParens
@@ -655,8 +660,9 @@ ppatParens
         <|>
         do{ x <- conopid
           ; lexeme LexRPAREN
+          ; instantiation <- pInstantiation
           ; ids <- many bindid
-          ; return (PatCon (ConId x) [] ids)
+          ; return (PatCon (ConId x) instantiation ids)
           }
         <|>
         do{ pat <- ppat <|> ppatTuple 
@@ -668,8 +674,9 @@ ppatParens
 ppatCon :: TokenParser Pat
 ppatCon
   = do{ x   <- conid <|> do{ lexeme LexLBRACKET; lexeme LexRBRACKET; return (idFromString "[]") }      
+      ; instantiation <- pInstantiation
       ; args <- many bindid
-      ; return (PatCon (ConId x) [] args)
+      ; return (PatCon (ConId x) instantiation args)
       }
 
 ppatLit :: TokenParser Pat
@@ -798,8 +805,8 @@ ptypeAtom
       ; let t = TVar x
       ; ptypeStrict t
       }
-  <|> listType
-  <|> lexeme LexLPAREN *> parenType <* lexeme LexRPAREN
+  <|> (listType >>= ptypeStrict)
+  <|> ((lexeme LexLPAREN *> parenType <* lexeme LexRPAREN) >>= ptypeStrict)
   <?> "atomic type"
 
 ptypeStrict :: Type -> TokenParser Type
