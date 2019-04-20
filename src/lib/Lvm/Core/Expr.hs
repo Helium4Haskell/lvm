@@ -8,7 +8,7 @@
 module Lvm.Core.Expr 
    ( CoreModule, CoreDecl, Expr(..), Binds(..), Bind(..)
    , Alts, Alt(..), Pat(..), Literal(..), Con(..), Variable(..)
-   , ppPattern, IntType(..)
+   , ppPattern, IntType(..), getExpressionStrictness
    ) where
 
 import Prelude hiding ((<$>))
@@ -32,7 +32,7 @@ data Expr       = Let       !Binds Expr
                 | Match     !Id Alts
                 | Ap        Expr Expr
                 | ApType    !Expr !Type
-                | Lam       !Variable Expr
+                | Lam       !Bool !Variable Expr
                 | Forall    !Quantor !Kind !Expr
                 | Con       !Con
                 | Var       !Id
@@ -73,7 +73,7 @@ ppExpr p quantorNames expr
     Match x as  -> prec 0 $ align (text "match" <+> ppVarId x <+> text "with" <+> text "{" <$> indent 2 (ppAlts quantorNames as)
                               <+> text "}")
     Let bs x    -> prec 0 $ align (ppLetBinds quantorNames bs (text "in" <+> ppExpr 0 quantorNames x))
-    Lam (Variable x t) e -> prec 0 $ text "\\" <> ppVarId x <> text ": " <> ppType 0 quantorNames t <+> text "->" <+> ppExpr 0 quantorNames e
+    Lam strict (Variable x t) e -> prec 0 $ text (if strict then "\\ !" else "\\") <> ppVarId x <> text ": " <> ppType 0 quantorNames t <+> text "->" <+> ppExpr 0 quantorNames e
     Forall quantor k e ->
       let
         quantorNames' = case quantor of
@@ -138,3 +138,8 @@ instance Pretty Literal where
          LitInt i t  -> text "(@" <> text (show t) <+> pretty i <> text ")"
          LitDouble d -> pretty d
          LitBytes s  -> text (show (stringFromBytes s))
+
+getExpressionStrictness :: Expr -> [Bool]
+getExpressionStrictness (Forall _ _ expr) = getExpressionStrictness expr
+getExpressionStrictness (Lam strict _ expr) = strict : getExpressionStrictness expr
+getExpressionStrictness _ = []

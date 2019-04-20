@@ -96,6 +96,6 @@ createFunction quantors arguments bodyExpr bodyType =
   , foldr (\quantor -> TForall quantor KStar) functionType quantors
   )
   where
-    functionExpr = foldr Lam bodyExpr arguments
+    functionExpr = foldr (Lam False) bodyExpr arguments
     functionType = typeFunction (map variableType arguments) bodyType
 

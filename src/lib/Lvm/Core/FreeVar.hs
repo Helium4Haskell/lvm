@@ -24,7 +24,7 @@ instance FreeVar Expr where
          Let bs e  -> freeVar bs `unionSet` (freeVar e `diffSet` binder bs)
          Match x e -> insertSet x (freeVar e)
          Ap e1 e2  -> freeVar e1 `unionSet` freeVar e2
-         Lam (Variable x _) e -> deleteSet x (freeVar e)
+         Lam _ (Variable x _) e -> deleteSet x (freeVar e)
          Forall _ _ e -> freeVar e
          ApType e _ -> freeVar e
          Con _     -> emptySet

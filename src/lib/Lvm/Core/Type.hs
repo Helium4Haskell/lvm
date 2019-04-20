@@ -9,7 +9,7 @@ module Lvm.Core.Type
    ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..)
    , ppQuantor, ppType, showType, arityFromType, typeUnit, typeBool
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
-   , typeInstantiate, typeSubstitute, typeTupleElements
+   , typeInstantiate, typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList
    ) where
 
@@ -49,6 +49,9 @@ data TypeConstant
 data IntType
   = IntTypeInt
   | IntTypeChar
+  -- Currently only used by the backend, for fields of thunks.
+  -- To expose this to the frontend, we will also need to implement casts to / from int16
+  | IntTypeInt16
   deriving (Eq, Ord)
 
 instance Show IntType where
@@ -85,6 +88,13 @@ typeIsStrict _ = False
 typeSetStrict :: Bool -> Type -> Type
 typeSetStrict True = typeToStrict
 typeSetStrict False = typeNotStrict
+
+typeRemoveArgumentStrictness :: Type -> Type
+typeRemoveArgumentStrictness (TForall quantor kind tp) = TForall quantor kind $ typeRemoveArgumentStrictness tp
+typeRemoveArgumentStrictness (TAp (TAp (TCon TConFun) tArg) tReturn) =
+  TAp (TAp (TCon TConFun) $ typeNotStrict tArg) $ typeRemoveArgumentStrictness tReturn
+typeRemoveArgumentStrictness (TStrict tp) = TStrict $ typeRemoveArgumentStrictness tp
+typeRemoveArgumentStrictness tp = tp 
 
 typeUnit :: Type
 typeUnit = TCon $ TConTuple 0

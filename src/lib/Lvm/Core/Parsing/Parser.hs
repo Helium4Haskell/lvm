@@ -31,23 +31,6 @@ parseModuleExport fname ts =
 parseModule :: FilePath -> [Token] -> IO CoreModule
 parseModule fname = liftM (\(m, _, _) -> m) . parseModuleExport fname
 
--- The types in Core differ from the types in Helium / UHA.
--- The major problem is that unnamed type variables are printed as v$0,
--- wheras the Haskell parser does not accept $ in a type variable name.
--- We remove the dollar in this function. Furthermore we remove all forall quantifiers,
--- as they are implicit in Haskell.
--- This can be removed when we do not use Custom annotations for types any more.
-showAsUHAType :: Type -> String
-showAsUHAType = replace . showType [] . skipForalls
-  where
-    replace ('v' : '$' : d : cs)
-      | isDigit d
-      = 'v' : d : replace cs
-    replace (c : cs) = c : replace cs
-    replace [] = []
-    skipForalls (TForall _ _ t) = skipForalls t
-    skipForalls t = t
-
 ----------------------------------------------------------------
 -- Basic parsers
 ----------------------------------------------------------------
@@ -331,8 +314,7 @@ ptopDeclType x
             ++ stringFromId x2
             )
       ; (access,custom,expr) <- pbindTopRhs
-      ; return (DeclValue x access tp expr 
-                (customType tp : custom))
+      ; return (DeclValue x access tp expr custom)
       }
 
 pbindTopRhs :: TokenParser (Access, [Custom], Expr)
@@ -361,9 +343,6 @@ pbind
 makeCustomBytes :: String -> Bytes -> Custom
 makeCustomBytes k bs = CustomDecl (customDeclKind k) [CustomBytes bs]
 
-customType :: Type -> Custom
-customType = makeCustomBytes "type" . bytesFromString . showAsUHAType
-
 customKind :: Kind -> Custom
 customKind = makeCustomBytes "kind" . bytesFromString . show
 
@@ -378,8 +357,7 @@ pdata
           ; let t1  = foldl TAp (TCon $ TConDataType x) (map TVar args)
           ; cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
           ; let con (cid,t2) = DeclCon cid public t2 
-                                      [customType t2, 
-                                       CustomLink x customData]
+                                      [CustomLink x customData]
           ; return (datadecl:map con cons)
           }
       <|> {- empty data types -}
@@ -483,10 +461,11 @@ pdeclKind
 pexpr :: TokenParser Expr
 pexpr
   = do{ lexeme LexBSLASH
+      ; strict <- lexeme LexEXCL *> return True <|> return False
       ; arg <- variable
       ; lexeme LexRARROW
       ; expr <- pexpr
-      ; return $ Lam arg expr
+      ; return $ Lam strict arg expr
       }
   <|>
     do{ lexeme LexLET
@@ -713,14 +692,14 @@ pextern
       ; m <- lexString <|> return (stringFromId x)
       ; (mname,name) <- pExternName m
       ; tp  <- ptypeDecl
-      ; return (DeclExtern x private tp (showAsUHAType tp) linkConv callConv mname name [])
+      ; return (DeclExtern x private tp "" linkConv callConv mname name [])
       }
   <|>
     do{ lexeme LexINSTR
       ; x <- varid
       ; s  <- lexString
       ; tp <- ptypeDecl
-      ; return (DeclExtern x private tp (showAsUHAType tp) LinkStatic CallInstr "" (Plain s) [])
+      ; return (DeclExtern x private tp "" LinkStatic CallInstr "" (Plain s) [])
       }
 
 ------------------
