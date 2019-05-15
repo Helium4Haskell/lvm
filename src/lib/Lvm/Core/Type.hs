@@ -10,7 +10,7 @@ module Lvm.Core.Type
    , ppQuantor, ppType, showType, arityFromType, typeUnit, typeBool
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
    , typeInstantiate, typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness
-   , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList
+   , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
    ) where
 
 import Lvm.Common.Id
@@ -30,7 +30,6 @@ data Type = TAp !Type !Type
           | TStrict !Type
           | TVar !Int
           | TCon !TypeConstant
-          | TAny
           deriving (Eq, Ord)
 
 data Quantor
@@ -115,7 +114,6 @@ arityFromType tp
       TStrict t       -> arityFromType t
       TVar    _       -> 0
       TCon    _       -> 0
-      TAny            -> 0
 
 ----------------------------------------------------------------
 -- Pretty printing
@@ -143,6 +141,9 @@ instance Pretty TypeConstant where
   pretty (TConTuple arity) = text ('(' : (replicate (arity - 1) ',') ++ ")")
   pretty TConFun = text "->"
 
+dictionaryDataTypeName :: Id -> Id
+dictionaryDataTypeName = idFromString . ("Dict$" ++) . stringFromId
+
 instance Show TypeConstant where
   show = show . pretty
 
@@ -167,7 +168,6 @@ ppType level quantorNames tp
       TStrict t       -> text "!" <> ppHi t
       TVar    a       -> ppQuantor quantorNames a
       TCon    a       -> pretty a
-      TAny            -> text "any"
   where
     tplevel = levelFromType tp
     parenthesized doc
@@ -199,7 +199,6 @@ levelFromType tp
       TStrict{} -> 5
       TVar{}    -> 6
       TCon{}    -> 6
-      TAny      -> 7 
 
 levelFromKind :: Kind -> Int
 levelFromKind kind
@@ -220,56 +219,49 @@ typeInstantiate _ _ t = t
 --    = forall b. forall c. b
 -- We need to rename type variable 'b' in the last 'forall' with a
 -- fresh type variable. As a general rule, we will rename quantors
--- in t1 if the variable is free in t2. The fresh variable must be free in t2
+-- in t1 if the variable is free in t2. The fresh variable must be fresh in t2
 -- and must not occur in t1.
 typeSubstitute :: Int -> Type -> Type -> Type
-typeSubstitute var rightType leftType = fst $ substitute leftType M.empty $ filter (\idx -> idx `S.notMember` leftUsed && idx `S.notMember` rightFree) [0..]
-  where
-    rightFree = typeFreeVars rightType
-    leftUsed = typeUsedVars leftType
-
-    substitute :: Type -> M.Map Int Int -> [Int] -> (Type, [Int])
-    substitute (TAp t1 t2) mapping free = (TAp t1' t2', free'')
-      where
-        (t1', free') = substitute t1 mapping free
-        (t2', free'') = substitute t2 mapping free'
-    substitute (TForall q@(Quantor idx _) k t) mapping free
-      | idx `S.member` rightFree =
-        let
-          idx' : free' = free
-          mapping' = M.insert idx idx' mapping
-          (t', free'') = substitute t mapping' free'
-        in
-          (TForall (Quantor idx' Nothing) k t', free'')
-      | otherwise =
-        let
-          (t', free') = substitute t mapping free
-        in
-          (TForall (Quantor idx Nothing) k t', free')
-    substitute (TStrict t) mapping free = (TStrict t', free')
-      where
-        (t', free') = substitute t mapping free
-    substitute (TVar idx) mapping free = case M.lookup idx mapping of
-      Just idx' -> (TVar idx', free)
-      Nothing
-        | idx == var -> (rightType, free)
-        | otherwise -> (TVar idx, free)
-    substitute t _ free = (t, free)
+typeSubstitute var rightType leftType = typeSubstitutions [(var, rightType)] leftType
   
 typeSubstitutions :: [(Int, Type)] -> Type -> Type
 typeSubstitutions [] t = t
-typeSubstitutions substitutions (TAp t1 t2) = TAp (typeSubstitutions substitutions t1) (typeSubstitutions substitutions t2)
-typeSubstitutions substitutions (TStrict t) = TStrict $ typeSubstitutions substitutions t
-typeSubstitutions substitutions (TVar idx) = case lookup idx substitutions of
-  Just tp -> tp
-  Nothing -> TVar idx
-typeSubstitutions substitutions (TForall q@(Quantor idx _) k t) = TForall q k $ typeSubstitutions (filter (\(i, _) -> idx /= i) substitutions) t
-typeSubstitutions _ t = t
+typeSubstitutions initialSubstitutions leftType = fst $ substitute leftType (M.fromList initialSubstitutions) $ filter (\idx -> idx `S.notMember` leftUsed && idx `S.notMember` rightFree) [0..]
+  where
+    rightFree = foldr1 S.union $ map (typeFreeVars . snd) initialSubstitutions
+    leftUsed = typeUsedVars leftType
+
+    substitute :: Type -> M.Map Int Type -> [Int] -> (Type, [Int])
+    substitute (TAp t1 t2) mapping fresh = (TAp t1' t2', fresh'')
+      where
+        (t1', fresh') = substitute t1 mapping fresh
+        (t2', fresh'') = substitute t2 mapping fresh'
+    substitute (TForall (Quantor idx _) k t) mapping fresh
+      | idx `S.member` rightFree =
+        -- Conflicting type variable. Give the variable a new index
+        let
+          idx' : fresh' = fresh
+          mapping' = M.insert idx (TVar idx') mapping
+          (t', fresh'') = substitute t mapping' fresh'
+        in
+          (TForall (Quantor idx' Nothing) k t', fresh'')
+      | otherwise =
+        let
+          mapping' = M.delete idx mapping
+          (t', fresh') = substitute t mapping' fresh
+        in
+          (TForall (Quantor idx Nothing) k t', fresh')
+    substitute (TStrict t) mapping fresh = (TStrict t', fresh')
+      where
+        (t', fresh') = substitute t mapping fresh
+    substitute t@(TVar idx) mapping fresh = case M.lookup idx mapping of
+      Just tp -> (tp, fresh)
+      Nothing -> (t, fresh)
+    substitute t _ fresh = (t, fresh)
 
 typeListElement :: Type -> Type
 typeListElement (TAp (TCon (TConDataType dataType)) a)
   | dataType == idFromString "[]" = a
-typeListElement TAny = TAny
 typeListElement tp = error $ "typeListElement: expected a list type, got " ++ showType [] tp ++ " instead"
 
 typeTupleElements :: Type -> [Type]
@@ -280,7 +272,6 @@ typeTupleElements tupleType = elements 0 tupleType []
       | n > m = error $ "typeTupleElements: got an over applied tuple type"
       | otherwise = accum
     elements n (TAp t1 t2) accum = elements (n + 1) t1 (t2 : accum)
-    elements _ TAny _ = repeat TAny
     elements _ (TVar _) _ = error $ "typeTupleElements: expected a tuple type, got a type variable instead"
     elements _ tp _ = error $ "typeTupleElements: expected a tuple type, got " ++ showType [] tp ++ " instead"
 
@@ -303,7 +294,6 @@ typeUsedVars (TForall (Quantor idx _) _ tp) = S.insert idx $ typeUsedVars tp
 typeUsedVars (TStrict tp) = typeUsedVars tp
 typeUsedVars (TVar idx) = S.singleton idx
 typeUsedVars (TCon _) = S.empty
-typeUsedVars TAny = S.empty
 
 typeFreeVars :: Type -> S.Set Int
 typeFreeVars (TAp t1 t2) = typeFreeVars t1 `S.union` typeFreeVars t2
@@ -311,4 +301,3 @@ typeFreeVars (TForall (Quantor idx _) _ tp) = S.delete idx $ typeFreeVars tp
 typeFreeVars (TStrict tp) = typeFreeVars tp
 typeFreeVars (TVar idx) = S.singleton idx
 typeFreeVars (TCon _) = S.empty
-typeFreeVars TAny = S.empty

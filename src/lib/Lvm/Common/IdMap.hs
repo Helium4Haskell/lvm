@@ -20,7 +20,7 @@ module Lvm.Common.IdMap
 import Prelude hiding (foldMap)
 import Data.List
 import Data.Maybe
-import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.Strict as IntMap
 import Lvm.Common.Id
 import Control.Arrow (first)
 
@@ -132,10 +132,10 @@ unionMaps :: [IdMap a] -> IdMap a
 unionMaps = foldr unionMap emptyMap
 
 foldMapWithId :: (Id -> a -> b -> b) -> b -> IdMap a -> b
-foldMapWithId f z (IdMap m) = IntMap.foldWithKey (f . idFromInt) z m
+foldMapWithId f z (IdMap m) = IntMap.foldrWithKey (f . idFromInt) z m
 
 foldMap :: (a -> b -> b) -> b -> IdMap a -> b
-foldMap f z (IdMap m) = IntMap.fold f z m
+foldMap f z (IdMap m) = IntMap.foldr f z m
 
 sizeMap :: IdMap a -> Int
 sizeMap (IdMap m) = IntMap.size m
