@@ -20,7 +20,7 @@ module Lvm.Common.IdMap
 import Prelude hiding (foldMap)
 import Data.List
 import Data.Maybe
-import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.Strict as IntMap
 import Lvm.Common.Id
 import Control.Arrow (first)
 
