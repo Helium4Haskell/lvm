@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
--- is distributed under the terms of the BSD3 License. For more information, 
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
+-- is distributed under the terms of the BSD3 License. For more information,
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id$
@@ -37,7 +37,7 @@ declIdentity decl
 -- Remove all dead declarations
 -- TODO: at the moment, the analysis is too conservative and
 -- only removes private declarations that are nowhere used.
--- A proper analysis would find all reachable declaratins.
+-- A proper analysis would find all reachable declarations.
 ----------------------------------------------------------------
 coreRemoveDead :: CoreModule -> CoreModule
 coreRemoveDead m
@@ -52,7 +52,7 @@ coreRemoveDead m
                     [ (DeclKindValue, idFromString "main$")
                     , (DeclKindValue, idFromString "main")
                     ]
-    
+
 ----------------------------------------------------------------
 -- Is a declaration used?
 ----------------------------------------------------------------
@@ -98,7 +98,7 @@ usageExprs = foldl' . usageExpr
 usageExpr :: IdSet -> Used -> Expr -> Used
 usageExpr locals used expr
  = case expr of
-      Let binds e     -> let used'   = usageBinds locals used binds 
+      Let binds e     -> let used'   = usageBinds locals used binds
                              locals' = unionSet locals (binder binds)
                          in usageExpr locals' used' e
       Lam x e         -> usageExpr (insertSet x locals) used e
@@ -120,14 +120,14 @@ usageCon locals used con
       ConTag tag _ -> usageExpr locals used tag
 
 usageBinds :: IdSet -> Used -> Binds -> Used
-usageBinds locals used binds 
+usageBinds locals used binds
   = case binds of
       NonRec (Bind _ rhs)  -> usageExpr locals used rhs
       Strict (Bind _ rhs)  -> usageExpr locals used rhs
       Rec bs               -> let (ids,rhss) = unzipBinds bs
                                   locals'    = unionSet locals (setFromList ids)
                               in usageExprs locals' used rhss
-  
+
 
 usageAlts :: IdSet -> Set (DeclKind, Id) -> [Alt] -> Set (DeclKind, Id)
 usageAlts = foldl' . usageAlt
@@ -139,7 +139,7 @@ usageAlt locals used (Alt pat expr)
                              used'   = usageConPat used con
                          in usageExpr locals' used' expr
       _               -> usageExpr locals used expr
-      
+
 usageConPat :: Set (DeclKind, Id) -> Con t -> Set (DeclKind, Id)
 usageConPat used con
   = case con of

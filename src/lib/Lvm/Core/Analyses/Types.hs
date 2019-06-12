@@ -28,12 +28,15 @@ import Text.PrettyPrint.Leijen (Pretty, pretty)
 freshPi :: Fresh T
 freshPi = Alpha <$> fresh
 
+freshGamma :: Fresh Ts
+freshGamma = Gamma <$> fresh
+
 type TSub = Map Pi T
 type Env = Map Id Ts
 data Ts = Forall (Set Ann) (Set Pi) (Set (Constraint Ann T Ts Env)) T
         | TsAnn1 (Ts) Ann -- Usage annotation
         | TsAnn2 (Ts) (Ann,Ann) -- Usage & Demand annotation
-        -- | Gamma Pi -- Maybe needed?
+        | Gamma Pi
     deriving (Show, Eq, Ord)
 data T = TFn T T
        | TAp T T

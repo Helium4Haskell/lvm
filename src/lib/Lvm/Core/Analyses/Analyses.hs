@@ -66,7 +66,7 @@ deriving instance Ord Type.Type
 -- TODO: Maybe more?
 ----------------------------------------------------------------
 coreAnalyses :: CoreModule -> CoreModule
-coreAnalyses m = id $! trace (show $ annData (moduleDecls m)) id $! tracePretty' "coreAnalyses => " m
+coreAnalyses m = trace (show $ annData (moduleDecls m)) $ tracePretty' "coreAnalyses => " m
 
 corePrint :: CoreModule -> CoreModule
 corePrint m = m{ moduleDecls = id $! declPrintCon $! declPrintData $! moduleDecls m }
@@ -250,7 +250,8 @@ annotateDatass :: [DataAnns] -> DataAnns
 annotateDatass = foldl annotateDatas lvmioEnv --emptyDataEnv
     where
     emptyDataEnv = Map.empty
-    lvmioEnv = Map.unions [lvmio_channel, lvmio_input, lvmio_output]-- TODO: add [Channel, Input, Output]
+    -- Maybe the alphas or the betas shouldn't be empty
+    lvmioEnv = Map.unions [lvmio_channel, lvmio_input, lvmio_output]
     lvmio_input = Map.singleton (idFromString "Input") (DataAnn Set.empty Set.empty Map.empty)
     lvmio_output = Map.singleton (idFromString "Output") (DataAnn Set.empty Set.empty Map.empty)
     lvmio_channel = Map.singleton (idFromString "Channel") (DataAnn Set.empty Set.empty Map.empty)
@@ -262,7 +263,6 @@ type DataEnv = DataAnns
 --data DataAnn = DataAnn (Set Pi) (Set Ann) (Map Id T)
 --local recursion needed here, fixpoint
 annotateDatas :: DataEnv -> DataAnns -> DataEnv
---annotateDatas = Map.unionWith (\x1 x2 -> error $ "datatype analysed multiple times : " ++ (show x1) ++ " : " ++ (show x2))
 annotateDatas env datas = do
     let datas' = evalState (Map.traverseWithKey (\_ -> annotateData env datas) datas) 0
     if datas == datas'
@@ -368,3 +368,114 @@ depends names (i1,t) = foldr depend [] $ dataAnn2cons t
     where
     index = Map.findWithDefault (error "Analyses.depends: id not in data group??") i1 names
     depend x ds = maybe ds (\i2 -> (index,i2):ds) $ Map.lookup x names
+
+
+{- Constraint generation -}
+envLookup :: Id -> Env -> Fresh Ts
+envLookup id localEnv = case M.lookup id localEnv of
+    Just (TsAnn2 idTs (use,demand)) -> do
+        return $ TsAnn2 idTs (use,demand)
+    Nothing -> do
+        gamma <- freshGamma
+        use <- freshAnn
+        demand <- freshAnn
+        return $ TsAnn2 gamma (use,demand)
+--envMatch :: Id -> Expr -> Env -> Sym -> Fresh (blurgh)
+envMatch id expr importEnv exportSym = do
+    (localEnv1, t, constraints, symbols) <- generation expr importEnv exportSym
+        let idTs = envLookup id localEnv1
+        let localEnv2 = M.delete id localEnv1
+        return (localEnv2, idTs, t, constraints, symbols)
+
+{- Variables and constants-}
+-- (expr) (import env) (export symbols) -> (module env, usage annotated type, constraints, type of all defined symbols)
+-- generation :: Expr -> ImportEnv -> ExportSym -> Fresh (ModuleEnv,AnnT,Constraints,DefinedSym)
+generation expr importEnv exportSym = case expr of
+-- constants
+    Lit lit -> do
+        let t = (TCon $ case lit of
+                LitInt _ -> idFromString "Int"
+                LitDouble _ -> idFromString "Double"
+                LitBytes _ -> idFromString "Bytes")
+        use <- freshAnn
+        return  (   emptyEnv
+                ,   TAnn1 t use
+                ,   emptyCons
+                ,   emptySym
+                )
+-- variables
+    Var id -> case M.lookup id importEnv of
+        Just ts -> do
+            t <- freshPi
+            return  (   emptyEnv
+                    ,   TAnn1 t annTop
+                    ,   S.singleton (InstEq ts t)
+                    ,   emptySym
+                    )
+        Nothing -> do
+            t <- freshPi
+            ts <- freshGamma
+            use <- freshAnn
+            return  (   M.singleton id TsAnn2 ts (use,annOne)
+                    ,   TAnn1 t use
+                    ,   S.singleton (instEq ts t)
+                    ,   emptySym
+                    )
+-- abstraction
+    Lam id expr -> do
+        (localEnv1, TsAnn2 idTs (use,demand), t, constraints, symbols') <- envMatch id expr importEnv exportSym
+        let symbols = M.insert id (TsAnn2 idTs (use,demand)) symbols'
+        use2 <- freshAnn
+        --TODO: use2 {times} localEnv1 => (localEnv2,constraints2)
+        t' <- freshPi
+        return  (   localEnv2
+                ,   TAnn1 (Lam (TAnn2 t' (use,demand)) t) use2
+                ,   S.unions
+                        [   constraints
+                        ,   constraints2
+                        ,   S.singleton (EqTs idTs (t2ts t'))
+                        ]
+                ,   symbols
+                )
+-- application
+    Ap
+
+
+
+{-
+{- g(eneration) algorithm -}
+g :: Env -> Expr -> Fresh (T, TSub)
+g env expr = case expr of
+    Lit lit -> return (TCon $ case lit of
+            LitInt _ -> idFromString "Int"
+            LitDouble _ -> idFromString "Double"
+            LitBytes _ -> idFromString "Bytes"
+        , idSub)
+    Var id -> do
+        t <- instantiate $ envLookup env id
+        return (t, idSub)
+    Con (ConId id) -> do
+        t <- instantiate $ envLookup env id
+        return (t, idSub)
+    Con (ConTag expr arity) -> todo $ "need: Con (ConTag expr arity) => expr: " ++ p2s expr ++ " | arity: " ++ p2s arity --TODO:
+    Lam id expr -> do
+        a <- freshPi
+        (t, subs) <- g (envAppend id (t2ts a) env) expr
+        return (TFn (subs -$- a) t, subs)
+    Ap  expr1 expr2 -> do
+        (t1, subs1) <- g env expr1
+        (t2, subs2) <- g (envSubs subs1 env) expr2
+        a <- freshPi
+        let subs3 = unify (subs2 -$- t1) (TFn t2 a)
+        return (subs3 -$- a, subs3 -.- subs2 -.- subs1)
+    Match id alts -> todo $ "need: Match id alts => id: " ++ p2s id ++ " | alts: " ++ p2s alts --TODO:
+    Let binds expr -> case binds of
+        Rec bs -> todo $ "need: Rec bs => bs: " ++ p2s bs --TODO:
+        Strict b -> todo $ "need: Strict b => b: " ++ p2s b --TODO:
+        NonRec b -> todo $ "need: NonRec b => b: " ++ p2s b --TODO:
+    where
+        p2s :: Pretty a => a -> String
+        p2s = show . pretty
+        todo :: String -> Fresh (T, TSub)
+        todo s = const undefined (error s)
+-}

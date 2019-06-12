@@ -33,33 +33,36 @@ data Expr       = Let       !Binds Expr
                 | Con       !(Con Expr)
                 | Var       !Id
                 | Lit       !Literal
-
+   deriving Eq
 data Binds      = Rec       ![Bind]
                 | Strict    !Bind
                 | NonRec    !Bind
-
+   deriving Eq
 data Bind       = Bind      !Id Expr
-
+   deriving Eq
 type Alts       = [Alt]
 data Alt        = Alt       !Pat Expr
-
+   deriving Eq
 data Pat        = PatCon    !(Con Tag) ![Id]
                 | PatLit    !Literal
                 | PatDefault
-
+   deriving Eq
 data Literal    = LitInt    !Int
                 | LitDouble !Double
                 | LitBytes  !Bytes
-
+   deriving Eq
 data Con tag    = ConId  !Id
                 | ConTag tag !Arity
-
+   deriving Eq
 ----------------------------------------------------------------
 -- Pretty printing
 ----------------------------------------------------------------
 
 instance Pretty Expr where
    pretty = ppExpr 0
+
+instance Pretty Binds where
+   pretty = flip ppLetBinds (text "")
 
 ppExpr :: Int -> Expr -> Doc
 ppExpr p expr

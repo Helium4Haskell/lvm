@@ -19,7 +19,7 @@ import Lvm.Core.Saturate          (coreSaturate)  -- saturate constructors, inst
 import Lvm.Core.Normalize         (coreNormalize) -- normalize core, ie. atomic arguments and lambda's at let bindings
 import Lvm.Core.LetSort           (coreLetSort)   -- find smallest recursive let binding groups
 import Lvm.Core.Lift              (coreLift)      -- lambda-lift, ie. make free variables arguments
-import Lvm.Core.Analyses.Analyses (coreAnalyses)  -- analyses of core (adds annotations)
+--import Lvm.Core.Analyses.Analyses (coreAnalyses)  -- analyses of core (adds annotations)
 
 {---------------------------------------------------------------
   coreToAsm: translate Core expressions into Asm expressions
@@ -27,7 +27,7 @@ import Lvm.Core.Analyses.Analyses (coreAnalyses)  -- analyses of core (adds anno
 coreToAsm :: NameSupply -> CoreModule -> Asm.AsmModule
 coreToAsm supply
   = exprToTop
-  . coreAnalyses
+  -- . coreAnalyses
   . coreLift
   . coreLetSort
   . coreNormalize supply2
@@ -139,7 +139,9 @@ asmAtom atom args
       Lit lit   | null args -> Asm.Lit (asmLit lit)
       Let binds expr
                 -> asmAtomBinds binds (asmAtom expr args)
-      _ -> error "CoreToAsm.asmAtom: non atomic expression (do 'coreNormalise' first?)"
+      _ -> error $ "CoreToAsm.asmAtom: non atomic expression (do 'coreNormalise' first?)" ++ show (case atom of
+          Lam _ _ -> "Lam"
+          Match _ _ -> "Match")
 
 asmCon :: Con Expr -> Asm.Con Asm.Atom
 asmCon con
