@@ -6,3 +6,4 @@ topsolver
 *.css
 *.gif
 src/lib/dist/*
+.vscode/*
