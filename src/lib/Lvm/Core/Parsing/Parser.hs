@@ -5,7 +5,7 @@
 --------------------------------------------------------------------------------
 --  $Id$
 
-module Lvm.Core.Parsing.Parser (parseModuleExport, parseModule) where
+module Lvm.Core.Parsing.Parser (parseModuleExport, parseModule, parseTypeFromString) where
 
 import Control.Monad
 import Data.List
@@ -14,6 +14,7 @@ import Lvm.Common.Id
 import Lvm.Common.IdSet
 import Lvm.Core.Expr
 import Lvm.Core.Parsing.Token (Token, Lexeme(..))
+import Lvm.Core.Parsing.Lexer
 import Lvm.Core.Type
 import Lvm.Core.Utils
 import Prelude hiding (lex)
@@ -50,8 +51,9 @@ pmodule =
       ; exports <- pexports
       ; lexeme LexWHERE
       ; lexeme LexLBRACE
-      ; declss <- semiList (wrap (ptopDecl <|> pconDecl <|> pabstract <|> pextern <|> pCustomDecl)
+      ; declss_ <- semiList (wrap (ptopDecl <|> pconDecl <|> pabstract <|> pextern <|> pCustomDecl)
                             <|> pdata <|> pimport <|> ptypeTopDecl)
+      ; let declss = map (addOrigininDecl moduleId) (concat declss_)
       ; lexeme LexRBRACE
       ; lexeme LexEOF
 
@@ -63,7 +65,7 @@ pmodule =
                   ( modulePublic
                       True
                       es
-                      (Module moduleId 0 0 (concat declss))
+                      (Module moduleId 0 0 (declss))
                   , True
                   , es
                   )
@@ -71,13 +73,17 @@ pmodule =
                   ( modulePublic
                       False
                       es
-                      (Module moduleId 0 0 (concat declss))
+                      (Module moduleId 0 0 (declss))
                   , False
                   , es
                   )
             
       }
 
+addOrigininDecl :: Id -> CoreDecl -> CoreDecl
+addOrigininDecl originalmod decl = let cs = declCustoms decl
+                                       makeOrigin = [CustomDecl customOrigin [CustomName originalmod]]
+                                   in decl {declCustoms = cs ++ makeOrigin}
 ----------------------------------------------------------------
 -- export list
 ----------------------------------------------------------------
@@ -942,7 +948,10 @@ qualifiedCon
 
 typeid :: TokenParser Id
 typeid
-  = identifier lexCon -- (setSortId SortType id)
+  = identifier lexCon <|> -- (setSortId SortType id)
+    do { (m,name) <- lexQualifiedCon
+       ; return (idFromString (m ++ "." ++ name))
+       }
   <?> "type"
 
 typevarid :: TokenParser Id
@@ -1012,3 +1021,20 @@ satisfy p
        = setSourceColumn (setSourceLine pos line) col
     nextpos pos _ []
        = pos
+
+parseFromString :: TokenParser a -> String -> Either String a
+parseFromString p str = 
+  let toks = lexer (0,0) str
+  in case runParser (waitForEOF p) () "Core.Parsing.Parser" toks of
+    Left _ -> Left str --error ("Core.Parsing.Parser parseFromString: parse error in " ++ string ++ show tokens)
+    Right x -> Right x
+
+waitForEOF :: TokenParser a -> TokenParser a
+waitForEOF p
+  = do{ x <- p
+      ; lexeme LexEOF
+      ; return x
+      }
+
+parseTypeFromString :: String -> Either String Type
+parseTypeFromString = parseFromString (ptype <|> do{(ty,_) <- ptypeString; return ty})

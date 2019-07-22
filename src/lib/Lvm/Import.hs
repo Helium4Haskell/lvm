@@ -128,29 +128,35 @@ lvmResolveImports:
   needed for all modules.
 ---------------------------------------------------------------}
 lvmResolveImports :: IdMap (Module v) -> IdMap (Module v)
-lvmResolveImports mods = foldl' resolveImports mods (listFromMap mods)
+lvmResolveImports mods = 
+  let mods_ = mapMap (\x -> (x, [])) mods
+      result = foldl' resolveImports mods_ (listFromMap mods)
+  in mapMap fst result
 
-resolveImports :: IdMap (Module v) -> (Id,Module v) -> IdMap (Module v)
+resolveImports :: IdMap (Module v, [(Id, Id, DeclKind)]) -> (Id,Module v) -> IdMap (Module v, [(Id, Id, DeclKind)])
 resolveImports loaded (modid, m)
-  = foldl' (resolveImport [] modid) loaded (filter isDeclImport (moduleDecls m))
+  = foldl' (resolveImport [] modid) loaded (let res = filter isDeclImport (moduleDecls m) in {-traceShow (stringFromId modid, res)-} res)
 
-resolveImport :: [Id] -> Id -> IdMap (Module v) -> Decl v -> IdMap (Module v)
+resolveImport :: [Id] -> Id -> IdMap (Module v, [(Id, Id, DeclKind)]) -> Decl v -> IdMap (Module v, [(Id, Id, DeclKind)])
 resolveImport visited modid loaded imp@(DeclImport x access@(Imported _ imodid impid kind _ _) _)
   | modid `elem` visited = error ("LvmImport.resolveImport: circular import chain: " ++ stringFromId imodid ++ "." ++ stringFromId impid)
   | otherwise = 
-    let m = findMap modid loaded in 
-    case lookupMap imodid loaded of
-      Nothing   -> error ("LvmImport.resolveImport: import module is not loaded: " ++ stringFromId imodid)
-      Just imod -> case lookupDecl impid kind (moduleDecls imod) of
-                     []   -> notfound imodid impid
-                     ds   -> case filter (not . isDeclImport) ds of
-                               []  -> case filter isDeclImport ds of
-                                        []  -> notfound imodid impid
-                                        [d] -> let loaded' = resolveImport (modid:visited) imodid loaded d
-                                               in resolveImport (imodid:visited) modid loaded' imp
-                                        _   -> ambigious imodid impid
-                               [d] -> update m { moduleDecls = d{declName=x,declAccess = access} : moduleDecls m}
-                               _   -> ambigious imodid impid
+    let (m,seen) = findMap modid loaded in 
+    if (imodid, impid, kind) `elem` seen 
+      then loaded
+      else
+        case lookupMap imodid loaded of
+          Nothing   -> error ("LvmImport.resolveImport: import module is not loaded: " ++ stringFromId imodid)
+          Just (imod,_) -> case lookupDecl impid kind (moduleDecls imod) of
+                            []   -> notfound imodid impid
+                            ds   -> case filter (not . isDeclImport) ds of
+                                      []  -> case filter isDeclImport ds of
+                                              []  -> notfound imodid impid
+                                              [d] -> let loaded' = resolveImport (modid:visited) imodid loaded d
+                                                      in resolveImport (imodid:visited) modid loaded' imp
+                                              _   -> ambigious imodid impid
+                                      [d] -> update (m { moduleDecls = d{declName=x,declAccess = access} : moduleDecls m}, (imodid, impid, kind) : seen)
+                                      _   -> ambigious imodid impid
   where
     update m = updateMap modid m loaded
 resolveImport _ _ _ _ = error "resolveImport: not DeclImport"
