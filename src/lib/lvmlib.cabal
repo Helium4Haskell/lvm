@@ -1,7 +1,7 @@
-name:                   lvmlib
-version:                1.9
-synopsis:               The Lazy Virtual Machine (LVM).
-homepage:               https://github.com/Helium4Haskell/lvm
+name:           lvmlib
+version:        1.9
+synopsis:           The Lazy Virtual Machine (LVM).
+homepage:           https://github.com/Helium4Haskell/lvm
 description:
 
    The Lazy Virtual Machine (LVM) defines a portable instruction set and file
@@ -12,17 +12,17 @@ description:
    implementation is available (written in C). More information about LVM can be 
    found in Chapter 6 of Daan Leijen's PhD Thesis, The Lambda Abroad.
 
-category:               Compilers/Interpreters
-copyright:              (c) 2012-2019
-license:                BSD3
-license-file:           LICENSE.txt
-author:                 Daan Leijen, Bastiaan Heeren, Jurriaan Hage
-maintainer:             helium4haskell@gmail.com
-stability:              provisional
+category:           Compilers/Interpreters
+copyright:          (c) 2012-2019
+license:        BSD3
+license-file:       LICENSE.txt
+author:         Daan Leijen, Bastiaan Heeren, Jurriaan Hage
+maintainer:         helium4haskell@gmail.com
+stability:          provisional
 extra-source-files:     CREDITS.txt
-build-type:             Simple
-cabal-version:          >= 2
-tested-with:            GHC == 8.4.4
+build-type:         Simple
+cabal-version:      >= 2
+tested-with:        GHC == 8.4.4
 
 source-repository head
   type:     git
@@ -38,7 +38,41 @@ Executable coreasm
   default-language:  Haskell98
   hs-source-dirs:    .
   Main-is:           Lvm/Core/Main.hs
-
+  other-modules:
+    Lvm.Asm.Data
+    Lvm.Asm.Inline
+    Lvm.Asm.Occur
+    Lvm.Asm.ToLvm
+    Lvm.Common.Byte
+    Lvm.Common.Id
+    Lvm.Common.IdMap
+    Lvm.Common.IdSet
+    Lvm.Core.Expr
+    Lvm.Core.FreeVar
+    Lvm.Core.LetSort
+    Lvm.Core.Lift
+    Lvm.Core.Module
+    Lvm.Core.NoShadow
+    Lvm.Core.Normalize
+    Lvm.Core.Parsing.Layout
+    Lvm.Core.Parsing.Lexer
+    Lvm.Core.Parsing.Parser
+    Lvm.Core.Parsing.Token
+    Lvm.Core.PrettyId
+    Lvm.Core.QualifiedTyping
+    Lvm.Core.RemoveDead
+    Lvm.Core.Saturate
+    Lvm.Core.ToAsm
+    Lvm.Core.Type
+    Lvm.Core.Utils
+    Lvm.Data
+    Lvm.Import
+    Lvm.Instr.Data
+    Lvm.Instr.Resolve
+    Lvm.Instr.Rewrite
+    Lvm.Path
+    Lvm.Read
+    Lvm.Write
 Library
   Build-Depends:     base >= 3 && < 5, array, containers, directory, filepath, parsec, wl-pprint
   if !impl(ghc >= 8.0)

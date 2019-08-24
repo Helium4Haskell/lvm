@@ -6,13 +6,7 @@ import Lvm.Common.Byte
 import Lvm.Common.Id
 import Lvm.Common.IdMap
 import Lvm.Data
-import Lvm.Read  (lvmReadFile)
-import qualified Lvm.Core.Module as Module
-
-import Control.Monad
-import Data.List
-import Debug.Trace
-
+--import qualified Lvm.Core.Module as Module
 
 qualifiedTypes :: Module v -> (Module v)
 qualifiedTypes modu = let env = getAllTypeConstructors modu
@@ -57,7 +51,8 @@ changeTypeSynonymToQualified env (CustomBytes bs) =
     in CustomBytes newbs
 changeTypeSynonymToQualified _ c = c
 
---unfortunately have to perfrom some strictness, otherwise it breaks. I suspect the unsafePerformIO is to blame from stringFromId.
+-- Unfortunately have to perform some strictness, otherwise it breaks. 
+-- I suspect the unsafePerformIO is to blame from stringFromId.
 addToTypeConEnv :: IdMap Id -> Decl v -> IdMap Id
 addToTypeConEnv env decl =
     case decl of
@@ -79,19 +74,20 @@ getOrigin n ((CustomDecl kind [CustomName originalmod]):cs) | kind == customOrig
 getOrigin n (_:cs) = getOrigin n cs
 
 mapType :: (Id -> Id) -> Type -> Type
-mapType f (TFun t1 t2)     = TFun (mapType f t1) (mapType f t2)
-mapType f (TAp t1 t2)      = TAp (mapType f t1) (mapType f t2)
-mapType f (TForall id t)   = TForall (f id) (mapType f t)
-mapType f (TExist id t)    = TExist (f id) (mapType f t)
-mapType f (TStrict t)      = TStrict (mapType f t) 
-mapType f (TVar id)        = TVar (f id)
-mapType f (TCon id)        = TCon (f id)
-mapType f TAny             = TAny
-mapType f (TString str) = TString str
+mapType f (TFun t1 t2)      = TFun (mapType f t1) (mapType f t2)
+mapType f (TAp t1 t2)       = TAp (mapType f t1) (mapType f t2)
+mapType f (TForall ident t) = TForall (f ident) (mapType f t)
+mapType f (TExist ident t)  = TExist (f ident) (mapType f t)
+mapType f (TStrict t)       = TStrict (mapType f t) 
+mapType f (TVar ident)      = TVar (f ident)
+mapType f (TCon ident)      = TCon (f ident)
+mapType _ TAny              = TAny
+mapType _ (TString str)     = TString str
 
 qualifyType :: IdMap Id -> Type -> Type
 qualifyType env ty = mapType replace ty
     where
-        replace id = case lookupMap id env of
-            Nothing -> id
-            Just newid -> newid
+        replace ident = case lookupMap ident env of
+            Nothing -> ident
+            Just newident -> newident
+            
