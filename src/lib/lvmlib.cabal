@@ -30,13 +30,6 @@ source-repository head
 
 --------------------------------------------------------------------------------
 
-Executable coreasm
-  Build-Depends:     base >= 3 && < 5, array, containers, directory, filepath, parsec, wl-pprint
-  ghc-options:       -Wall
-  default-language:  Haskell98
-  hs-source-dirs:    .
-  Main-is:           Lvm/Core/Main.hs
-
 Library
   Build-Depends:     base >= 3 && < 5, array, containers, directory, filepath, parsec, wl-pprint
   ghc-options:       -Wall
@@ -46,26 +39,18 @@ Library
     Lvm.Asm.Data
     Lvm.Asm.Inline
     Lvm.Asm.Occur
-    Lvm.Asm.ToLvm
     Lvm.Common.Byte
     Lvm.Common.Id
     Lvm.Common.IdMap
     Lvm.Common.IdSet
     Lvm.Core.Expr
     Lvm.Core.FreeVar
-    Lvm.Core.LetSort
-    Lvm.Core.Lift
     Lvm.Core.Module
-    Lvm.Core.NoShadow
-    Lvm.Core.Normalize
     Lvm.Core.Parsing.Layout
     Lvm.Core.Parsing.Lexer
     Lvm.Core.Parsing.Parser
     Lvm.Core.Parsing.Token
     Lvm.Core.PrettyId
-    Lvm.Core.RemoveDead
-    Lvm.Core.Saturate
-    Lvm.Core.ToAsm
     Lvm.Core.Type
     Lvm.Core.Utils
     Lvm.Data
@@ -74,8 +59,6 @@ Library
     Lvm.Instr.Resolve
     Lvm.Instr.Rewrite
     Lvm.Path
-    Lvm.Read
-    Lvm.Write
 
 
 --------------------------------------------------------------------------------
