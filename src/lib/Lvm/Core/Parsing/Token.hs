@@ -5,18 +5,23 @@
 --------------------------------------------------------------------------------
 --  $Id: Lexer.hs 269 2012-08-31 15:16:49Z bastiaan $
 
-module Lvm.Core.Parsing.Token 
-   ( Token, Lexeme(..), Pos, incpos, newpos
-   ) where
+module Lvm.Core.Parsing.Token
+   ( Token
+   , Lexeme(..)
+   , Pos
+   , incpos
+   , newpos
+   )
+where
 
-import Text.PrettyPrint.Leijen (Pretty(..))
+import           Text.PrettyPrint.Leijen        ( Pretty(..) )
 
 -----------------------------------------------------------
 -- Tokens and lexems
 -----------------------------------------------------------
 
-type Pos        = (Int,Int)
-type Token      = (Pos,Lexeme)
+type Pos = (Int, Int)
+type Token = (Pos, Lexeme)
 
 data Lexeme     = LexUnknown Char
                 | LexError String
@@ -81,7 +86,7 @@ data Lexeme     = LexUnknown Char
                 | LexPUBLIC
                 | LexDEFAULT
                 | LexCON
-                
+
                 | LexABSTRACT
                 | LexINSTR
                 | LexEXTERN
@@ -102,9 +107,9 @@ instance Pretty Lexeme where
 -----------------------------------------------------------
 
 incpos :: Pos -> Int -> Pos
-incpos (line,col) i     = (line,col+i)
+incpos (line, col) i = (line, col + i)
 
 newpos :: Pos -> Char -> Pos
-newpos (line,_)   '\n'  = (line + 1,1)
-newpos (line,col) '\t'  = (line, ((((col-1) `div` 8)+1)*8)+1)
-newpos (line,col) _     = (line, col+1)
+newpos (line, _  ) '\n' = (line + 1, 1)
+newpos (line, col) '\t' = (line, ((((col - 1) `div` 8) + 1) * 8) + 1)
+newpos (line, col) _    = (line, col + 1)
