@@ -219,7 +219,7 @@ typeInstantiate _ _ t = t
 --    = forall b. forall c. b
 -- We need to rename type variable 'b' in the last 'forall' with a
 -- fresh type variable. As a general rule, we will rename quantors
--- in t1 if the variable is free in t2. The fresh variable must be fresh in t2
+-- in t1 if the variable is free in t2. The fresh variable cannot not be free in t2
 -- and must not occur in t1.
 typeSubstitute :: Int -> Type -> Type -> Type
 typeSubstitute var rightType leftType = typeSubstitutions [(var, rightType)] leftType
