@@ -6,67 +6,63 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Utils
-   ( module Lvm.Core.Module
-   , listFromBinds, mapBinds, mapAccumBinds, zipBindsWith
-   , mapAlts, zipAltsWith, mapExprWithSupply, mapAccum
-   , createFunction
-   ) where
+  ( module Lvm.Core.Module
+  , listFromBinds
+  , mapBinds
+  , mapAccumBinds
+  , zipBindsWith
+  , mapAlts
+  , zipAltsWith
+  , mapExprWithSupply
+  , mapAccum
+  , createFunction
+  )
+where
 
-import Lvm.Core.Expr
-import Lvm.Core.Type
-import Lvm.Common.Id
-import Lvm.Core.Module
+import           Lvm.Core.Expr
+import           Lvm.Core.Type
+import           Lvm.Common.Id
+import           Lvm.Core.Module
 
 ----------------------------------------------------------------
 -- Binders functions
 ----------------------------------------------------------------
 
 listFromBinds :: Binds -> [Bind]
-listFromBinds binds
-  = case binds of
-      NonRec bind -> [bind]
-      Strict bind -> [bind]
-      Rec recs    -> recs
+listFromBinds binds = case binds of
+  NonRec bind -> [bind]
+  Strict bind -> [bind]
+  Rec    recs -> recs
 
 mapBinds :: (Variable -> Expr -> Bind) -> Binds -> Binds
-mapBinds f binds
-  = case binds of
-      NonRec (Bind var rhs)
-        -> NonRec (f var rhs)
-      Strict (Bind var rhs)
-        -> Strict (f var rhs)
-      Rec recs
-        -> Rec (map (\(Bind var rhs) -> f var rhs) recs)
+mapBinds f binds = case binds of
+  NonRec (Bind var rhs) -> NonRec (f var rhs)
+  Strict (Bind var rhs) -> Strict (f var rhs)
+  Rec    recs           -> Rec (map (\(Bind var rhs) -> f var rhs) recs)
 
-mapAccumBinds :: (a -> Variable -> Expr -> (Bind,a)) -> a -> Binds -> (Binds, a)
-mapAccumBinds f x binds
-  = case binds of
-      NonRec (Bind var rhs)
-        -> let (bind,z) = f x var rhs
-           in  (NonRec bind, z)
-      Strict (Bind var rhs)
-        -> let (bind,z) = f x var rhs
-           in  (Strict bind, z)
-      Rec recs
-        -> let (recs',z) = mapAccum (\a (Bind var rhs) -> f a var rhs) x recs
-           in  (Rec recs',z)
+mapAccumBinds
+  :: (a -> Variable -> Expr -> (Bind, a)) -> a -> Binds -> (Binds, a)
+mapAccumBinds f x binds = case binds of
+  NonRec (Bind var rhs) -> let (bind, z) = f x var rhs in (NonRec bind, z)
+  Strict (Bind var rhs) -> let (bind, z) = f x var rhs in (Strict bind, z)
+  Rec recs ->
+    let (recs', z) = mapAccum (\a (Bind var rhs) -> f a var rhs) x recs
+    in  (Rec recs', z)
 
-mapAccum               :: (a -> b -> (c,a)) -> a -> [b] -> ([c],a)
-mapAccum _ s []         = ([],s)
-mapAccum f s (x:xs)     = (y:ys,s'')
-                         where (y,s' )  = f s x
-                               (ys,s'') = mapAccum f s' xs
+mapAccum :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
+mapAccum _ s []       = ([], s)
+mapAccum f s (x : xs) = (y : ys, s'')
+ where
+  (y , s' ) = f s x
+  (ys, s'') = mapAccum f s' xs
 
 
 zipBindsWith :: (a -> Variable -> Expr -> Bind) -> [a] -> Binds -> Binds
-zipBindsWith f (x:_) (Strict (Bind var rhs))
-  = Strict (f x var rhs)
-zipBindsWith f (x:_) (NonRec (Bind var rhs))
-  = NonRec (f x var rhs)
-zipBindsWith f xs (Rec recs)
-  = Rec (zipWith (\x (Bind var rhs) -> f x var rhs) xs recs)
-zipBindsWith _ _ _ 
-  = error "zipBindsWith"
+zipBindsWith f (x : _) (Strict (Bind var rhs)) = Strict (f x var rhs)
+zipBindsWith f (x : _) (NonRec (Bind var rhs)) = NonRec (f x var rhs)
+zipBindsWith f xs (Rec recs) =
+  Rec (zipWith (\x (Bind var rhs) -> f x var rhs) xs recs)
+zipBindsWith _ _ _ = error "zipBindsWith"
 
 ----------------------------------------------------------------
 -- Alternatives functions
@@ -82,20 +78,21 @@ zipAltsWith f = zipWith (\x (Alt pat expr) -> f x pat expr)
 --
 ----------------------------------------------------------------
 
-mapExprWithSupply :: (NameSupply -> Expr -> Expr) -> NameSupply -> CoreModule -> CoreModule
-mapExprWithSupply f supply m
-  = m { moduleDecls = mapWithSupply fvalue supply (moduleDecls m) }
-  where
-    fvalue sup decl@(DeclValue{}) = decl{ valueValue = f sup (valueValue decl)}
-    fvalue _   decl               = decl
+mapExprWithSupply
+  :: (NameSupply -> Expr -> Expr) -> NameSupply -> CoreModule -> CoreModule
+mapExprWithSupply f supply m = m
+  { moduleDecls = mapWithSupply fvalue supply (moduleDecls m)
+  }
+ where
+  fvalue sup decl@DeclValue{} = decl { valueValue = f sup (valueValue decl) }
+  fvalue _   decl             = decl
 
 
 createFunction :: [Quantor] -> [Variable] -> Expr -> Type -> (Expr, Type)
 createFunction quantors arguments bodyExpr bodyType =
-  ( foldr (\quantor ->  Forall quantor KStar) functionExpr quantors
-  , foldr (\quantor -> TForall quantor KStar) functionType quantors
+  ( foldr (`Forall` KStar)  functionExpr quantors
+  , foldr (`TForall` KStar) functionType quantors
   )
-  where
-    functionExpr = foldr (Lam False) bodyExpr arguments
-    functionType = typeFunction (map variableType arguments) bodyType
-
+ where
+  functionExpr = foldr (Lam False) bodyExpr arguments
+  functionType = typeFunction (map variableType arguments) bodyType

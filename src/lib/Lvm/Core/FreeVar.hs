@@ -7,10 +7,14 @@
 ----------------------------------------------------------------
 -- Calculate free variables
 ----------------------------------------------------------------
-module Lvm.Core.FreeVar (FreeVar(..), Binder(..)) where
+module Lvm.Core.FreeVar
+   ( FreeVar(..)
+   , Binder(..)
+   )
+where
 
-import Lvm.Common.IdSet
-import Lvm.Core.Expr
+import           Lvm.Common.IdSet
+import           Lvm.Core.Expr
 
 class FreeVar a where
    freeVar :: a -> IdSet
@@ -19,27 +23,25 @@ instance FreeVar a => FreeVar [a] where
    freeVar = unionSets . map freeVar
 
 instance FreeVar Expr where
-   freeVar expr = 
-      case expr of
-         Let bs e  -> freeVar bs `unionSet` (freeVar e `diffSet` binder bs)
-         Match x e -> insertSet x (freeVar e)
-         Ap e1 e2  -> freeVar e1 `unionSet` freeVar e2
-         Lam _ (Variable x _) e -> deleteSet x (freeVar e)
-         Forall _ _ e -> freeVar e
-         ApType e _ -> freeVar e
-         Con _     -> emptySet
-         Var x     -> singleSet x
-         Lit _     -> emptySet
+   freeVar expr = case expr of
+      Let bs e -> freeVar bs `unionSet` (freeVar e `diffSet` binder bs)
+      Match x  e                -> insertSet x (freeVar e)
+      Ap    e1 e2               -> freeVar e1 `unionSet` freeVar e2
+      Lam    _ (Variable x _) e -> deleteSet x (freeVar e)
+      Forall _ _              e -> freeVar e
+      ApType e _                -> freeVar e
+      Con _                     -> emptySet
+      Var x                     -> singleSet x
+      Lit _                     -> emptySet
 
 instance FreeVar Alt where
    freeVar (Alt p e) = freeVar e `diffSet` binder p
 
 instance FreeVar Binds where
-   freeVar binds =
-      case binds of
-         Rec bs   -> freeVar bs `diffSet` binder bs
-         NonRec b -> freeVar b
-         Strict b -> freeVar b
+   freeVar binds = case binds of
+      Rec    bs -> freeVar bs `diffSet` binder bs
+      NonRec b  -> freeVar b
+      Strict b  -> freeVar b
 
 instance FreeVar Bind where
    freeVar (Bind _ e) = freeVar e -- non-recursive binder!
@@ -52,12 +54,12 @@ instance Binder a => Binder [a] where
 
 instance Binder Pat where
    binder (PatCon _ _ xs) = setFromList xs
-   binder _             = emptySet
-   
+   binder _               = emptySet
+
 instance Binder Bind where
    binder (Bind (Variable x _) _) = singleSet x
-   
+
 instance Binder Binds where
-   binder (Rec bs)   = binder bs
-   binder (NonRec b) = binder b
-   binder (Strict b) = binder b
+   binder (Rec    bs) = binder bs
+   binder (NonRec b ) = binder b
+   binder (Strict b ) = binder b

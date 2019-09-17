@@ -14,7 +14,6 @@ module Lvm.Core.Type
    ) where
 
 import Lvm.Common.Id
-import Lvm.Common.IdSet
 import Text.PrettyPrint.Leijen
 
 import qualified Data.Set as S
@@ -140,7 +139,7 @@ instance Show Quantor where
 instance Pretty TypeConstant where
   pretty (TConDataType name) = pretty name
   pretty (TConTypeClassDictionary name) = text "(@dictionary" <+> pretty name <+> text ")"
-  pretty (TConTuple arity) = text ('(' : (replicate (arity - 1) ',') ++ ")")
+  pretty (TConTuple arity) = text ('(' : replicate (arity - 1) ',' ++ ")")
   pretty TConFun = text "->"
 
 instance Show TypeConstant where
@@ -173,8 +172,8 @@ ppType level quantorNames tp
     parenthesized doc
       | level <= tplevel  = doc
       | otherwise         = parens doc
-    ppHi t = ppType (tplevel+1) quantorNames t
-    ppEq t = ppType tplevel quantorNames t
+    ppHi  = ppType (tplevel+1) quantorNames
+    ppEq = ppType tplevel quantorNames
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind
@@ -233,7 +232,7 @@ typeSubstitute var rightType leftType = fst $ substitute leftType M.empty $ filt
       where
         (t1', free') = substitute t1 mapping free
         (t2', free'') = substitute t2 mapping free'
-    substitute (TForall q@(Quantor idx _) k t) mapping free
+    substitute (TForall (Quantor idx _) k t) mapping free
       | idx `S.member` rightFree =
         let
           idx' : free' = free
