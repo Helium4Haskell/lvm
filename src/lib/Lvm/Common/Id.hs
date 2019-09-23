@@ -11,7 +11,7 @@ module Lvm.Common.Id
    , stringFromId, idFromString, idFromStringEx, dummyId
    -- exotic: only used in the core compiler
    , freshIdFromId, getNameSpace, setNameSpace, NameSupply, newNameSupply
-   , splitNameSupply, splitNameSupplies, freshId, mapWithSupply
+   , splitNameSupply, splitNameSupplies, freshId, mapWithSupply, mapWithSupply'
    -- very exotic: only used internally for IdMap's that use IntMap
    , intFromId, idFromInt
    ) where
@@ -83,31 +83,45 @@ newNameSupply
       ; return (NameSupply ref)
       }
 
+{-# NOINLINE splitNameSupply #-}
 splitNameSupply :: NameSupply -> (NameSupply,NameSupply)
 splitNameSupply supply = (supply,supply)
 
+{-# NOINLINE splitNameSupplies #-}
 splitNameSupplies :: NameSupply -> [NameSupply]
 splitNameSupplies = repeat
 
+{-# NOINLINE freshIdFromId #-}
 freshIdFromId :: Id -> NameSupply -> (Id,NameSupply)
 freshIdFromId x supply@(NameSupply ref)
-  = unsafePerformIO (do{ i <- readIORef ref
-                       ; writeIORef ref (i+1)
+  = unsafePerformIO (do{ --i <- readIORef ref
+                       --; writeIORef ref (i+1)
+                       ; i <- atomicModifyIORef' ref (\i -> (i + 1, i))
                        ; let name = stringFromId x ++ "." ++ show i
                              x1   = idFromString name
                              x2   = setNameSpace (getNameSpace x :: Int) x1
                        ; seq name $ seq x2 $ return (x2,supply)
                        })
 
+{-# NOINLINE freshId #-}
 freshId :: NameSupply -> (Id,NameSupply)
 freshId supply@(NameSupply ref)
-  = unsafePerformIO (do{ i <- readIORef ref
-                       ; writeIORef ref (i+1)
+  = unsafePerformIO (do{ --i <- readIORef ref
+                       -- ; writeIORef ref (i+1)
+                       ; i <- atomicModifyIORef' ref (\i -> (i + 1, i))
                        ; return (Id (initUniq i), supply)
                        })
 
+{-# NOINLINE mapWithSupply #-}
 mapWithSupply :: (NameSupply -> a -> b) -> NameSupply -> [a] -> [b]
 mapWithSupply f = zipWith f . splitNameSupplies
+
+mapWithSupply' :: (NameSupply -> a -> (b, NameSupply)) -> NameSupply -> [a] -> ([b], NameSupply)
+mapWithSupply' _ supply [] = ([], supply)
+mapWithSupply' f supply (a:as) = (b : bs, supply'')
+  where
+    (b, supply') = f supply a
+    (bs, supply'') = mapWithSupply' f supply' as
 
 ----------------------------------------------------------------
 -- Bit masks used within an Id
