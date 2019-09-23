@@ -5,7 +5,7 @@
 --------------------------------------------------------------------------------
 --  $Id$
 
-module Lvm.Common.Id 
+module Lvm.Common.Id
    ( Id
    -- essential used in "asm" and "lvm"
    , stringFromId, idFromString, idFromStringEx, dummyId
@@ -27,7 +27,7 @@ import qualified Data.IntMap as IntMap
 -- Types
 ----------------------------------------------------------------
 newtype Id        = Id Int32
- 
+
 intFromId :: Id -> Int
 intFromId (Id i)  = fromIntegral i
 idFromInt :: Int -> Id
@@ -39,6 +39,7 @@ idFromInt i       = Id (fromIntegral i)
 data Names        = Names Int (IntMap.IntMap [String])
 
 namesRef :: IORef Names
+{-# NOINLINE namesRef #-}
 namesRef = unsafePerformIO (newIORef emptyNames)
 
 emptyNames :: Names
@@ -51,6 +52,7 @@ seqString :: String -> a -> a
 seqString str a = foldr seq a str
 
 idFromStringEx :: Enum a => a -> String -> Id
+{-# NOINLINE idFromStringEx #-}
 idFromStringEx ns name
   = seqString name $
     unsafePerformIO $
@@ -61,6 +63,7 @@ idFromStringEx ns name
       }
 
 stringFromId :: Id -> String
+{-# NOINLINE stringFromId #-}
 stringFromId x@(Id i)
   | isUniq i  = '.' : show (extractUniq i)
   | otherwise = unsafePerformIO $
@@ -90,6 +93,7 @@ splitNameSupplies :: NameSupply -> [NameSupply]
 splitNameSupplies = repeat
 
 freshIdFromId :: Id -> NameSupply -> (Id,NameSupply)
+{-# NOINLINE freshIdFromId #-}
 freshIdFromId x supply@(NameSupply ref)
   = unsafePerformIO (do{ i <- readIORef ref
                        ; writeIORef ref (i+1)
@@ -100,6 +104,7 @@ freshIdFromId x supply@(NameSupply ref)
                        })
 
 freshId :: NameSupply -> (Id,NameSupply)
+{-# NOINLINE freshId #-}
 freshId supply@(NameSupply ref)
   = unsafePerformIO (do{ i <- readIORef ref
                        ; writeIORef ref (i+1)
@@ -230,7 +235,7 @@ insertName srt name names
     in (setNameSpace srt x, names')
 
 insertName' :: String -> Names -> (Id,Names)
-insertName' name (Names fresh m) 
+insertName' name (Names fresh m)
    | idx > maxIdx = error ("Id.insertName: too many names with the same hash value (" ++ show name ++ ")")
    | otherwise    = (Id (initIdx idx h), Names fresh m1)
  where
