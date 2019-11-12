@@ -96,7 +96,6 @@ splitNameSupplies = repeat
 
 {-# NOINLINE freshIdFromId #-}
 freshIdFromId :: Id -> NameSupply -> (Id,NameSupply)
-{-# NOINLINE freshIdFromId #-}
 freshIdFromId x supply@(NameSupply ref)
   = unsafePerformIO (do{ --i <- readIORef ref
                        --; writeIORef ref (i+1)
@@ -109,7 +108,6 @@ freshIdFromId x supply@(NameSupply ref)
 
 {-# NOINLINE freshId #-}
 freshId :: NameSupply -> (Id,NameSupply)
-{-# NOINLINE freshId #-}
 freshId supply@(NameSupply ref)
   = unsafePerformIO (do{ --i <- readIORef ref
                        -- ; writeIORef ref (i+1)
