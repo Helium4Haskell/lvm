@@ -98,7 +98,7 @@ ppExpr p quantorNames expr = case expr of
       <>  text ": "
       <>  ppType 0 quantorNames t
       <+> text "->"
-      <+> ppExpr 0 quantorNames e
+      <$> indent 2 (ppExpr 0 quantorNames e)
   Forall quantor k e ->
     let quantorNames' = case quantor of
           Quantor idx (Just name) -> (idx, name) : quantorNames
@@ -109,7 +109,7 @@ ppExpr p quantorNames expr = case expr of
           <>  text ": "
           <>  pretty k
           <>  text "."
-          <+> ppExpr 0 quantorNames' e
+          <$> indent 2 (ppExpr 0 quantorNames' e)
   Ap e1 e2 -> prec 9 $ ppExpr 9 quantorNames e1 <+> ppExpr 10 quantorNames e2
   ApType e1 t ->
     prec 9

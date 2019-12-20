@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
--- is distributed under the terms of the BSD3 License. For more information, 
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
+-- is distributed under the terms of the BSD3 License. For more information,
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id$
@@ -10,6 +10,7 @@ module Lvm.Core.Module
    , Decl(..)
    , Custom(..)
    , DeclKind(..)
+   , Field(..)
    , Arity
    , Tag
    , Access(..)
@@ -64,13 +65,20 @@ data Module v
 data Decl v
   = DeclValue     { declName :: Id, declAccess :: !Access, declType :: !Type, valueValue :: v, declCustoms :: ![Custom] }
   | DeclAbstract  { declName :: Id, declAccess :: !Access, declArity :: !Arity, declType :: !Type, declCustoms :: ![Custom] }
-  | DeclCon       { declName :: Id, declAccess :: !Access, declType :: !Type, declCustoms :: [Custom] }
+  | DeclCon       { declName :: Id, declAccess :: !Access, declType :: !Type, declFields :: ![Field], declCustoms :: [Custom] }
   | DeclExtern    { declName :: Id, declAccess :: !Access, declType :: !Type
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
                   , externLib  :: !String, externName :: !ExternName, declCustoms :: ![Custom] }
   | DeclCustom    { declName :: Id, declAccess :: !Access, declKind :: !DeclKind, declCustoms :: ![Custom] }
   | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declType :: !Type, declCustoms :: ![Custom] }
   | DeclImport    { declName :: Id, declAccess :: !Access, declCustoms :: ![Custom] }
+
+data Field = Field 
+   { fieldName :: !Id 
+   , fieldStrict :: !Bool 
+   -- , fieldOrder :: !Int 
+   -- , fieldType :: !Type
+   }
 
 data Custom
   = CustomInt   !Int
@@ -250,7 +258,7 @@ instance Functor Decl where
    fmap f decl = case decl of
       DeclValue    x ac m  v  cs -> DeclValue x ac m (f v) cs
       DeclAbstract x ac ar tp cs -> DeclAbstract x ac ar tp cs
-      DeclCon x ac t cs          -> DeclCon x ac t cs
+      DeclCon x ac t fs cs       -> DeclCon x ac t fs cs
       DeclExtern x ac ar et el ec elib en cs ->
          DeclExtern x ac ar et el ec elib en cs
       DeclCustom x ac k cs      -> DeclCustom x ac k cs
@@ -287,6 +295,7 @@ instance Pretty a => Pretty (Decl a) where
                <+> ppQualCon (importModule imp) (importName imp)
                <+> text "::"
                <>  pretty (declType decl)
+               <$> ppFields (declFields decl)
 
          _ ->
             text "con"
@@ -294,6 +303,7 @@ instance Pretty a => Pretty (Decl a) where
                <+> ppAttrs decl
                <$> text "::"
                <+> pretty (declType decl)
+               <$> ppFields (declFields decl)
       DeclCustom{} ->
          text "custom"
             <+> pretty (declKind decl)
@@ -334,6 +344,19 @@ instance Pretty LinkConv where
       LinkDynamic -> text " dynamic"
       LinkStatic  -> empty
 
+instance Pretty Field where
+   pretty (Field name strict) = ppStrict strict <> ppVarId name
+     where
+      ppStrict True = text "!"
+      ppStrict False = empty
+   --    text "field" <+> ppStrict strict <> ppVarId name
+   --    <> text "(" <> text (show order) <> text ")"
+   --    <+> text "::" <+> pretty tp
+   --   where
+   --    ppStrict False = text "!"
+   --    ppStrict True = empty
+
+
 instance Pretty CallConv where
    pretty callConv = case callConv of
       CallInstr -> text " instrcall"
@@ -356,6 +379,9 @@ ppExternType callConv tp = text "::" <+> case callConv of
 
 ppNoImpAttrs :: Decl a -> Doc
 ppNoImpAttrs = ppAttrsEx True
+
+ppFields :: [Field] -> Doc
+ppFields = encloseSep (text "<") (text ">") (text ", ") . map pretty
 
 ppAttrs :: Decl a -> Doc
 ppAttrs = ppAttrsEx False
@@ -402,9 +428,9 @@ instance Pretty Custom where
 instance Pretty DeclKind where
    pretty kind = case kind of
       DeclKindCustom x    -> ppId x
---         DeclKindName        
+--         DeclKindName
 --         DeclKindKind
---         DeclKindBytes       
+--         DeclKindBytes
 --         DeclKindCode
       DeclKindValue       -> ppId (idFromString "val")
       DeclKindCon         -> ppId (idFromString "con")
@@ -412,7 +438,7 @@ instance Pretty DeclKind where
       DeclKindModule      -> ppId (idFromString "module")
       DeclKindExtern      -> ppId (idFromString "extern")
       DeclKindTypeSynonym -> ppId (idFromString "type")
---         DeclKindExternType      
+--         DeclKindExternType
       _                   -> pretty (fromEnum kind)
 
 makeDeclKind :: Id -> DeclKind

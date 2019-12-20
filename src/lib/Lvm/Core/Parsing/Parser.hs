@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
--- is distributed under the terms of the BSD3 License. For more information, 
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
+-- is distributed under the terms of the BSD3 License. For more information,
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id$
@@ -177,7 +177,7 @@ pabstractCon = do
   t <- ptype
   let access | isImported acc = acc
              | otherwise      = Imported False mid impid DeclKindCon 0 0
-  return (DeclCon x access t custom)
+  return (DeclCon x access t [] custom)
 
 isImported :: Access -> Bool
 isImported Imported{} = True
@@ -298,7 +298,7 @@ pconDecl = do
   (access, custom) <- pAttributes public
   lexeme LexCOLCOL
   t <- ptype
-  return $ DeclCon x access t custom
+  return $ DeclCon x access t [] custom
 
 -- constructor info: (@tag, arity)
 pConInfo :: TokenParser (Tag, Arity)
@@ -379,7 +379,7 @@ pdata = do
       lexeme LexASG
       let t1 = foldl TAp (TCon $ TConDataType x) (map TVar args)
       cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
-      let con (cid, t2) = DeclCon cid public t2 [CustomLink x customData]
+      let con (cid, t2) = DeclCon cid public t2 [] [CustomLink x customData]
       return (datadecl : map con cons)
     <|> {- empty data types -}
         return [datadecl]
@@ -912,7 +912,7 @@ qualifiedVar = do
   return (idFromString m, idFromString name)
 
 bindid :: TokenParser Id
-bindid = varid {- 
+bindid = varid {-
   = do{ x <- varid
       ; do{ lexeme LexEXCL
           ; return x {- (setSortId SortStrict id) -}
