@@ -60,8 +60,8 @@ lexer pos ('w' : 'i' : 't' : 'h' : cs) | nonId cs =
   (pos, LexWITH) : nextinc lexer pos 4 cs
 lexer pos ('c' : 'c' : 'a' : 'l' : 'l' : cs) | nonId cs =
   (pos, LexCCALL) : nextinc lexer pos 5 cs
-lexer pos ('p' : 'u' : 'b' : 'l' : 'i' : 'c' : cs) | nonId cs =
-  (pos, LexPUBLIC) : nextinc lexer pos 6 cs
+lexer pos ('e' : 'x' : 'p' : 'o' : 'r' : 't' : cs) | nonId cs =
+  (pos, LexEXPORT) : nextinc lexer pos 6 cs
 lexer pos ('e' : 'x' : 't' : 'e' : 'r' : 'n' : cs) | nonId cs =
   (pos, LexEXTERN) : nextinc lexer pos 6 cs
 lexer pos ('s' : 't' : 'a' : 't' : 'i' : 'c' : cs) | nonId cs =
@@ -70,8 +70,6 @@ lexer pos ('c' : 'u' : 's' : 't' : 'o' : 'm' : cs) | nonId cs =
   (pos, LexCUSTOM) : nextinc lexer pos 6 cs
 lexer pos ('n' : 'o' : 't' : 'h' : 'i' : 'n' : 'g' : cs) | nonId cs =
   (pos, LexNOTHING) : nextinc lexer pos 7 cs
-lexer pos ('p' : 'r' : 'i' : 'v' : 'a' : 't' : 'e' : cs) | nonId cs =
-  (pos, LexPRIVATE) : nextinc lexer pos 7 cs
 lexer pos ('d' : 'e' : 'f' : 'a' : 'u' : 'l' : 't' : cs) | nonId cs =
   (pos, LexDEFAULT) : nextinc lexer pos 7 cs
 lexer pos ('d' : 'y' : 'n' : 'a' : 'm' : 'i' : 'c' : cs) | nonId cs =
@@ -159,23 +157,23 @@ lexConOrQual pos cs =
   in  case rest of
         '.' : ds@(d : _)
           | isLower d || d == '_' -> lexWhile isLetter
-                                              (LexQualId ident)
+                                              (\n -> LexId $ ident ++ "." ++ n)
                                               pos
                                               (incpos pos' 1)
                                               ds
           | isUpper d -> lexWhile isLetter
-                                  (LexQualCon ident)
+                                  (\n -> LexCon $ ident ++ "." ++ n)
                                   pos
                                   (incpos pos' 1)
                                   ds
           | isSymbol d -> lexWhile isSymbol
-                                   (LexQualId ident)
+                                   (\n -> LexId $ ident ++ "." ++ n)
                                    pos
                                    (incpos pos' 1)
                                    ds
         '.' : '\'' : '\'' : ds -> case lexSpecialId pos (incpos pos 3) ds of
-          (pos1, LexCon s) : xs -> (pos1, LexQualCon ident s) : xs
-          (pos1, LexId s ) : xs -> (pos1, LexQualId ident s) : xs
+          (pos1, LexCon s) : xs -> (pos1, LexCon $ ident ++ "." ++ s) : xs
+          (pos1, LexId s ) : xs -> (pos1, LexId  $ ident ++ "." ++ s) : xs
           xs                    -> xs
         _ -> (pos, LexCon ident) : seq pos' (lexer pos' rest)
 

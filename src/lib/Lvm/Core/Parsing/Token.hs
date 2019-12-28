@@ -31,10 +31,8 @@ data Lexeme     = LexUnknown Char
                 | LexFloat Double
                 | LexId String
                 | LexTypeVar Int
-                | LexQualId String String
                 | LexOp String
                 | LexCon String
-                | LexQualCon String String
                 | LexConOp String
 
                 | LexCOMMA      -- ,
@@ -82,8 +80,7 @@ data Lexeme     = LexUnknown Char
                 | LexLETSTRICT
                 | LexWITH
 
-                | LexPRIVATE
-                | LexPUBLIC
+                | LexEXPORT
                 | LexDEFAULT
                 | LexCON
 

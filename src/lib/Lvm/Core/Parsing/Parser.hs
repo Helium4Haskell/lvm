@@ -8,8 +8,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Lvm.Core.Parsing.Parser
-  ( parseModuleExport
-  , parseModule
+  ( parseModule
   )
 where
 
@@ -30,16 +29,13 @@ import           Prelude                 hiding ( lex )
 import           Text.ParserCombinators.Parsec
                                          hiding ( satisfy )
 
-parseModuleExport
+parseModule
   :: FilePath
   -> [Token]
-  -> IO (CoreModule, Bool, (IdSet, IdSet, IdSet, IdSet, IdSet))
-parseModuleExport fname ts = case runParser pmodule () fname ts of
+  -> IO CoreModule
+parseModule fname ts = case runParser pmodule () fname ts of
   Left  err -> ioError (userError ("parse error: " ++ show err))
   Right res -> return res
-
-parseModule :: FilePath -> [Token] -> IO CoreModule
-parseModule fname = fmap (\(m, _, _) -> m) . parseModuleExport fname
 
 ----------------------------------------------------------------
 -- Basic parsers
@@ -55,109 +51,49 @@ wrap p = do
   x <- p
   return [x]
 
-pmodule :: TokenParser (CoreModule, Bool, (IdSet, IdSet, IdSet, IdSet, IdSet))
+pmodule :: TokenParser CoreModule
 pmodule = do
   lexeme LexMODULE
   moduleId <- conid <?> "module name"
-  exports  <- pexports
   lexeme LexWHERE
   lexeme LexLBRACE
+  imports <- pimports <|> return []
   declss_ <- semiList
-    (   wrap (ptopDecl <|> pconDecl <|> pabstract <|> pextern <|> pCustomDecl)
+    (   wrap (ptopDecl <|> pconDecl <|> pextern <|> pCustomDecl)
     <|> pdata
-    <|> pimport
     <|> ptypeTopDecl
     )
   let declss = map (addOrigininDecl moduleId) (concat declss_)
   lexeme LexRBRACE
   lexeme LexEOF
-  return $ case exports of
-    Nothing ->
-      let es = (emptySet, emptySet, emptySet, emptySet, emptySet)
-      in  (modulePublic True es (Module moduleId 0 0 declss), True, es)
-    Just es -> (modulePublic False es (Module moduleId 0 0 declss), False, es)
+  return $ Module moduleId 0 0 imports declss
 
 addOrigininDecl :: Id -> CoreDecl -> CoreDecl
 addOrigininDecl originalmod decl =
   let cs         = declCustoms decl
       makeOrigin = [CustomDecl customOrigin [CustomName originalmod]]
   in  decl { declCustoms = cs ++ makeOrigin }
-----------------------------------------------------------------
--- export list
-----------------------------------------------------------------
-data Export  = ExportValue Id
-             | ExportCon   Id
-             | ExportData  Id
-             | ExportDataCon Id
-             | ExportModule Id
 
-pexports :: TokenParser (Maybe (IdSet, IdSet, IdSet, IdSet, IdSet))
-pexports = do
-  exports <- commaParens pexport <|> return []
-  return $ if null (concat exports)
-    then Nothing
-    else Just
-      (foldl' split
-              (emptySet, emptySet, emptySet, emptySet, emptySet)
-              (concat exports)
-      )
- where
-  split (values, cons, datas, datacons, ms) export = case export of
-    ExportValue   x -> (insertSet x values, cons, datas, datacons, ms)
-    ExportCon     x -> (values, insertSet x cons, datas, datacons, ms)
-    ExportData    x -> (values, cons, insertSet x datas, datacons, ms)
-    ExportDataCon x -> (values, cons, datas, insertSet x datacons, ms)
-    ExportModule  x -> (values, cons, datas, datacons, insertSet x ms)
-
-pexport :: TokenParser [Export]
-pexport =
-  do
-      lexeme LexLPAREN
-      entity <- ExportValue <$> opid <|> do
-        ExportCon <$> conopid
-      lexeme LexRPAREN
-      return [entity]
-    <|> do
-          x <- varid
-          return [ExportValue x]
-    <|> do
-          x <- typeid
-          do
-              lexeme LexLPAREN
-              cons <- pexportCons x
-              lexeme LexRPAREN
-              return (ExportData x : cons)
-            <|>
-          -- no parenthesis: could be either a
-          -- constructor or a type constructor
-                return [ExportData x, ExportCon x]
-    <|> do
-          lexeme LexMODULE
-          x <- conid
-          return [ExportModule x]
-
-pexportCons :: Id -> TokenParser [Export]
-pexportCons x =
-  do
-      lexeme LexDOTDOT
-      return [ExportDataCon x]
-    <|> do
-          xs <- sepBy constructor (lexeme LexCOMMA)
-          return (map ExportCon xs)
-
+pimports :: TokenParser [Id]
+pimports = do
+  lexeme LexIMPORT
+  imports <- commaParens (conid <?> "module name")
+  lexeme LexSEMI
+  return imports
 
 ----------------------------------------------------------------
 -- abstract declarations
 ----------------------------------------------------------------
+{-
 pabstract :: TokenParser CoreDecl
 pabstract = do
   lexeme LexABSTRACT
-  pabstractValue <|> pabstractCon
+  pabstractValue
 
 pabstractValue :: TokenParser (Decl v)
 pabstractValue = do
   x             <- pVariableName
-  (acc, custom) <- pAttributes private
+  (acc, custom) <- pAttributes
   lexeme LexCOLON
   arity <- lexInt
   lexeme LexASG
@@ -170,7 +106,7 @@ pabstractValue = do
 pabstractCon :: TokenParser (Decl v)
 pabstractCon = do
   x             <- conid
-  (acc, custom) <- pAttributes private -- ignore access
+  (acc, custom) <- pAttributes -- ignore access
   lexeme LexASG
   (mid, impid) <- qualifiedCon
   lexeme LexCOLCOL
@@ -178,114 +114,7 @@ pabstractCon = do
   let access | isImported acc = acc
              | otherwise      = Imported False mid impid DeclKindCon 0 0
   return (DeclCon x access t [] custom)
-
-isImported :: Access -> Bool
-isImported Imported{} = True
-isImported _          = False
-
-----------------------------------------------------------------
--- import declarations
-----------------------------------------------------------------
-pimport :: TokenParser [CoreDecl]
-pimport = do
-  lexeme LexIMPORT
-  mid <- conid
-  do
-      xss <- commaParens (pImportSpec mid)
-      return (concat xss)
-    <|> return
-          [DeclImport mid (Imported False mid dummyId DeclKindModule 0 0) []]
-
-pImportSpec :: Id -> TokenParser [CoreDecl]
-pImportSpec mid =
-  do
-      lexeme LexLPAREN
-      (kind, x) <-
-        do
-            y <- opid
-            return (DeclKindValue, y)
-          <|> do
-                y <- conopid
-                return (DeclKindCon, y)
-      lexeme LexRPAREN
-      impid <- option
-        x
-        (do
-          lexeme LexASG
-          pVariableName
-        )
-      return [DeclImport x (Imported False mid impid kind 0 0) []]
-    <|> do
-          x     <- varid
-          impid <- option
-            x
-            (do
-              lexeme LexASG
-              pVariableName
-            )
-          return [DeclImport x (Imported False mid impid DeclKindValue 0 0) []]
-    <|> do
-          lexeme LexCUSTOM
-          kind  <- lexString
-          x     <- pVariableName <|> constructor
-          impid <- option
-            x
-            (do
-              lexeme LexASG
-              pVariableName <|> constructor
-            )
-          return
-            [ DeclImport x
-                         (Imported False mid impid (customDeclKind kind) 0 0)
-                         []
-            ]
-    <|> do
-          lexeme LexTYPE
-          x     <- constructor
-          impid <- option
-            x
-            (do
-              lexeme LexASG
-              pVariableName <|> constructor
-            )
-          return
-            [DeclImport x (Imported False mid impid DeclKindTypeSynonym 0 0) []]
-    <|> do
-          x     <- typeid
-          impid <- option
-            x
-            (do
-              lexeme LexASG
-              pVariableName
-            )
-          do
-              lexeme LexLPAREN
-              cons <- pImportCons mid
-              lexeme LexRPAREN
-              return
-                ( DeclImport x (Imported False mid impid customData 0 0) []
-                : cons
-                )
-            <|> return
-                  [DeclImport x (Imported False mid impid DeclKindCon 0 0) []]
-
-pImportCons :: Id -> TokenParser [CoreDecl]
-pImportCons mid = -- do{ lexeme LexDOTDOT
-    --   ; return [ExportDataCon id]
-    --   }
-  -- <|>
-  sepBy (pimportCon mid) (lexeme LexCOMMA)
-
-pimportCon :: Id -> TokenParser CoreDecl
-pimportCon mid = do
-  x     <- constructor
-  impid <- option
-    x
-    (do
-      lexeme LexASG
-      pVariableName
-    )
-  return (DeclImport x (Imported False mid impid DeclKindCon 0 0) [])
+-}
 
 ----------------------------------------------------------------
 -- constructor declarations
@@ -295,10 +124,10 @@ pconDecl :: TokenParser CoreDecl
 pconDecl = do
   lexeme LexCON
   x                <- constructor
-  (access, custom) <- pAttributes public
+  (access, custom) <- pAttributes x constructor
   lexeme LexCOLCOL
   t <- ptype
-  return $ DeclCon x access t [] custom
+  return $ DeclCon x access Nothing t [] custom
 
 -- constructor info: (@tag, arity)
 pConInfo :: TokenParser (Tag, Arity)
@@ -338,13 +167,13 @@ ptopDeclType x = do
     ++ " doesn't match the definition"
     ++ stringFromId x2
     )
-  (access, custom, expr) <- pbindTopRhs
-  return (DeclValue x access tp expr custom)
+  (access, custom, expr) <- pbindTopRhs x pVariableName
+  return (DeclValue x access Nothing tp expr custom)
 
-pbindTopRhs :: TokenParser (Access, [Custom], Expr)
-pbindTopRhs =
+pbindTopRhs :: Id -> TokenParser Id -> TokenParser (Access, [Custom], Expr)
+pbindTopRhs name palias =
   do
-      (access, custom) <- pAttributes public
+      (access, custom) <- pAttributes name palias
       lexeme LexASG
       body <- pexpr
       return (access, custom, body)
@@ -374,12 +203,12 @@ pdata = do
   x    <- typeid
   args <- many lexTypeVar
   let kind     = foldr (KFun . const KStar) KStar args
-      datadecl = DeclCustom x public customData [customKind kind]
+      datadecl = DeclCustom x (Export x) Nothing customData [customKind kind]
   do
       lexeme LexASG
       let t1 = foldl TAp (TCon $ TConDataType x) (map TVar args)
       cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
-      let con (cid, t2) = DeclCon cid public t2 [] [CustomLink x customData]
+      let con (cid, t2) = DeclCon cid (Export cid) Nothing t2 [] [CustomLink x customData]
       return (datadecl : map con cons)
     <|> {- empty data types -}
         return [datadecl]
@@ -401,7 +230,7 @@ ptypeTopDecl = do
 -- ; args <- many lexTypeVar
   lexeme LexASG
   tp <- ptype
-  return [DeclTypeSynonym x private tp []] -- TODO: Handle type arguments
+  return [DeclTypeSynonym x (Export x) Nothing tp []] -- TODO: Handle type arguments
 
 ----------------------------------------------------------------
 -- Custom
@@ -411,34 +240,26 @@ pCustomDecl = do
   lexeme LexCUSTOM
   kind              <- pdeclKind
   x                 <- customid
-  (access, customs) <- pAttributes private
-  return (DeclCustom x access kind customs)
+  (access, customs) <- pAttributes x customid
+  return (DeclCustom x access Nothing kind customs)
 
-pAttributes :: Access -> TokenParser (Access, [Custom])
-pAttributes defAccess =
+pAttributes :: Id -> TokenParser Id -> TokenParser (Access, [Custom])
+pAttributes name palias =
   do
       lexeme LexCOLON
-      access  <- paccess defAccess
+      access  <- paccess name palias
+      -- TODO: Parse module 'from' here
       customs <- pcustoms
       return (access, customs)
-    <|> return (private, [])
+    <|> return (Private, [])
 
-paccess :: Access -> TokenParser Access
-paccess defAccess =
+paccess :: Id -> TokenParser Id -> TokenParser Access
+paccess name palias =
   do
-      lexeme LexPRIVATE
-      pimportaccess False <|> return private
-    <|> do
-          lexeme LexPUBLIC
-          pimportaccess True <|> return public
-    <|> return defAccess
-
-pimportaccess :: Bool -> TokenParser Access
-pimportaccess isPublic = do
-  lexeme LexIMPORT
-  kind   <- pdeclKind
-  (m, x) <- lexQualifiedId
-  return $ Imported isPublic (idFromString m) (idFromString x) kind 0 0
+      lexeme LexEXPORT
+      alias <- palias <|> return name
+      return $ Export alias
+    <|> return Private
 
 pcustoms :: TokenParser [Custom]
 pcustoms =
@@ -716,14 +537,14 @@ pextern =
       m             <- lexString <|> return (stringFromId x)
       (mname, name) <- pExternName m
       tp            <- ptypeDecl
-      return (DeclExtern x private tp "" linkConv callConv mname name [])
+      return (DeclExtern x Private Nothing tp "" linkConv callConv mname name [])
     <|> do
           lexeme LexINSTR
           x  <- varid
           s  <- lexString
           tp <- ptypeDecl
           return
-            (DeclExtern x private tp "" LinkStatic CallInstr "" (Plain s) [])
+            (DeclExtern x Private Nothing tp "" LinkStatic CallInstr "" (Plain s) [])
 
 ------------------
 
@@ -906,11 +727,6 @@ opid = identifier lexOp <?> "operator"
 varid :: TokenParser Id
 varid = identifier lexId <?> "variable"
 
-qualifiedVar :: TokenParser (Id, Id)
-qualifiedVar = do
-  (m, name) <- lexQualifiedId
-  return (idFromString m, idFromString name)
-
 bindid :: TokenParser Id
 bindid = varid {-
   = do{ x <- varid
@@ -934,18 +750,9 @@ conopid =
 conid :: TokenParser Id
 conid = identifier lexCon <?> "constructor"
 
-qualifiedCon :: TokenParser (Id, Id)
-qualifiedCon = do
-  (m, name) <- lexQualifiedCon
-  return (idFromString m, idFromString name)
-
 typeid :: TokenParser Id
 typeid =
   identifier lexCon
-    <|> -- (setSortId SortType id)
-        do
-          (m, name) <- lexQualifiedCon
-          return (idFromString (m ++ "." ++ name))
     <?> "type"
 
 identifier :: TokenParser String -> TokenParser Id
@@ -1004,13 +811,6 @@ lexTypeVar = satisfy
     _              -> Nothing
   )
 
-lexQualifiedId :: TokenParser (String, String)
-lexQualifiedId = satisfy
-  (\case
-    LexQualId m x -> Just (m, x)
-    _             -> Nothing
-  )
-
 lexOp :: TokenParser String
 lexOp = satisfy
   (\case
@@ -1023,13 +823,6 @@ lexCon = satisfy
   (\case
     LexCon s -> Just s
     _        -> Nothing
-  )
-
-lexQualifiedCon :: TokenParser (String, String)
-lexQualifiedCon = satisfy
-  (\case
-    LexQualCon m x -> Just (m, x)
-    _              -> Nothing
   )
 
 lexConOp :: TokenParser String

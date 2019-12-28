@@ -19,25 +19,22 @@ module Lvm.Core.Module
    , LinkConv(..)
    , globalNames
    , externNames
-   , filterPublic
    , mapDecls
    , customDeclKind
    , customData
    , customTypeDecl
    , customOrigin
    , customClassDefinition
-   , modulePublic
    , declKindFromDecl
    , shallowKindFromDecl
    , makeDeclKind
+   , accessPublic
+   , declaresValue
    , isDeclValue
    , isDeclAbstract
    , isDeclCon
    , isDeclExtern
-   , isDeclImport
    , isDeclGlobal
-   , public
-   , private
    )
 where
 
@@ -48,6 +45,7 @@ import           Lvm.Common.IdSet
 import           Lvm.Core.PrettyId
 import           Lvm.Core.Type
 import           Lvm.Instr.Data
+import           Data.List               ( intercalate )
 import           Text.PrettyPrint.Leijen
 
 {---------------------------------------------------------------
@@ -58,20 +56,22 @@ data Module v
   = Module{ moduleName     :: Id
           , moduleMajorVer :: !Int
           , moduleMinorVer :: !Int
+          , moduleImports  :: ![Id]
           , moduleDecls    :: ![Decl v]
           }
 
 
 data Decl v
-  = DeclValue     { declName :: Id, declAccess :: !Access, declType :: !Type, valueValue :: v, declCustoms :: ![Custom] }
-  | DeclAbstract  { declName :: Id, declAccess :: !Access, declArity :: !Arity, declType :: !Type, declCustoms :: ![Custom] }
-  | DeclCon       { declName :: Id, declAccess :: !Access, declType :: !Type, declFields :: ![Field], declCustoms :: [Custom] }
-  | DeclExtern    { declName :: Id, declAccess :: !Access, declType :: !Type
+  = DeclValue     { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, valueValue :: v, declCustoms :: ![Custom] }
+  | DeclAbstract  { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declArity :: !Arity, declType :: !Type, declCustoms :: ![Custom] }
+  | DeclCon       { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declFields :: ![Field], declCustoms :: [Custom] }
+  | DeclExtern    { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
                   , externLib  :: !String, externName :: !ExternName, declCustoms :: ![Custom] }
-  | DeclCustom    { declName :: Id, declAccess :: !Access, declKind :: !DeclKind, declCustoms :: ![Custom] }
-  | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declType :: !Type, declCustoms :: ![Custom] }
-  | DeclImport    { declName :: Id, declAccess :: !Access, declCustoms :: ![Custom] }
+  -- TODO: We should remove DeclCustom. I think it is only used for data types, so we should instead add
+  -- a new constructor just for data types.
+  | DeclCustom    { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declKind :: !DeclKind, declCustoms :: ![Custom] }
+  | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declCustoms :: ![Custom] }
 
 data Field = Field 
    { fieldName :: !Id 
@@ -104,13 +104,13 @@ data DeclKind
   deriving (Eq,Show)
 
 data Access
-  = Defined  { accessPublic :: !Bool }
-  | Imported { accessPublic :: !Bool, importModule :: Id, importName :: Id, importKind :: !DeclKind
-             , importMajorVer :: !Int, importMinorVer :: !Int }
+  = Export !Id
+  | Private
+  deriving (Eq, Show)
 
-public, private :: Access
-public = Defined True
-private = Defined False
+accessPublic :: Access -> Bool
+accessPublic (Export _) = True
+accessPublic _ = False
 
 -- externals
 data ExternName = Plain    !String
@@ -178,7 +178,6 @@ declKindFromDecl decl = case decl of
    DeclExtern{}      -> DeclKindExtern
    DeclTypeSynonym{} -> DeclKindTypeSynonym
    DeclCustom{}      -> declKind decl
-   DeclImport{}      -> importKind (declAccess decl)
       -- _          -> error "Module.kindFromDecl: unknown declaration"
 
 shallowKindFromDecl :: Decl a -> DeclKind
@@ -189,63 +188,8 @@ shallowKindFromDecl decl = case decl of
    DeclExtern{}      -> DeclKindExtern
    DeclTypeSynonym{} -> DeclKindTypeSynonym
    DeclCustom{}      -> declKind decl
-   DeclImport{}      -> DeclKindImport
 
       -- _          -> error "Module.shallowKindFromDecl: unknown declaration"
-
-modulePublic
-   :: Bool -> (IdSet, IdSet, IdSet, IdSet, IdSet) -> Module v -> Module v
-modulePublic implicit (exports, exportCons, exportData, exportDataCon, exportMods) m
-   = m { moduleDecls = map setPublic (moduleDecls m) }
- where
-  setPublic decl
-     | declPublic decl = decl
-        { declAccess = (declAccess decl) { accessPublic = True }
-        }
-     | otherwise = decl
-
-  isExported decl elemIdSet =
-     let access = declAccess decl
-     in  if implicit
-            then case decl of
-               DeclImport{} -> False
-               _            -> case access of
-                  Imported{} -> False
-                  Defined{}  -> accessPublic access
-            else case access of
-               Imported { importModule = x } | elemSet x exportMods -> True
-                                             | otherwise            -> elemIdSet
-               Defined{} | elemSet (moduleName m) exportMods -> True
-                         | otherwise                         -> elemIdSet
-
-  declPublic decl =
-     let name = declName decl
-     in
-        case decl of
-           DeclValue{}    -> isExported decl (elemSet name exports)
-           DeclAbstract{} -> isExported decl (elemSet name exports)
-           DeclExtern{}   -> isExported decl (elemSet name exports)
-           DeclCon{}      -> isExported
-              decl
-              (  elemSet name               exportCons
-              || elemSet (conTypeName decl) exportDataCon
-              )
-           DeclCustom{} -> isExported
-              decl
-              (declKind decl == customData && elemSet name exportData)
-           DeclTypeSynonym{} -> isExported decl (elemSet name exportData)
-           DeclImport{} -> not implicit && case importKind (declAccess decl) of
-              DeclKindValue       -> isExported decl (elemSet name exports)
-              DeclKindExtern      -> isExported decl (elemSet name exports)
-              DeclKindCon         -> isExported decl (elemSet name exportCons)
-              DeclKindModule      -> isExported decl (elemSet name exportMods)
-              DeclKindTypeSynonym -> isExported decl (elemSet name exportData)
-              dk@(DeclKindCustom _) | dk `elem` [customData] ->
-                 isExported decl (elemSet name exportData)
-              _ -> False
-
-  conTypeName DeclCon { declCustoms = (_ : CustomLink x _ : _) } = x
-  conTypeName _ = dummyId
 
 ----------------------------------------------------------------
 -- Functors
@@ -256,24 +200,24 @@ instance Functor Module where
 
 instance Functor Decl where
    fmap f decl = case decl of
-      DeclValue    x ac m  v  cs -> DeclValue x ac m (f v) cs
-      DeclAbstract x ac ar tp cs -> DeclAbstract x ac ar tp cs
-      DeclCon x ac t fs cs       -> DeclCon x ac t fs cs
-      DeclExtern x ac ar et el ec elib en cs ->
-         DeclExtern x ac ar et el ec elib en cs
-      DeclCustom x ac k cs      -> DeclCustom x ac k cs
-      DeclImport x ac cs        -> DeclImport x ac cs
-      DeclTypeSynonym x as t cs -> DeclTypeSynonym x as t cs
+      DeclValue    x ac md m  v  cs -> DeclValue x ac md m (f v) cs
+      DeclAbstract x ac md ar tp cs -> DeclAbstract x ac md ar tp cs
+      DeclCon x ac md t fs cs       -> DeclCon x ac md t fs cs
+      DeclExtern x ac md ar et el ec elib en cs ->
+         DeclExtern x ac md ar et el ec elib en cs
+      DeclCustom x ac md k cs      -> DeclCustom x ac md k cs
+      DeclTypeSynonym x ac md t cs -> DeclTypeSynonym x ac md t cs
 
 ----------------------------------------------------------------
 -- Pretty printing
 ----------------------------------------------------------------
 
 instance Pretty a => Pretty (Module a) where
-   pretty (Module name _ _ decls) =
+   pretty (Module name _ _ imports decls) =
       text "module"
          <+> ppConId name
          <+> text "where"
+         <$> text ("import(" ++ intercalate ", " (map show imports) ++ ")")
          <$> vcat (map (\decl -> pretty decl <> semi <> line) decls)
          <$> empty
 
@@ -286,24 +230,13 @@ instance Pretty a => Pretty (Decl a) where
             <+> ppAttrs decl
             <$> text "="
             <+> pretty (valueValue decl)
-      DeclCon{} -> case declAccess decl of
-         imp@Imported{} ->
-            text "abstract"
-               <+> ppConId (declName decl)
-               <+> ppAttrs decl
-               <$> text "="
-               <+> ppQualCon (importModule imp) (importName imp)
-               <+> text "::"
-               <>  pretty (declType decl)
-               <$> ppFields (declFields decl)
-
-         _ ->
-            text "con"
-               <+> ppConId (declName decl)
-               <+> ppAttrs decl
-               <$> text "::"
-               <+> pretty (declType decl)
-               <$> ppFields (declFields decl)
+      DeclCon{} ->
+         text "con"
+            <+> ppConId (declName decl)
+            <+> ppAttrs decl
+            <$> text "::"
+            <+> pretty (declType decl)
+            <$> ppFields (declFields decl)
       DeclCustom{} ->
          text "custom"
             <+> pretty (declKind decl)
@@ -320,18 +253,9 @@ instance Pretty a => Pretty (Decl a) where
          text "abstract"
             <+> ppVarId (declName decl)
             <+> ppAttrs decl
-            <$> text "="
-            <+> ppImported (declAccess decl)
-            <>  text ":: "
+            <$> text " :: "
             <+> pretty (declType decl)
-      DeclImport{} ->
-         text "import"
-            <+> pretty (importKind (declAccess decl))
-            <+> ppId (declName decl)
-            <+> ppNoImpAttrs decl
-            <$> text "="
-            <+> ppImported (declAccess decl)
-      DeclTypeSynonym name _ tp cs ->
+      DeclTypeSynonym name _ _ tp cs ->
          text "type"
             <+> ppVarId name
             <+> ppAttrs decl
@@ -388,30 +312,21 @@ ppAttrs = ppAttrsEx False
 
 ppAttrsEx :: Bool -> Decl a -> Doc
 ppAttrsEx hideImp decl =
-   if null (declCustoms decl) && not (accessPublic (declAccess decl))
+   if null (declCustoms decl) && declModule decl == Nothing && not (accessPublic (declAccess decl))
       then empty
       else
          text ":"
          <+> ppAccess (declAccess decl)
-         <+> (if not hideImp then ppImportAttr (declAccess decl) else empty)
-         <>  pretty (declCustoms decl)
+         <+> ppModule (declModule decl)
+         <+> pretty (declCustoms decl)
 
 ppAccess :: Access -> Doc
-ppAccess acc | accessPublic acc = text "public"
-             | otherwise        = text "private"
+ppAccess (Export name) = text "export" <$> ppId name
+ppAccess Private = empty
 
-ppImportAttr :: Access -> Doc
-ppImportAttr acc = case acc of
-   Defined _ -> empty
-   Imported _ modid impid impkind _ _ ->
-      text "import" <+> pretty impkind <+> ppQualId modid impid <> space
-
-ppImported :: Access -> Doc
-ppImported acc = case acc of
-   Defined _ ->
-      error
-         "ModulePretty.ppImported: internal error: abstract or import value should always be imported!"
-   Imported _ modid impid _ _ _ -> ppQualId modid impid
+ppModule :: Maybe Id -> Doc
+ppModule Nothing = empty
+ppModule (Just mod) = text "from" <$> ppId mod
 
 instance Pretty Custom where
    pretty custom = case custom of
@@ -455,6 +370,15 @@ makeDeclKind x = case stringFromId x of
   Utility functions
 ---------------------------------------------------------------}
 
+declaresValue :: Decl a -> Bool
+declaresValue decl = case decl of
+   DeclValue{}       -> True
+   DeclAbstract{}    -> True
+   DeclCon{}         -> True
+   DeclExtern{}      -> True
+   DeclTypeSynonym{} -> False
+   DeclCustom{}      -> False
+
 isDeclValue :: Decl a -> Bool
 isDeclValue DeclValue{} = True
 isDeclValue _           = False
@@ -462,10 +386,6 @@ isDeclValue _           = False
 isDeclAbstract :: Decl a -> Bool
 isDeclAbstract DeclAbstract{} = True
 isDeclAbstract _              = False
-
-isDeclImport :: Decl a -> Bool
-isDeclImport DeclImport{} = True
-isDeclImport _            = False
 
 isDeclCon :: Decl a -> Bool
 isDeclCon DeclCon{} = True
@@ -486,10 +406,6 @@ isDeclGlobal _              = False
 {---------------------------------------------------------------
   More Utility functions
 ---------------------------------------------------------------}
-filterPublic :: Module v -> Module v
-filterPublic m =
-   m { moduleDecls = [ d | d <- moduleDecls m, accessPublic (declAccess d) ] }
-
 globalNames :: Module v -> IdSet
 globalNames m = setFromList
    [ declName d
