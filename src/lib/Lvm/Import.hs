@@ -21,6 +21,7 @@ where
 
 import           Control.Monad
 import           Data.List
+import           Data.Maybe
 import           Lvm.Common.Id
 import           Lvm.Common.IdSet
 import           Lvm.Common.IdMap
@@ -28,6 +29,10 @@ import           Lvm.Data
 import           Lvm.Core.Module
 import           Lvm.Core.Type
 import           Lvm.Core.Expr
+import           Helium.Utils.QualifiedTypes.Constants
+
+import           Debug.Trace
+import           Text.PrettyPrint.Leijen
 
 -- | Adds abstract declarations for all exported definitions of the imported
 -- modules
@@ -36,7 +41,7 @@ lvmImport findModule m = do
   exported <- lvmImportDecls findModule $ moduleImports m
   let (valuesMap, typesMap) = lvmImportRenameMap exported
   let imported = map (\d -> d{ declAccess = Private}) exported
-  let m' = lvmImportQualifyModule (valuesMap, typesMap) m
+  let m' = lvmImportQualifyModule (valuesMap, typesMap) m True
   return m'{ moduleDecls = imported ++ moduleDecls m' }
 
   {-
@@ -46,6 +51,16 @@ lvmImport findModule m = do
       mod1  = findMap (moduleName m) mods1
   return mod1 { moduleDecls = filter (not . isDeclImport) (moduleDecls mod1) } -}
 
+-- Returns all modules that should be loaded in
+-- lvmImportAll :: Monad m => (Id -> m (Module v)) -> [Id] -> m [Id]
+-- lvmImportAll findModule []    = return []
+-- lvmImportAll findModule names = do
+--   modules <- mapM findModule names
+--   let imported = nub (concatMap moduleImports modules)
+--   found <- lvmImportAll findModule imported
+--   return (nub (imported ++ names))
+
+-- Fetches all exported declarations in each of the modules
 lvmImportDecls :: Monad m => (Id -> m (Module v)) -> [Id] -> m [Decl v]
 lvmImportDecls findModule names = do
   modules <- mapM findModule $ nub names
@@ -58,6 +73,11 @@ lvmImportRenameMap = foldl' (flip insert) (emptyMap, emptyMap)
   where
     insert decl (valuesMap, typesMap) = case declAccess decl of
       Export alias
+        | isDeclInfix decl ->
+          let
+            qualified = stringFromId (fromJust $ declModule decl) ++ "." ++ stringFromId alias
+            valuesMap' = insertMap alias (idFromString qualified) valuesMap
+          in (valuesMap, typesMap)
         | declaresValue decl ->
           let valuesMap' = insertMap alias name valuesMap
           in valuesMap' `seq` (valuesMap', typesMap)
@@ -67,18 +87,25 @@ lvmImportRenameMap = foldl' (flip insert) (emptyMap, emptyMap)
       where
         name = declName decl
         
-
 -- Makes variable names quantified.
-lvmImportQualifyModule :: (IdMap Id, IdMap Id) -> CoreModule -> CoreModule
-lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor modImports modDecls)
-  = Module modName modMajor modMinor modImports $ map travDecl modDecls
+lvmImportQualifyModule :: (IdMap Id, IdMap Id) -> CoreModule -> Bool -> CoreModule
+lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor modImports modDecls) shouldRenameOwn
+  ={- traceShow (pretty (sort $ listFromMap valuesMap, sort $ listFromMap typesMap)) $ -}
+    Module modName modMajor modMinor modImports $ map travDecl modDecls
   where
-    (valueDecls, typeDecls) = partition declaresValue modDecls
+    -- TODO: Cleanup and refactor how infix declarations are treated
+    (valueDecls', typeDecls) = partition declaresValue modDecls
+    (infixDecls, valueDecls) = partition isDeclInfix valueDecls'
     ownValues = setFromList $ map declName valueDecls
     ownTypes = setFromList $ map declName typeDecls
 
+    -- The types in Helium.Utils.QualifiedTypes.Constants need to be excluded
+    -- from qualification as they will map to the same id when using the type
+    -- environment
     renameOwn :: Id -> Id
-    renameOwn name = idFromString $ stringFromId modName ++ "." ++ stringFromId name
+    renameOwn name = idFromString $ qualify $ stringFromId name
+      where qualify s | not shouldRenameOwn || s `elem` constants = s
+                      | otherwise = stringFromId modName ++ "." ++ s
 
     renameWith :: IdSet -> IdMap Id -> Id -> Id
     renameWith own importMap name
@@ -97,8 +124,11 @@ lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor m
       | otherwise = renameValue' name
 
     travDecl :: CoreDecl -> CoreDecl
-    travDecl d = d'{ declName = (if declaresValue d then renameValue' else renameType) $ declName d }
+    travDecl d = d'{ declName = rename d }
       where
+        rename d | isDeclInfix d = declName d
+                 | declaresValue d = renameValue' $ declName d
+                 | otherwise = renameType $ declName d
         d' = travDecl' d
 
     travDecl' :: CoreDecl -> CoreDecl
@@ -107,7 +137,8 @@ lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor m
     travDecl' d@DeclCon{} = d{ declType = travType $ declType d }
     travDecl' d@DeclExtern{} = d{ declType = travType $ declType d }
     travDecl' d@DeclTypeSynonym{} = d{ declType = travType $ declType d }
-    travDecl' d@DeclCustom{} = d
+    travDecl' d@DeclCustom{} | isDeclInfix d = d { declName = renameWith emptySet valuesMap (declName d) }
+                             | otherwise     = d
 
     travType :: Type -> Type
     travType (TAp t1 t2) = travType t1 `TAp` travType t2

@@ -35,6 +35,8 @@ module Lvm.Core.Module
    , isDeclCon
    , isDeclExtern
    , isDeclGlobal
+   , isDeclInfix
+   , findInfixOrigin
    )
 where
 
@@ -46,6 +48,7 @@ import           Lvm.Core.PrettyId
 import           Lvm.Core.Type
 import           Lvm.Instr.Data
 import           Data.List               ( intercalate )
+import           Data.Maybe              ( fromMaybe )
 import           Text.PrettyPrint.Leijen
 
 {---------------------------------------------------------------
@@ -377,7 +380,21 @@ declaresValue decl = case decl of
    DeclCon{}         -> True
    DeclExtern{}      -> True
    DeclTypeSynonym{} -> False
-   DeclCustom{}      -> False
+   DeclCustom{}      -> isDeclInfix decl
+
+isDeclInfix :: Decl a -> Bool
+isDeclInfix decl@DeclCustom{} = case declKind decl of
+   DeclKindCustom n -> n == idFromString "infix"
+   _ -> False
+isDeclInfix _ = False
+
+findInfixOrigin :: [Decl a] -> Id -> Maybe Id
+findInfixOrigin []     op = Nothing
+findInfixOrigin (x:xs) op 
+   | isDeclInfix x = if declAccess x == Export op
+      then declModule x
+      else findInfixOrigin xs op
+   | otherwise = findInfixOrigin xs op
 
 isDeclValue :: Decl a -> Bool
 isDeclValue DeclValue{} = True

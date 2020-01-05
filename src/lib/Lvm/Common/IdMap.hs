@@ -6,7 +6,7 @@
 --  $Id$
 
 module Lvm.Common.IdMap
-   ( IdMap, Id
+   ( IdMap(..), Id
      -- essential: used by "Asm" and "Lvm"
    , emptyMap, singleMap, elemMap, mapMap, insertMap, extendMap
    , insertMapWith, lookupMap, findMap, filterMap, listFromMap

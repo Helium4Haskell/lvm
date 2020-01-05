@@ -124,10 +124,10 @@ pconDecl :: TokenParser CoreDecl
 pconDecl = do
   lexeme LexCON
   x                <- constructor
-  (access, custom) <- pAttributes x constructor
+  (access, mod, custom) <- pAttributes x constructor
   lexeme LexCOLCOL
   t <- ptype
-  return $ DeclCon x access Nothing t [] custom
+  return $ DeclCon x access mod t [] custom
 
 -- constructor info: (@tag, arity)
 pConInfo :: TokenParser (Tag, Arity)
@@ -167,16 +167,16 @@ ptopDeclType x = do
     ++ " doesn't match the definition"
     ++ stringFromId x2
     )
-  (access, custom, expr) <- pbindTopRhs x pVariableName
-  return (DeclValue x access Nothing tp expr custom)
+  (access, mod, custom, expr) <- pbindTopRhs x pVariableName
+  return (DeclValue x access mod tp expr custom)
 
-pbindTopRhs :: Id -> TokenParser Id -> TokenParser (Access, [Custom], Expr)
+pbindTopRhs :: Id -> TokenParser Id -> TokenParser (Access, Maybe Id, [Custom], Expr)
 pbindTopRhs name palias =
   do
-      (access, custom) <- pAttributes name palias
+      (access, mod, custom) <- pAttributes name palias
       lexeme LexASG
       body <- pexpr
-      return (access, custom, body)
+      return (access, mod, custom, body)
     <?> "declaration"
 
 
@@ -240,18 +240,18 @@ pCustomDecl = do
   lexeme LexCUSTOM
   kind              <- pdeclKind
   x                 <- customid
-  (access, customs) <- pAttributes x customid
-  return (DeclCustom x access Nothing kind customs)
+  (access, mod, customs) <- pAttributes x customid
+  return (DeclCustom x access mod kind customs)
 
-pAttributes :: Id -> TokenParser Id -> TokenParser (Access, [Custom])
+pAttributes :: Id -> TokenParser Id -> TokenParser (Access, Maybe Id, [Custom])
 pAttributes name palias =
   do
       lexeme LexCOLON
+      mod <- pfrom
       access  <- paccess name palias
-      -- TODO: Parse module 'from' here
       customs <- pcustoms
-      return (access, customs)
-    <|> return (Private, [])
+      return (access, mod, customs)
+    <|> return (Private, Nothing, [])
 
 paccess :: Id -> TokenParser Id -> TokenParser Access
 paccess name palias =
@@ -260,6 +260,13 @@ paccess name palias =
       alias <- palias <|> return name
       return $ Export alias
     <|> return Private
+
+pfrom :: TokenParser (Maybe Id)
+pfrom = do
+    lexeme LexFROM
+    mod <- identifier lexString <|> conid
+    return (Just mod)
+  <|> return Nothing
 
 pcustoms :: TokenParser [Custom]
 pcustoms =

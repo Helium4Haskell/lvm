@@ -62,6 +62,8 @@ lexer pos ('c' : 'c' : 'a' : 'l' : 'l' : cs) | nonId cs =
   (pos, LexCCALL) : nextinc lexer pos 5 cs
 lexer pos ('e' : 'x' : 'p' : 'o' : 'r' : 't' : cs) | nonId cs =
   (pos, LexEXPORT) : nextinc lexer pos 6 cs
+lexer pos ('f' : 'r' : 'o' : 'm' : cs) | nonId cs =
+  (pos, LexFROM) : nextinc lexer pos 4 cs
 lexer pos ('e' : 'x' : 't' : 'e' : 'r' : 'n' : cs) | nonId cs =
   (pos, LexEXTERN) : nextinc lexer pos 6 cs
 lexer pos ('s' : 't' : 'a' : 't' : 'i' : 'c' : cs) | nonId cs =

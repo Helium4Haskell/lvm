@@ -81,6 +81,7 @@ data Lexeme     = LexUnknown Char
                 | LexWITH
 
                 | LexEXPORT
+                | LexFROM
                 | LexDEFAULT
                 | LexCON
 
