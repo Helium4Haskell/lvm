@@ -73,11 +73,7 @@ lvmImportRenameMap = foldl' (flip insert) (emptyMap, emptyMap)
   where
     insert decl (valuesMap, typesMap) = case declAccess decl of
       Export alias
-        | isDeclInfix decl ->
-          let
-            qualified = stringFromId (fromJust $ declModule decl) ++ "." ++ stringFromId alias
-            valuesMap' = insertMap alias (idFromString qualified) valuesMap
-          in (valuesMap, typesMap)
+        | isDeclInfix decl -> (valuesMap, typesMap)
         | declaresValue decl ->
           let valuesMap' = insertMap alias name valuesMap
           in valuesMap' `seq` (valuesMap', typesMap)
@@ -90,8 +86,7 @@ lvmImportRenameMap = foldl' (flip insert) (emptyMap, emptyMap)
 -- Makes variable names quantified.
 lvmImportQualifyModule :: (IdMap Id, IdMap Id) -> CoreModule -> Bool -> CoreModule
 lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor modImports modDecls) shouldRenameOwn
-  ={- traceShow (pretty (sort $ listFromMap valuesMap, sort $ listFromMap typesMap)) $ -}
-    Module modName modMajor modMinor modImports $ map travDecl modDecls
+  = Module modName modMajor modMinor modImports $ map travDecl modDecls
   where
     -- TODO: Cleanup and refactor how infix declarations are treated
     (valueDecls', typeDecls) = partition declaresValue modDecls
