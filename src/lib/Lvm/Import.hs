@@ -64,7 +64,11 @@ lvmImport findModule m = do
 lvmImportDecls :: Monad m => (Id -> m (Module v)) -> [Id] -> m [Decl v]
 lvmImportDecls findModule names = do
   modules <- mapM findModule $ nub names
-  return $ modules >>= (filter (accessPublic . declAccess) . moduleDecls)
+  return $ modules >>= (filter 
+    (\decl -> accessPublic (declAccess decl) 
+      && not (declKindFromDecl decl == DeclKindCon
+      && "Dict$" `isPrefixOf` stringFromId (declName decl)))
+      . moduleDecls)
 
 -- Constructs a map, converting unqualified names to fully qualified names,
 -- for both the value namespace (first field) and the types name space (second field)
