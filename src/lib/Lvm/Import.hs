@@ -51,15 +51,6 @@ lvmImport findModule m = do
       mod1  = findMap (moduleName m) mods1
   return mod1 { moduleDecls = filter (not . isDeclImport) (moduleDecls mod1) } -}
 
--- Returns all modules that should be loaded in
--- lvmImportAll :: Monad m => (Id -> m (Module v)) -> [Id] -> m [Id]
--- lvmImportAll findModule []    = return []
--- lvmImportAll findModule names = do
---   modules <- mapM findModule names
---   let imported = nub (concatMap moduleImports modules)
---   found <- lvmImportAll findModule imported
---   return (nub (imported ++ names))
-
 -- Fetches all exported declarations in each of the modules
 lvmImportDecls :: Monad m => (Id -> m (Module v)) -> [Id] -> m [Decl v]
 lvmImportDecls findModule names = do
@@ -77,6 +68,8 @@ lvmImportRenameMap = foldl' (flip insert) (emptyMap, emptyMap)
   where
     insert decl (valuesMap, typesMap) = case declAccess decl of
       Export alias
+        -- Fixity declarations are ignored, because the names need to be renamed 
+        -- using the actual declaration
         | isDeclInfix decl -> (valuesMap, typesMap)
         | declaresValue decl ->
           let valuesMap' = insertMap alias name valuesMap
@@ -92,7 +85,6 @@ lvmImportQualifyModule :: (IdMap Id, IdMap Id) -> CoreModule -> Bool -> CoreModu
 lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor modImports modDecls) shouldRenameOwn
   = Module modName modMajor modMinor modImports $ map travDecl modDecls
   where
-    -- TODO: Cleanup and refactor how infix declarations are treated
     (valueDecls', typeDecls) = partition declaresValue modDecls
     (infixDecls, valueDecls) = partition isDeclInfix valueDecls'
     ownValues = setFromList $ map declName valueDecls
@@ -109,9 +101,7 @@ lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor m
     renameWith :: IdSet -> IdMap Id -> Id -> Id
     renameWith own importMap name
       | name `elemSet` own = renameOwn name
-      | otherwise = case lookupMap name importMap of
-        Just name' -> name'
-        Nothing    -> name
+      | otherwise = fromMaybe name (lookupMap name importMap)
 
     renameValue', renameType :: Id -> Id
     renameValue' = renameWith ownValues valuesMap
