@@ -292,7 +292,8 @@ ppNoImpAttrs :: Decl a -> Doc
 ppNoImpAttrs = ppAttrsEx True
 
 ppFields :: [Field] -> Doc
-ppFields = encloseSep (text "<") (text ">") (text ", ") . map pretty
+ppFields [] = empty
+ppFields fs = encloseSep (text "<") (text ">") (text ", ") $ map pretty fs
 
 ppAttrs :: Decl a -> Doc
 ppAttrs = ppAttrsEx False
