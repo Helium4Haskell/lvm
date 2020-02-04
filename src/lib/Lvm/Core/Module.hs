@@ -23,7 +23,6 @@ module Lvm.Core.Module
    , customDeclKind
    , customData
    , customTypeDecl
-   , customOrigin
    , customClassDefinition
    , declKindFromDecl
    , shallowKindFromDecl
@@ -76,12 +75,7 @@ data Decl v
   | DeclCustom    { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declKind :: !DeclKind, declCustoms :: ![Custom] }
   | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declCustoms :: ![Custom] }
 
-data Field = Field 
-   { fieldName :: !Id 
-   , fieldStrict :: !Bool 
-   -- , fieldOrder :: !Int 
-   -- , fieldType :: !Type
-   }
+newtype Field = Field { fieldName :: Id }
 
 data Custom
   = CustomInt   !Int
@@ -167,10 +161,9 @@ instance Enum DeclKind where
 customDeclKind :: String -> DeclKind
 customDeclKind = DeclKindCustom . idFromString
 
-customData, customTypeDecl, customOrigin, customClassDefinition :: DeclKind
+customData, customTypeDecl, customClassDefinition :: DeclKind
 customData = customDeclKind "data"
 customTypeDecl = customDeclKind "typedecl"
-customOrigin = customDeclKind "origin"
 customClassDefinition = customDeclKind "ClassDefinition"
 
 declKindFromDecl :: Decl a -> DeclKind
@@ -272,16 +265,7 @@ instance Pretty LinkConv where
       LinkStatic  -> empty
 
 instance Pretty Field where
-   pretty (Field name strict) = ppStrict strict <> ppVarId name
-     where
-      ppStrict True = text "!"
-      ppStrict False = empty
-   --    text "field" <+> ppStrict strict <> ppVarId name
-   --    <> text "(" <> text (show order) <> text ")"
-   --    <+> text "::" <+> pretty tp
-   --   where
-   --    ppStrict False = text "!"
-   --    ppStrict True = empty
+   pretty (Field name) = ppVarId name
 
 
 instance Pretty CallConv where

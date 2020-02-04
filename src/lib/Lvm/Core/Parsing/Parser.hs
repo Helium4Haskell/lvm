@@ -58,21 +58,14 @@ pmodule = do
   lexeme LexWHERE
   lexeme LexLBRACE
   imports <- pimports <|> return []
-  declss_ <- semiList
+  declss <- semiList
     (   wrap (ptopDecl <|> pconDecl <|> pextern <|> pCustomDecl)
     <|> pdata
     <|> ptypeTopDecl
     )
-  let declss = map (addOrigininDecl moduleId) (concat declss_)
   lexeme LexRBRACE
   lexeme LexEOF
-  return $ Module moduleId 0 0 imports declss
-
-addOrigininDecl :: Id -> CoreDecl -> CoreDecl
-addOrigininDecl originalmod decl =
-  let cs         = declCustoms decl
-      makeOrigin = [CustomDecl customOrigin [CustomName originalmod]]
-  in  decl { declCustoms = cs ++ makeOrigin }
+  return $ Module moduleId 0 0 imports $ concat declss
 
 pimports :: TokenParser [Id]
 pimports = do
