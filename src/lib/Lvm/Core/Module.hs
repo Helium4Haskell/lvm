@@ -309,12 +309,12 @@ ppAttrsEx hideImp decl =
          <+> pretty (declCustoms decl)
 
 ppAccess :: Access -> Doc
-ppAccess (Export name) = text "export" <$> ppId name
+ppAccess (Export name) = text "export" <+> ppId name
 ppAccess Private = empty
 
 ppModule :: Maybe Id -> Doc
 ppModule Nothing = empty
-ppModule (Just mod) = text "from" <$> ppId mod
+ppModule (Just mod) = text "from" <+> ppId mod
 
 instance Pretty Custom where
    pretty custom = case custom of
