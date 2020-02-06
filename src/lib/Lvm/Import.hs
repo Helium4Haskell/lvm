@@ -26,10 +26,10 @@ import           Lvm.Common.Id
 import           Lvm.Common.IdSet
 import           Lvm.Common.IdMap
 import           Lvm.Data
+import           Lvm.Constants
 import           Lvm.Core.Module
 import           Lvm.Core.Type
 import           Lvm.Core.Expr
-import           Helium.Utils.QualifiedTypes.Constants
 
 import           Debug.Trace
 import           Text.PrettyPrint.Leijen

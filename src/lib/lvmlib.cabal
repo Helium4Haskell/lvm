@@ -56,6 +56,7 @@ Library
     Lvm.Core.Type
     Lvm.Core.Utils
     Lvm.Data
+    Lvm.Constants
     Lvm.Import
     Lvm.Instr.Data
     Lvm.Instr.Resolve
