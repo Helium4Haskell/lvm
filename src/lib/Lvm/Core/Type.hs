@@ -1,35 +1,58 @@
 --------------------------------------------------------------------------------
--- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file 
--- is distributed under the terms of the BSD3 License. For more information, 
+-- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
+-- is distributed under the terms of the BSD3 License. For more information,
 -- see the file "LICENSE.txt", which is included in the distribution.
 --------------------------------------------------------------------------------
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
-module Lvm.Core.Type 
-   ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..)
-   , ppQuantor, ppType, showType, arityFromType, typeUnit, typeBool
-   , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
-   , typeInstantiate, typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness
-   , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
-   ) where
+module Lvm.Core.Type
+  ( Type (..),
+    Kind (..),
+    TypeConstant (..),
+    Quantor (..),
+    QuantorNames,
+    IntType (..),
+    ppQuantor,
+    ppType,
+    showType,
+    arityFromType,
+    typeUnit,
+    typeBool,
+    typeToStrict,
+    typeNotStrict,
+    typeIsStrict,
+    typeSetStrict,
+    typeConFromString,
+    typeFunction,
+    typeInstantiate,
+    typeSubstitute,
+    typeTupleElements,
+    typeRemoveArgumentStrictness,
+    typeSubstitutions,
+    typeExtractFunction,
+    typeApply,
+    typeApplyList,
+    dictionaryDataTypeName,
+  )
+where
 
+import qualified Data.Map as M
+import qualified Data.Set as S
 import Lvm.Common.Id
 import Text.PrettyPrint.Leijen
-
-import qualified Data.Set as S
-import qualified Data.Map as M
 
 ----------------------------------------------------------------
 -- Types
 ----------------------------------------------------------------
-data Type = TAp !Type !Type
-          | TForall !Quantor !Kind !Type
-          -- * The inner type should have kind *. The inner type
-          -- may not be TStrict
-          | TStrict !Type
-          | TVar !Int
-          | TCon !TypeConstant
-          deriving (Eq, Ord)
+data Type
+  = TAp !Type !Type
+  | TForall !Quantor !Kind !Type
+  | -- The inner type should have kind. The inner type
+    -- may not be TStrict
+    TStrict !Type
+  | TVar !Int
+  | TCon !TypeConstant
+  deriving (Eq, Ord)
 
 data Quantor
   = Quantor !Int !(Maybe String)
@@ -47,18 +70,19 @@ data TypeConstant
 data IntType
   = IntTypeInt
   | IntTypeChar
-  -- Currently only used by the backend, for fields of thunks.
-  -- To expose this to the frontend, we will also need to implement casts to / from int16
-  | IntTypeInt16
+  | -- Currently only used by the backend, for fields of thunks.
+    -- To expose this to the frontend, we will also need to implement casts to / from int16
+    IntTypeInt16
   deriving (Eq, Ord)
 
 instance Show IntType where
   show IntTypeInt = "Int"
   show IntTypeChar = "Char"
 
-data Kind = KFun !Kind !Kind
-          | KStar
-          deriving (Eq, Ord)
+data Kind
+  = KFun !Kind !Kind
+  | KStar
+  deriving (Eq, Ord)
 
 typeConFromString :: String -> TypeConstant
 typeConFromString "->" = TConFun
@@ -92,7 +116,7 @@ typeRemoveArgumentStrictness (TForall quantor kind tp) = TForall quantor kind $ 
 typeRemoveArgumentStrictness (TAp (TAp (TCon TConFun) tArg) tReturn) =
   TAp (TAp (TCon TConFun) $ typeNotStrict tArg) $ typeRemoveArgumentStrictness tReturn
 typeRemoveArgumentStrictness (TStrict tp) = TStrict $ typeRemoveArgumentStrictness tp
-typeRemoveArgumentStrictness tp = tp 
+typeRemoveArgumentStrictness tp = tp
 
 typeUnit :: Type
 typeUnit = TCon $ TConTuple 0
@@ -102,17 +126,17 @@ typeBool = TCon $ TConDataType $ idFromString "Bool"
 
 typeFunction :: [Type] -> Type -> Type
 typeFunction [] ret = ret
-typeFunction (a:as) ret = TAp (TAp (TCon TConFun) a) $ typeFunction as ret
+typeFunction (a : as) ret = TAp (TAp (TCon TConFun) a) $ typeFunction as ret
 
 arityFromType :: Type -> Int
-arityFromType tp
-  = case tp of
-      TAp (TAp (TCon TConFun) _) t2 -> arityFromType t2 + 1
-      TAp     _ _     -> 0 -- assumes saturated constructors!
-      TForall _ _ t   -> arityFromType t
-      TStrict t       -> arityFromType t
-      TVar    _       -> 0
-      TCon    _       -> 0
+arityFromType tp =
+  case tp of
+    TAp (TAp (TCon TConFun) _) t2 -> arityFromType t2 + 1
+    TAp _ _ -> 0 -- assumes saturated constructors!
+    TForall _ _ t -> arityFromType t
+    TStrict t -> arityFromType t
+    TVar _ -> 0
+    TCon _ -> 0
 
 ----------------------------------------------------------------
 -- Pretty printing
@@ -152,58 +176,57 @@ ppQuantor names i = case lookup i names of
   Nothing -> text $ "v$" ++ show i
 
 ppType :: Int -> QuantorNames -> Type -> Doc
-ppType level quantorNames tp
-  = parenthesized $
+ppType level quantorNames tp =
+  parenthesized $
     case tp of
-      TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]" 
+      TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]"
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
-      TAp     t1 t2   -> ppEq t1 <+> ppHi t2
-      TForall a k t   ->
+      TAp t1 t2 -> ppEq t1 <+> ppHi t2
+      TForall a k t ->
         let quantorNames' = case a of
               Quantor idx (Just name) -> (idx, name) : quantorNames
               _ -> quantorNames
-        in text "forall" <+> text (show a) {- <> text ":" <+> pretty k -} <> text "."
-            <+> ppType 0 quantorNames' t
-      TStrict t       -> text "!" <> ppHi t
-      TVar    a       -> ppQuantor quantorNames a
-      TCon    a       -> pretty a
+         in text "forall" <+> text (show a {- <> text ":" <+> pretty k -}) <> text "."
+              <+> ppType 0 quantorNames' t
+      TStrict t -> text "!" <> ppHi t
+      TVar a -> ppQuantor quantorNames a
+      TCon a -> pretty a
   where
     tplevel = levelFromType tp
     parenthesized doc
-      | level <= tplevel  = doc
-      | otherwise         = parens doc
-    ppHi  = ppType (tplevel+1) quantorNames
+      | level <= tplevel = doc
+      | otherwise = parens doc
+    ppHi = ppType (tplevel + 1) quantorNames
     ppEq = ppType tplevel quantorNames
 
 ppKind :: Int -> Kind -> Doc
-ppKind level kind
-  = parenthesized $
+ppKind level kind =
+  parenthesized $
     case kind of
-      KFun k1 k2    -> ppHi k1 <+> text "->" <+> ppEq k2
-      KStar         -> text "*"
+      KFun k1 k2 -> ppHi k1 <+> text "->" <+> ppEq k2
+      KStar -> text "*"
   where
-    (klevel,parenthesized)
-      | level <= levelFromKind kind   = (levelFromKind kind,id)
-      | otherwise                     = (0,parens)
-
-    ppHi = ppKind (if klevel<=0 then 0 else klevel+1)
+    (klevel, parenthesized)
+      | level <= levelFromKind kind = (levelFromKind kind, id)
+      | otherwise = (0, parens)
+    ppHi = ppKind (if klevel <= 0 then 0 else klevel + 1)
     ppEq = ppKind klevel
 
 levelFromType :: Type -> Int
-levelFromType tp
-  = case tp of
-      TForall{} -> 2
-      TAp (TAp (TCon TConFun) _) _ -> 3
-      TAp{}     -> 4
-      TStrict{} -> 5
-      TVar{}    -> 6
-      TCon{}    -> 6
+levelFromType tp =
+  case tp of
+    TForall {} -> 2
+    TAp (TAp (TCon TConFun) _) _ -> 3
+    TAp {} -> 4
+    TStrict {} -> 5
+    TVar {} -> 6
+    TCon {} -> 6
 
 levelFromKind :: Kind -> Int
-levelFromKind kind
-  = case kind of
-      KFun{}    -> 1
-      KStar{}   -> 2
+levelFromKind kind =
+  case kind of
+    KFun {} -> 1
+    KStar {} -> 2
 
 typeInstantiate :: Int -> Type -> Type -> Type
 typeInstantiate var newType (TForall q@(Quantor idx _) k t)
@@ -222,14 +245,13 @@ typeInstantiate _ _ t = t
 -- and must not occur in t1.
 typeSubstitute :: Int -> Type -> Type -> Type
 typeSubstitute var rightType leftType = typeSubstitutions [(var, rightType)] leftType
-  
+
 typeSubstitutions :: [(Int, Type)] -> Type -> Type
 typeSubstitutions [] t = t
-typeSubstitutions initialSubstitutions leftType = fst $ substitute leftType (M.fromList initialSubstitutions) $ filter (\idx -> idx `S.notMember` leftUsed && idx `S.notMember` rightFree) [0..]
+typeSubstitutions initialSubstitutions leftType = fst $ substitute leftType (M.fromList initialSubstitutions) $ filter (\idx -> idx `S.notMember` leftUsed && idx `S.notMember` rightFree) [0 ..]
   where
     rightFree = foldr1 S.union $ map (typeFreeVars . snd) initialSubstitutions
     leftUsed = typeUsedVars leftType
-
     substitute :: Type -> M.Map Int Type -> [Int] -> (Type, [Int])
     substitute (TAp t1 t2) mapping fresh = (TAp t1' t2', fresh'')
       where
@@ -238,18 +260,14 @@ typeSubstitutions initialSubstitutions leftType = fst $ substitute leftType (M.f
     substitute (TForall (Quantor idx _) k t) mapping fresh
       | idx `S.member` rightFree =
         -- Conflicting type variable. Give the variable a new index
-        let
-          idx' : fresh' = fresh
-          mapping' = M.insert idx (TVar idx') mapping
-          (t', fresh'') = substitute t mapping' fresh'
-        in
-          (TForall (Quantor idx' Nothing) k t', fresh'')
+        let idx' : fresh' = fresh
+            mapping' = M.insert idx (TVar idx') mapping
+            (t', fresh'') = substitute t mapping' fresh'
+         in (TForall (Quantor idx' Nothing) k t', fresh'')
       | otherwise =
-        let
-          mapping' = M.delete idx mapping
-          (t', fresh') = substitute t mapping' fresh
-        in
-          (TForall (Quantor idx Nothing) k t', fresh')
+        let mapping' = M.delete idx mapping
+            (t', fresh') = substitute t mapping' fresh
+         in (TForall (Quantor idx Nothing) k t', fresh')
     substitute (TStrict t) mapping fresh = (TStrict t', fresh')
       where
         (t', fresh') = substitute t mapping fresh

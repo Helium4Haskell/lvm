@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 --------------------------------------------------------------------------------
 -- Copyright 2001-2012, Daan Leijen, Bastiaan Heeren, Jurriaan Hage. This file
 -- is distributed under the terms of the BSD3 License. For more information,
@@ -5,36 +7,36 @@
 --------------------------------------------------------------------------------
 --  $Id$
 
-{-# LANGUAGE LambdaCase #-}
-
 module Lvm.Core.Parsing.Parser
-  ( parseModule
+  ( parseModule,
   )
 where
 
-import           Control.Monad
-import           Data.List
-import           Data.Functor
-import           Lvm.Common.Byte
-import           Lvm.Common.Id
-import           Lvm.Common.IdSet
-import           Lvm.Core.Expr
-import           Lvm.Core.Parsing.Token         ( Token
-                                                , Lexeme(..)
-                                                )
-import           Lvm.Core.Parsing.Lexer
-import           Lvm.Core.Type
-import           Lvm.Core.Utils
-import           Prelude                 hiding ( lex )
-import           Text.ParserCombinators.Parsec
-                                         hiding ( satisfy )
+import Control.Monad
+import Data.Functor
+import Data.List
+import Lvm.Common.Byte
+import Lvm.Common.Id
+import Lvm.Common.IdSet
+import Lvm.Core.Expr
+import Lvm.Core.Parsing.Lexer
+import Lvm.Core.Parsing.Token
+  ( Lexeme (..),
+    Token,
+  )
+import Lvm.Core.Type
+import Lvm.Core.Utils
+import Text.ParserCombinators.Parsec hiding
+  ( satisfy,
+  )
+import Prelude hiding (lex)
 
-parseModule
-  :: FilePath
-  -> [Token]
-  -> IO CoreModule
+parseModule ::
+  FilePath ->
+  [Token] ->
+  IO CoreModule
 parseModule fname ts = case runParser pmodule () fname ts of
-  Left  err -> ioError (userError ("parse error: " ++ show err))
+  Left err -> ioError (userError ("parse error: " ++ show err))
   Right res -> return res
 
 ----------------------------------------------------------------
@@ -58,11 +60,12 @@ pmodule = do
   lexeme LexWHERE
   lexeme LexLBRACE
   imports <- pimports <|> return []
-  declss <- semiList
-    (   wrap (ptopDecl <|> pconDecl <|> pextern <|> pCustomDecl)
-    <|> pdata
-    <|> ptypeTopDecl
-    )
+  declss <-
+    semiList
+      ( wrap (ptopDecl <|> pconDecl <|> pextern <|> pCustomDecl)
+          <|> pdata
+          <|> ptypeTopDecl
+      )
   lexeme LexRBRACE
   lexeme LexEOF
   return $ Module moduleId 0 0 imports $ concat declss
@@ -116,7 +119,7 @@ pabstractCon = do
 pconDecl :: TokenParser CoreDecl
 pconDecl = do
   lexeme LexCON
-  x                <- constructor
+  x <- constructor
   (access, mod, custom) <- pAttributes x constructor
   lexeme LexCOLCOL
   t <- ptype
@@ -126,19 +129,19 @@ pconDecl = do
 pConInfo :: TokenParser (Tag, Arity)
 pConInfo =
   parens
-      (do
+    ( do
         lexeme LexAT
         tag <- lexInt <?> "tag"
         lexeme LexCOMMA
         arity <- lexInt <?> "arity"
         return (fromInteger tag, fromInteger arity)
-      )
-    <|> do -- :: TypeSig = tag
-          tp <- ptypeDecl
-          lexeme LexASG
-          tag <- lexInt <?> "tag"
-          return (fromInteger tag, arityFromType tp)
-
+    )
+    <|> do
+      -- :: TypeSig = tag
+      tp <- ptypeDecl
+      lexeme LexASG
+      tag <- lexInt <?> "tag"
+      return (fromInteger tag, arityFromType tp)
 
 ----------------------------------------------------------------
 -- value declarations
@@ -154,25 +157,24 @@ ptopDeclType x = do
   tp <- ptypeDecl
   lexeme LexSEMI
   x2 <- pVariableName
-  when (x /= x2) $ fail
-    (  "identifier for type signature "
-    ++ stringFromId x
-    ++ " doesn't match the definition"
-    ++ stringFromId x2
-    )
+  when (x /= x2) $
+    fail
+      ( "identifier for type signature "
+          ++ stringFromId x
+          ++ " doesn't match the definition"
+          ++ stringFromId x2
+      )
   (access, mod, custom, expr) <- pbindTopRhs x pVariableName
   return (DeclValue x access mod tp expr custom)
 
 pbindTopRhs :: Id -> TokenParser Id -> TokenParser (Access, Maybe Id, [Custom], Expr)
 pbindTopRhs name palias =
   do
-      (access, mod, custom) <- pAttributes name palias
-      lexeme LexASG
-      body <- pexpr
-      return (access, mod, custom, body)
+    (access, mod, custom) <- pAttributes name palias
+    lexeme LexASG
+    body <- pexpr
+    return (access, mod, custom, body)
     <?> "declaration"
-
-
 
 pbind :: TokenParser Bind
 pbind = do
@@ -193,22 +195,21 @@ customKind = makeCustomBytes "kind" . bytesFromString . show
 pdata :: TokenParser [CoreDecl]
 pdata = do
   lexeme LexDATA
-  x    <- typeid
+  x <- typeid
   args <- many lexTypeVar
-  let kind     = foldr (KFun . const KStar) KStar args
+  let kind = foldr (KFun . const KStar) KStar args
       datadecl = DeclCustom x (Export x) Nothing customData [customKind kind]
   do
-      lexeme LexASG
-      let t1 = foldl TAp (TCon $ TConDataType x) (map TVar args)
-      cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
-      let con (cid, t2) = DeclCon cid (Export cid) Nothing t2 [] [CustomLink x customData]
-      return (datadecl : map con cons)
-    <|> {- empty data types -}
-        return [datadecl]
+    lexeme LexASG
+    let t1 = foldl TAp (TCon $ TConDataType x) (map TVar args)
+    cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
+    let con (cid, t2) = DeclCon cid (Export cid) Nothing t2 [] [CustomLink x customData]
+    return (datadecl : map con cons)
+    <|> {- empty data types -} return [datadecl]
 
 pconstructor :: Type -> TokenParser (Id, Type)
 pconstructor tp = do
-  x    <- constructor
+  x <- constructor
   args <- many ptypeAtom
   return (x, foldr (\t1 t2 -> TAp (TAp (TCon TConFun) t1) t2) tp args)
 
@@ -220,7 +221,7 @@ ptypeTopDecl :: TokenParser [CoreDecl]
 ptypeTopDecl = do
   lexeme LexTYPE
   x <- typeid
--- ; args <- many lexTypeVar
+  -- ; args <- many lexTypeVar
   lexeme LexASG
   tp <- ptype
   return [DeclTypeSynonym x (Export x) Nothing tp []] -- TODO: Handle type arguments
@@ -231,67 +232,67 @@ ptypeTopDecl = do
 pCustomDecl :: TokenParser CoreDecl
 pCustomDecl = do
   lexeme LexCUSTOM
-  kind              <- pdeclKind
-  x                 <- customid
+  kind <- pdeclKind
+  x <- customid
   (access, mod, customs) <- pAttributes x customid
   return (DeclCustom x access mod kind customs)
 
 pAttributes :: Id -> TokenParser Id -> TokenParser (Access, Maybe Id, [Custom])
 pAttributes name palias =
   do
-      lexeme LexCOLON
-      mod <- pfrom
-      access  <- paccess name palias
-      customs <- pcustoms
-      return (access, mod, customs)
+    lexeme LexCOLON
+    mod <- pfrom
+    access <- paccess name palias
+    customs <- pcustoms
+    return (access, mod, customs)
     <|> return (Private, Nothing, [])
 
 paccess :: Id -> TokenParser Id -> TokenParser Access
 paccess name palias =
   do
-      lexeme LexEXPORT
-      alias <- palias <|> return name
-      return $ Export alias
+    lexeme LexEXPORT
+    alias <- palias <|> return name
+    return $ Export alias
     <|> return Private
 
 pfrom :: TokenParser (Maybe Id)
-pfrom = do
+pfrom =
+  do
     lexeme LexFROM
     mod <- identifier lexString <|> conid
     return (Just mod)
-  <|> return Nothing
+    <|> return Nothing
 
 pcustoms :: TokenParser [Custom]
 pcustoms =
   do
-      lexeme LexLBRACKET
-      customs <- pcustom `sepBy` lexeme LexCOMMA
-      lexeme LexRBRACKET
-      return customs
+    lexeme LexLBRACKET
+    customs <- pcustom `sepBy` lexeme LexCOMMA
+    lexeme LexRBRACKET
+    return customs
     <|> return []
 
 pcustom :: TokenParser Custom
 pcustom =
-
   CustomInt
-    .   fromInteger
+    . fromInteger
     <$> lexInt
     <|> do
-          CustomBytes . bytesFromString <$> lexString
+      CustomBytes . bytesFromString <$> lexString
     <|> do
-          x <- pVariableName <|> constructor
-          return (CustomName x)
+      x <- pVariableName <|> constructor
+      return (CustomName x)
     <|> do
-          lexeme LexNOTHING
-          return CustomNothing
+      lexeme LexNOTHING
+      return CustomNothing
     <|> do
-          lexeme LexCUSTOM
-          kind <- pdeclKind
-          do
-              x <- customid
-              return (CustomLink x kind)
-            <|> do
-                  CustomDecl kind <$> pcustoms
+      lexeme LexCUSTOM
+      kind <- pdeclKind
+      do
+        x <- customid
+        return (CustomLink x kind)
+        <|> do
+          CustomDecl kind <$> pcustoms
     <?> "custom value"
 
 pdeclKind :: TokenParser DeclKind
@@ -299,10 +300,10 @@ pdeclKind =
   makeDeclKind
     <$> varid
     <|> do
-          lexeme LexTYPE
-          return DeclKindTypeSynonym
+      lexeme LexTYPE
+      return DeclKindTypeSynonym
     <|> toEnum
-    .   fromInteger
+    . fromInteger
     <$> lexInt
     <|> customDeclKind
     <$> lexString
@@ -315,33 +316,33 @@ pdeclKind =
 pexpr :: TokenParser Expr
 pexpr =
   do
-      lexeme LexBSLASH
-      strict <- lexeme LexEXCL $> True <|> return False
-      arg    <- variable
-      lexeme LexRARROW
-      Lam strict arg <$> pexpr
+    lexeme LexBSLASH
+    strict <- lexeme LexEXCL $> True <|> return False
+    arg <- variable
+    lexeme LexRARROW
+    Lam strict arg <$> pexpr
     <|> do
-          lexeme LexLET
-          binds <- semiBraces pbind
-          lexeme LexIN
-          Let (Rec binds) <$> pexpr
+      lexeme LexLET
+      binds <- semiBraces pbind
+      lexeme LexIN
+      Let (Rec binds) <$> pexpr
     <|> do
-          lexeme LexCASE
-          var <- pVariableName
-          lexeme LexOF
-          Match var <$> palts
+      lexeme LexCASE
+      var <- pVariableName
+      lexeme LexOF
+      Match var <$> palts
     <|> do
-          lexeme LexLETSTRICT
-          binds <- semiBraces pbind
-          lexeme LexIN
-          expr <- pexpr
-          return (foldr (Let . Strict) expr binds)
+      lexeme LexLETSTRICT
+      binds <- semiBraces pbind
+      lexeme LexIN
+      expr <- pexpr
+      return (foldr (Let . Strict) expr binds)
     <|> do
-          lexeme LexFORALL
-          idx <- lexTypeVar
-          let kind = KStar
-          lexeme LexDOT
-          Forall (Quantor idx Nothing) kind <$> pexpr
+      lexeme LexFORALL
+      idx <- lexTypeVar
+      let kind = KStar
+      lexeme LexDOT
+      Forall (Quantor idx Nothing) kind <$> pexpr
     <|> pexprAp
     <?> "expression"
 
@@ -350,27 +351,27 @@ wildId = idFromString "_"
 
 pexprAp :: TokenParser Expr
 pexprAp = do
-  e1   <- patom
+  e1 <- patom
   args <- many pApArg
   return (foldl (flip id) e1 args)
 
 pApArg :: TokenParser (Expr -> Expr)
 pApArg =
   do
-      atom <- patom
-      return (`Ap` atom)
+    atom <- patom
+    return (`Ap` atom)
     <|> do
-          lexeme LexLBRACE
-          tp <- ptype
-          lexeme LexRBRACE
-          return (`ApType` tp)
+      lexeme LexLBRACE
+      tp <- ptype
+      lexeme LexRBRACE
+      return (`ApType` tp)
 
 patom :: TokenParser Expr
 patom =
   Var
     <$> varid
     <|> Con
-    .   ConId
+    . ConId
     <$> conid
     <|> Lit
     <$> pliteral
@@ -378,38 +379,37 @@ patom =
     <|> listExpr
     <?> "atomic expression"
 
-
 listExpr :: TokenParser Expr
 listExpr = do
   lexeme LexLBRACKET
   exprs <- sepBy pexpr (lexeme LexCOMMA)
   lexeme LexRBRACKET
   return (foldr cons nil exprs)
- where
-  cons = Ap . Ap (Con (ConId (idFromString ":")))
-  nil  = Con (ConId (idFromString "[]"))
+  where
+    cons = Ap . Ap (Con (ConId (idFromString ":")))
+    nil = Con (ConId (idFromString "[]"))
 
 parenExpr :: TokenParser Expr
 parenExpr = do
   lexeme LexLPAREN
   expr <-
     Var
-    <$> opid
-    <|> Con
-    .   ConId
-    <$> conopid
-    <|> do
-          lexeme LexAT
-          arity <- lexInt <?> "arity"
-          return (Con (ConTuple (fromInteger arity)))
-    <|> do
-          exprs <- pexpr `sepBy` lexeme LexCOMMA
-          case exprs of
-            [expr] -> return expr
-            _ ->
-              let con = Con (ConTuple (length exprs))
-                  tup = foldl Ap con exprs
-              in  return tup
+      <$> opid
+      <|> Con
+      . ConId
+      <$> conopid
+      <|> do
+        lexeme LexAT
+        arity <- lexInt <?> "arity"
+        return (Con (ConTuple (fromInteger arity)))
+      <|> do
+        exprs <- pexpr `sepBy` lexeme LexCOMMA
+        case exprs of
+          [expr] -> return expr
+          _ ->
+            let con = Con (ConTuple (length exprs))
+                tup = foldl Ap con exprs
+             in return tup
   lexeme LexRPAREN
   return expr
 
@@ -417,23 +417,23 @@ pliteral :: TokenParser Literal
 pliteral =
   pnumber id id
     <|> LitBytes
-    .   bytesFromString
+    . bytesFromString
     <$> lexString
     <|> do
-          c <- lexChar
-          return (LitInt (fromEnum c) IntTypeChar)
+      c <- lexChar
+      return (LitInt (fromEnum c) IntTypeChar)
     <|> do
-          lexeme LexDASH
-          pnumber negate negate
+      lexeme LexDASH
+      pnumber negate negate
     <?> "literal"
 
 pnumber :: (Int -> Int) -> (Double -> Double) -> TokenParser Literal
 pnumber signint signdouble =
   do
-      i <- lexInt
-      return (LitInt (signint (fromInteger i)) IntTypeInt)
+    i <- lexInt
+    return (LitInt (signint (fromInteger i)) IntTypeInt)
     <|> LitDouble
-    .   signdouble
+    . signdouble
     <$> lexDouble
 
 ----------------------------------------------------------------
@@ -447,23 +447,23 @@ palts = do
 paltSemis :: TokenParser Alts
 paltSemis =
   do
-      alt <- paltDefault
-      optional (lexeme LexSEMI)
-      lexeme LexRBRACE
-      return [alt]
+    alt <- paltDefault
+    optional (lexeme LexSEMI)
+    lexeme LexRBRACE
+    return [alt]
     <|> do
-          alt <- palt
-          do
-              lexeme LexSEMI
-              do
-                  alts <- paltSemis
-                  return (alt : alts)
-                <|> do
-                      lexeme LexRBRACE
-                      return [alt]
-            <|> do
-                  lexeme LexRBRACE
-                  return [alt]
+      alt <- palt
+      do
+        lexeme LexSEMI
+        do
+          alts <- paltSemis
+          return (alt : alts)
+          <|> do
+            lexeme LexRBRACE
+            return [alt]
+        <|> do
+          lexeme LexRBRACE
+          return [alt]
 
 palt :: TokenParser Alt
 palt = do
@@ -481,21 +481,21 @@ ppatParens :: TokenParser Pat
 ppatParens = do
   lexeme LexLPAREN
   do
-      lexeme LexAT
-      arity <- lexInt <?> "arity"
+    lexeme LexAT
+    arity <- lexInt <?> "arity"
+    lexeme LexRPAREN
+    ids <- many bindid
+    return (PatCon (ConTuple (fromInteger arity)) [] ids)
+    <|> do
+      x <- conopid
       lexeme LexRPAREN
+      instantiation <- pInstantiation
       ids <- many bindid
-      return (PatCon (ConTuple (fromInteger arity)) [] ids)
+      return (PatCon (ConId x) instantiation ids)
     <|> do
-          x <- conopid
-          lexeme LexRPAREN
-          instantiation <- pInstantiation
-          ids           <- many bindid
-          return (PatCon (ConId x) instantiation ids)
-    <|> do
-          pat <- ppat <|> ppatTuple
-          lexeme LexRPAREN
-          return pat
+      pat <- ppat <|> ppatTuple
+      lexeme LexRPAREN
+      return pat
 
 ppatCon :: TokenParser Pat
 ppatCon = do
@@ -504,7 +504,7 @@ ppatCon = do
     lexeme LexRBRACKET
     return (idFromString "[]")
   instantiation <- pInstantiation
-  args          <- many bindid
+  args <- many bindid
   return (PatCon (ConId x) instantiation args)
 
 ppatLit :: TokenParser Pat
@@ -530,65 +530,64 @@ wildcard = identifier (return "_")
 pextern :: TokenParser CoreDecl
 pextern =
   do
-      lexeme LexEXTERN
-      linkConv      <- plinkConv
-      callConv      <- pcallConv
-      x             <- varid
-      m             <- lexString <|> return (stringFromId x)
-      (mname, name) <- pExternName m
-      tp            <- ptypeDecl
-      return (DeclExtern x Private Nothing tp "" linkConv callConv mname name [])
+    lexeme LexEXTERN
+    linkConv <- plinkConv
+    callConv <- pcallConv
+    x <- varid
+    m <- lexString <|> return (stringFromId x)
+    (mname, name) <- pExternName m
+    tp <- ptypeDecl
+    return (DeclExtern x Private Nothing tp "" linkConv callConv mname name [])
     <|> do
-          lexeme LexINSTR
-          x  <- varid
-          s  <- lexString
-          tp <- ptypeDecl
-          return
-            (DeclExtern x Private Nothing tp "" LinkStatic CallInstr "" (Plain s) [])
+      lexeme LexINSTR
+      x <- varid
+      s <- lexString
+      tp <- ptypeDecl
+      return
+        (DeclExtern x Private Nothing tp "" LinkStatic CallInstr "" (Plain s) [])
 
 ------------------
 
 plinkConv :: TokenParser LinkConv
 plinkConv =
   do
-      lexeme LexSTATIC
-      return LinkStatic
+    lexeme LexSTATIC
+    return LinkStatic
     <|> do
-          lexeme LexDYNAMIC
-          return LinkDynamic
+      lexeme LexDYNAMIC
+      return LinkDynamic
     <|> do
-          lexeme LexRUNTIME
-          return LinkRuntime
+      lexeme LexRUNTIME
+      return LinkRuntime
     <|> return LinkStatic
 
 pcallConv :: TokenParser CallConv
 pcallConv =
   do
-      lexeme LexCCALL
-      return CallC
+    lexeme LexCCALL
+    return CallC
     <|> do
-          lexeme LexSTDCALL
-          return CallStd
+      lexeme LexSTDCALL
+      return CallStd
     <|> do
-          lexeme LexINSTRCALL
-          return CallInstr
+      lexeme LexINSTRCALL
+      return CallInstr
     <|> return CallC
 
 pExternName :: String -> TokenParser (String, ExternName)
 pExternName mname =
   do
-      lexeme LexDECORATE
+    lexeme LexDECORATE
+    name <- lexString
+    return (mname, Decorate name)
+    <|> do
+      lexeme LexORDINAL
+      ord <- lexInt
+      return (mname, Ordinal (fromIntegral ord))
+    <|> do
       name <- lexString
-      return (mname, Decorate name)
-    <|> do
-          lexeme LexORDINAL
-          ord <- lexInt
-          return (mname, Ordinal (fromIntegral ord))
-    <|> do
-          name <- lexString
-          return (mname, Plain name)
+      return (mname, Plain name)
     <|> return ("", Plain mname)
-
 
 ----------------------------------------------------------------
 -- types
@@ -602,7 +601,6 @@ ptypeDecl = do
 ptypeNormal :: TokenParser Type
 ptypeNormal = ptype
 
-
 ptype :: TokenParser Type
 ptype = ptypeFun <|> do
   lexeme LexFORALL
@@ -613,10 +611,10 @@ ptype = ptypeFun <|> do
 
 ptypeFun :: TokenParser Type
 ptypeFun = chainr1 ptypeAp pFun
- where
-  pFun = do
-    lexeme LexRARROW
-    return (\t1 t2 -> TAp (TAp (TCon TConFun) t1) t2)
+  where
+    pFun = do
+      lexeme LexRARROW
+      return (\t1 t2 -> TAp (TAp (TCon TConFun) t1) t2)
 
 ptypeAp :: TokenParser Type
 ptypeAp = do
@@ -626,12 +624,12 @@ ptypeAp = do
 ptypeAtom :: TokenParser Type
 ptypeAtom =
   do
-      x <- typeid
-      ptypeStrict (TCon $ TConDataType x)
+    x <- typeid
+    ptypeStrict (TCon $ TConDataType x)
     <|> do
-          x <- lexTypeVar
-          let t = TVar x
-          ptypeStrict t
+      x <- lexTypeVar
+      let t = TVar x
+      ptypeStrict t
     <|> (listType >>= ptypeStrict)
     <|> ((lexeme LexLPAREN *> parenType <* lexeme LexRPAREN) >>= ptypeStrict)
     <?> "atomic type"
@@ -639,40 +637,40 @@ ptypeAtom =
 ptypeStrict :: Type -> TokenParser Type
 ptypeStrict tp =
   do
-      lexeme LexEXCL
-      return (TStrict tp)
+    lexeme LexEXCL
+    return (TStrict tp)
     <|> return tp
 
 parenType :: TokenParser Type
 parenType =
   do
+    lexeme LexAT
+    lexeme LexCOMMA
+    commas <- many (lexeme LexCOMMA)
+    let arity = length commas + 2
+    return $ TCon $ TConTuple $ fromIntegral arity
+    <|> do
       lexeme LexAT
-      lexeme LexCOMMA
-      commas <- many (lexeme LexCOMMA)
-      let arity = length commas + 2
-      return $ TCon $ TConTuple $ fromIntegral arity
+      lexeme (LexId "dictionary")
+      TCon . TConTypeClassDictionary <$> typeid
     <|> do
-          lexeme LexAT
-          lexeme (LexId "dictionary")
-          TCon . TConTypeClassDictionary <$> typeid
-    <|> do
-          tps <- sepBy ptype (lexeme LexCOMMA)
-          case tps of
-            [tp] -> return tp
-            _    -> return (foldl TAp (TCon $ TConTuple $ length tps) tps)
+      tps <- sepBy ptype (lexeme LexCOMMA)
+      case tps of
+        [tp] -> return tp
+        _ -> return (foldl TAp (TCon $ TConTuple $ length tps) tps)
 
 listType :: TokenParser Type
 listType = do
   lexeme LexLBRACKET
   do
-      tp <- ptype
+    tp <- ptype
+    lexeme LexRBRACKET
+    x <- identifier (return "[]")
+    return (TAp (TCon $ TConDataType x) tp)
+    <|> do
       lexeme LexRBRACKET
       x <- identifier (return "[]")
-      return (TAp (TCon $ TConDataType x) tp)
-    <|> do
-          lexeme LexRBRACKET
-          x <- identifier (return "[]")
-          return (TCon $ TConDataType x)
+      return (TCon $ TConDataType x)
 
 ----------------------------------------------------------------
 -- helpers
@@ -691,9 +689,9 @@ semiList1 :: TokenParser a -> TokenParser [a]
 semiList1 p = do
   x <- p
   do
-      lexeme LexSEMI
-      xs <- semiList p
-      return (x : xs)
+    lexeme LexSEMI
+    xs <- semiList p
+    return (x : xs)
     <|> return [x]
 
 semiList :: TokenParser a -> TokenParser [a]
@@ -743,8 +741,8 @@ conopid :: TokenParser Id
 conopid =
   identifier lexConOp
     <|> do
-          lexeme LexCOLON
-          return (idFromString ":")
+      lexeme LexCOLON
+      return (idFromString ":")
     <?> "constructor operator"
 
 conid :: TokenParser Id
@@ -764,87 +762,96 @@ identifier = fmap idFromString
 
 lexeme :: Lexeme -> TokenParser ()
 lexeme lex = satisfy f <?> show lex
- where
-  f a | a == lex  = Just ()
+  where
+    f a
+      | a == lex = Just ()
       | otherwise = Nothing
 
-
 lexChar :: TokenParser Char
-lexChar = satisfy
-  (\case
-    LexChar c -> Just c
-    _         -> Nothing
-  )
+lexChar =
+  satisfy
+    ( \case
+        LexChar c -> Just c
+        _ -> Nothing
+    )
 
 lexString :: TokenParser String
-lexString = satisfy
-  (\case
-    LexString s -> Just s
-    _           -> Nothing
-  )
+lexString =
+  satisfy
+    ( \case
+        LexString s -> Just s
+        _ -> Nothing
+    )
 
 lexDouble :: TokenParser Double
-lexDouble = satisfy
-  (\case
-    LexFloat d -> Just d
-    _          -> Nothing
-  )
+lexDouble =
+  satisfy
+    ( \case
+        LexFloat d -> Just d
+        _ -> Nothing
+    )
 
 lexInt :: TokenParser Integer
-lexInt = satisfy
-  (\case
-    LexInt i -> Just i
-    _        -> Nothing
-  )
+lexInt =
+  satisfy
+    ( \case
+        LexInt i -> Just i
+        _ -> Nothing
+    )
 
 lexId :: TokenParser String
-lexId = satisfy
-  (\case
-    LexId s -> Just s
-    _       -> Nothing
-  )
+lexId =
+  satisfy
+    ( \case
+        LexId s -> Just s
+        _ -> Nothing
+    )
 
 lexTypeVar :: TokenParser Int
-lexTypeVar = satisfy
-  (\case
-    LexTypeVar idx -> Just idx
-    _              -> Nothing
-  )
+lexTypeVar =
+  satisfy
+    ( \case
+        LexTypeVar idx -> Just idx
+        _ -> Nothing
+    )
 
 lexOp :: TokenParser String
-lexOp = satisfy
-  (\case
-    LexOp s -> Just s
-    _       -> Nothing
-  )
+lexOp =
+  satisfy
+    ( \case
+        LexOp s -> Just s
+        _ -> Nothing
+    )
 
 lexCon :: TokenParser String
-lexCon = satisfy
-  (\case
-    LexCon s -> Just s
-    _        -> Nothing
-  )
+lexCon =
+  satisfy
+    ( \case
+        LexCon s -> Just s
+        _ -> Nothing
+    )
 
 lexConOp :: TokenParser String
-lexConOp = satisfy
-  (\case
-    LexConOp s -> Just s
-    _          -> Nothing
-  )
+lexConOp =
+  satisfy
+    ( \case
+        LexConOp s -> Just s
+        _ -> Nothing
+    )
 
 satisfy :: (Lexeme -> Maybe a) -> TokenParser a
 satisfy p = tokenPrim showtok nextpos (\(_, lex) -> p lex)
- where
-  showtok (_, lex) = show lex
-  nextpos pos _ (((line, col), _) : _) =
-    setSourceColumn (setSourceLine pos line) col
-  nextpos pos _ [] = pos
+  where
+    showtok (_, lex) = show lex
+    nextpos pos _ (((line, col), _) : _) =
+      setSourceColumn (setSourceLine pos line) col
+    nextpos pos _ [] = pos
 
 parseFromString :: TokenParser a -> String -> Either String a
 parseFromString p str =
   let toks = lexer (0, 0) str
-  in  case runParser (waitForEOF p) () "Core.Parsing.Parser" toks of
-        Left  _ -> Left str --error ("Core.Parsing.Parser parseFromString: parse error in " ++ string ++ show tokens)
+   in case runParser (waitForEOF p) () "Core.Parsing.Parser" toks of
+        Left _ -> Left str --error ("Core.Parsing.Parser parseFromString: parse error in " ++ string ++ show tokens)
         Right x -> Right x
 
 waitForEOF :: TokenParser a -> TokenParser a
