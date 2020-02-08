@@ -48,7 +48,7 @@ data Expr
   | ApType !Expr !Type
   | Lam !Bool !Variable Expr
   | Forall !Quantor !Kind !Expr
-  | Con !Con
+  | Con !Con !(Maybe Id)
   | Var !Id
   | Lit !Literal
 
@@ -129,7 +129,9 @@ ppExpr p quantorNames expr = case expr of
         <> ppType 0 quantorNames t
         <> text " }"
   Var x -> ppVarId x
-  Con con -> pretty con
+  Con con mv -> case mv of
+    (Just mid) -> ppVarId mid <> char '@' <> parens (pretty con)
+    Nothing -> pretty con
   Lit lit -> pretty lit
   where
     prec p'

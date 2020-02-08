@@ -165,7 +165,7 @@ ptopDeclType x = do
           ++ stringFromId x2
       )
   (access, mod, custom, expr) <- pbindTopRhs x pVariableName
-  return (DeclValue x access mod tp expr custom)
+  return (DeclValue x access mod tp expr custom [])
 
 pbindTopRhs :: Id -> TokenParser Id -> TokenParser (Access, Maybe Id, [Custom], Expr)
 pbindTopRhs name palias =
@@ -370,9 +370,7 @@ patom :: TokenParser Expr
 patom =
   Var
     <$> varid
-    <|> Con
-    . ConId
-    <$> conid
+    <|> (flip Con Nothing . ConId) <$> conid
     <|> Lit
     <$> pliteral
     <|> parenExpr
@@ -386,8 +384,8 @@ listExpr = do
   lexeme LexRBRACKET
   return (foldr cons nil exprs)
   where
-    cons = Ap . Ap (Con (ConId (idFromString ":")))
-    nil = Con (ConId (idFromString "[]"))
+    cons = Ap . Ap (Con (ConId (idFromString ":")) Nothing)
+    nil = Con (ConId (idFromString "[]")) Nothing
 
 parenExpr :: TokenParser Expr
 parenExpr = do
@@ -395,19 +393,17 @@ parenExpr = do
   expr <-
     Var
       <$> opid
-      <|> Con
-      . ConId
-      <$> conopid
+      <|> (flip Con Nothing . ConId) <$> conopid
       <|> do
         lexeme LexAT
         arity <- lexInt <?> "arity"
-        return (Con (ConTuple (fromInteger arity)))
+        return (Con (ConTuple (fromInteger arity)) Nothing)
       <|> do
         exprs <- pexpr `sepBy` lexeme LexCOMMA
         case exprs of
           [expr] -> return expr
           _ ->
-            let con = Con (ConTuple (length exprs))
+            let con = Con (ConTuple (length exprs)) Nothing
                 tup = foldl Ap con exprs
              in return tup
   lexeme LexRPAREN

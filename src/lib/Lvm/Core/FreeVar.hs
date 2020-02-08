@@ -30,7 +30,7 @@ instance FreeVar Expr where
     Lam _ (Variable x _) e -> deleteSet x (freeVar e)
     Forall _ _ e -> freeVar e
     ApType e _ -> freeVar e
-    Con _ -> emptySet
+    Con _ _ -> emptySet
     Var x -> singleSet x
     Lit _ -> emptySet
 

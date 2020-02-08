@@ -52,7 +52,10 @@ data Type
     TStrict !Type
   | TVar !Int
   | TCon !TypeConstant
+  | TUniq !Uniq
   deriving (Eq, Ord)
+
+data Uniq = Unique | Shared | Uvar !Int deriving (Eq, Ord)
 
 data Quantor
   = Quantor !Int !(Maybe String)
@@ -177,8 +180,9 @@ ppQuantor names i = case lookup i names of
 
 ppType :: Int -> QuantorNames -> Type -> Doc
 ppType level quantorNames tp =
-  parenthesized $
-    case tp of
+  case tp of
+    TUniq a -> ppUniq a quantorNames <> text ":"
+    _ -> parenthesized $ case tp of
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]"
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp t1 t2 -> ppEq t1 <+> ppHi t2
@@ -198,6 +202,11 @@ ppType level quantorNames tp =
       | otherwise = parens doc
     ppHi = ppType (tplevel + 1) quantorNames
     ppEq = ppType tplevel quantorNames
+
+ppUniq :: Uniq -> QuantorNames -> Doc
+ppUniq Unique _ = text "1"
+ppUniq Shared _ = text "w"
+ppUniq (Uvar a) quantorNames = ppQuantor quantorNames a
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind =

@@ -163,7 +163,7 @@ lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor m
       where
         locals' = insertSet (variableName var) locals
     travExpr locals (Forall quantor kind expr) = Forall quantor kind $ travExpr locals expr
-    travExpr locals (Con c) = Con $ travCon c
+    travExpr locals (Con c mv) = Con (travCon c) mv
     travExpr locals (Var name) = Var $ renameValue locals name
     travExpr locals (Lit lit) = Lit lit
     travAlt :: IdSet -> Alt -> Alt
