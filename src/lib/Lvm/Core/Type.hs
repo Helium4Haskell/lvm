@@ -158,7 +158,7 @@ instance Pretty Kind where
   pretty = ppKind 0
 
 instance Show Quantor where
-  show (Quantor _ (Just name)) = name
+  show (Quantor i (Just name)) = "v$" ++ name ++ show i
   show (Quantor i _) = "v$" ++ show i
 
 instance Pretty TypeConstant where
@@ -175,7 +175,7 @@ instance Show TypeConstant where
 
 ppQuantor :: QuantorNames -> Int -> Doc
 ppQuantor names i = case lookup i names of
-  Just name -> text name
+  Just name -> text $ "v$" ++ name ++ show i
   Nothing -> text $ "v$" ++ show i
 
 ppType :: Int -> QuantorNames -> Type -> Doc
