@@ -8,6 +8,7 @@
 module Lvm.Core.Type
   ( Type (..),
     Kind (..),
+    Uniq (..),
     TypeConstant (..),
     Quantor (..),
     QuantorNames,
@@ -53,9 +54,9 @@ data Type
   | TVar !Int
   | TCon !TypeConstant
   | TUniq !Uniq
-  deriving (Eq, Ord)
+  deriving (Show, Eq, Ord)
 
-data Uniq = Unique | Shared | Uvar !Int deriving (Eq, Ord)
+data Uniq = Unique | Shared | Uvar !Int deriving (Show, Eq, Ord)
 
 data Quantor
   = Quantor !Int !(Maybe String)
@@ -68,7 +69,7 @@ data TypeConstant
   | TConTuple !Int
   | TConTypeClassDictionary !Id
   | TConFun
-  deriving (Eq, Ord)
+  deriving (Show, Eq, Ord)
 
 data IntType
   = IntTypeInt
@@ -167,11 +168,11 @@ instance Pretty TypeConstant where
   pretty (TConTuple arity) = text ('(' : replicate (arity - 1) ',' ++ ")")
   pretty TConFun = text "->"
 
+showTypeConstant :: TypeConstant -> String
+showTypeConstant = show . pretty
+
 dictionaryDataTypeName :: Id -> Id
 dictionaryDataTypeName = idFromString . ("Dict$" ++) . stringFromId
-
-instance Show TypeConstant where
-  show = show . pretty
 
 ppQuantor :: QuantorNames -> Int -> Doc
 ppQuantor names i = case lookup i names of
