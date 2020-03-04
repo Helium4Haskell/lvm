@@ -16,6 +16,8 @@ module Lvm.Core.Type
     ppQuantor,
     ppType,
     showType,
+    showTypeWithQuantors,
+    showTypeConstant,
     arityFromType,
     typeUnit,
     typeBool,
@@ -54,7 +56,7 @@ data Type
   | TVar !Int
   | TCon !TypeConstant
   | TUniq !Uniq
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord)
 
 data Uniq = Unique | Shared | Uvar !Int deriving (Show, Eq, Ord)
 
@@ -146,8 +148,13 @@ arityFromType tp =
 -- Pretty printing
 ----------------------------------------------------------------
 
-showType :: QuantorNames -> Type -> String
-showType quantors tp = show $ ppType 5 quantors tp
+-- print type with empty quantor list
+showType :: Type -> String
+showType = showTypeWithQuantors []
+
+-- Should be unnecessary if TVar contains the quantor name
+showTypeWithQuantors :: QuantorNames -> Type -> String
+showTypeWithQuantors quantors tp = show $ ppType 5 quantors tp
 
 instance Show Kind where
   show = show . pretty
@@ -289,7 +296,7 @@ typeSubstitutions initialSubstitutions leftType = fst $ substitute leftType (M.f
 typeListElement :: Type -> Type
 typeListElement (TAp (TCon (TConDataType dataType)) a)
   | dataType == idFromString "[]" = a
-typeListElement tp = error $ "typeListElement: expected a list type, got " ++ showType [] tp ++ " instead"
+typeListElement tp = error $ "typeListElement: expected a list type, got " ++ showType tp ++ " instead"
 
 typeTupleElements :: Type -> [Type]
 typeTupleElements tupleType = elements 0 tupleType []
@@ -300,7 +307,7 @@ typeTupleElements tupleType = elements 0 tupleType []
       | otherwise = accum
     elements n (TAp t1 t2) accum = elements (n + 1) t1 (t2 : accum)
     elements _ (TVar _) _ = error $ "typeTupleElements: expected a tuple type, got a type variable instead"
-    elements _ tp _ = error $ "typeTupleElements: expected a tuple type, got " ++ showType [] tp ++ " instead"
+    elements _ tp _ = error $ "typeTupleElements: expected a tuple type, got " ++ showType tp ++ " instead"
 
 typeExtractFunction :: Type -> ([Type], Type)
 typeExtractFunction (TAp (TAp (TCon TConFun) t1) t2) = (t1 : args, ret)
