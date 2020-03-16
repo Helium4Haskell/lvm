@@ -165,7 +165,7 @@ ptopDeclType x = do
           ++ stringFromId x2
       )
   (access, mod, custom, expr) <- pbindTopRhs x pVariableName
-  return (DeclValue x access mod tp expr custom [])
+  return (DeclValue x access mod tp expr custom)
 
 pbindTopRhs :: Id -> TokenParser Id -> TokenParser (Access, Maybe Id, [Custom], Expr)
 pbindTopRhs name palias =

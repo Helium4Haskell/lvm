@@ -65,8 +65,8 @@ data Module v
       }
 
 data Decl v
-  = DeclValue {declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, valueValue :: v, declCustoms :: ![Custom], mutating :: ![Id]}
-  | DeclAbstract {declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declArity :: !Arity, declType :: !Type, declCustoms :: ![Custom], mutating :: ![Id]}
+  = DeclValue {declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, valueValue :: v, declCustoms :: ![Custom]}
+  | DeclAbstract {declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declArity :: !Arity, declType :: !Type, declCustoms :: ![Custom]}
   | DeclCon {declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declFields :: ![Field], declCustoms :: [Custom]}
   | DeclExtern
       { declName :: Id,
@@ -208,8 +208,8 @@ instance Functor Module where
 
 instance Functor Decl where
   fmap f decl = case decl of
-    DeclValue x ac md m v cs mv -> DeclValue x ac md m (f v) cs mv
-    DeclAbstract x ac md ar tp cs mv -> DeclAbstract x ac md ar tp cs mv
+    DeclValue x ac md m v cs -> DeclValue x ac md m (f v) cs
+    DeclAbstract x ac md ar tp cs -> DeclAbstract x ac md ar tp cs
     DeclCon x ac md t fs cs -> DeclCon x ac md t fs cs
     DeclExtern x ac md ar et el ec elib en cs ->
       DeclExtern x ac md ar et el ec elib en cs
@@ -317,17 +317,8 @@ ppAttrsEx hideImp decl =
     else
       text ":"
         <+> ppAccess (declAccess decl)
-        <+> fromMaybe (text "") (ppMut P.<$> (declToId decl))
         <+> ppModule (declModule decl)
         <+> pretty (declCustoms decl)
-
-declToId :: Decl a -> Maybe [Id]
-declToId (DeclValue {mutating = ids}) = Just ids
-declToId _ = Nothing
-
-ppMut :: [Id] -> Doc
-ppMut [] = empty
-ppMut mid = text "mutating" <+> (list $ ppVarId `fmap` mid)
 
 ppAccess :: Access -> Doc
 ppAccess (Export name) = text "export" <+> ppId name
