@@ -98,6 +98,13 @@ lexer pos ('v' : '$' : cs) | num /= "" && nonId cs' =
   cs' = dropWhile isDigit cs
   num = takeWhile isDigit cs
 
+lexer pos ('u' : '$' : cs) | num /= "" && nonId cs' =
+  (pos, LexAnnVar $ foldl (\x y -> x * 10 + (fromEnum y - fromEnum '0')) 0 num)
+    : nextinc lexer pos (2 + length num) cs'
+ where
+  cs' = dropWhile isDigit cs
+  num = takeWhile isDigit cs
+
 lexer pos (':' : ':' : cs) | nonSym cs =
   (pos, LexCOLCOL) : nextinc lexer pos 2 cs
 lexer pos ('=' : '>' : cs) | nonSym cs =
@@ -117,6 +124,8 @@ lexer pos (';' : cs) | nonSym cs  = (pos, LexSEMI) : nextinc lexer pos 1 cs
 lexer pos ('|' : cs) | nonSym cs  = (pos, LexBAR) : nextinc lexer pos 1 cs
 lexer pos ('~' : cs) | nonSym cs  = (pos, LexTILDE) : nextinc lexer pos 1 cs
 lexer pos ('@' : cs) | nonSym cs  = (pos, LexAT) : nextinc lexer pos 1 cs
+lexer pos ('&' : cs) | nonSym cs  = (pos, LexAMPERSAND) : nextinc lexer pos 1 cs
+lexer pos ('*' : cs) | nonSym cs  = (pos, LexSTAR) : nextinc lexer pos 1 cs
 lexer pos ('=' : cs) | nonSym cs  = (pos, LexASG) : nextinc lexer pos 1 cs
 lexer pos ('\\' : cs) | nonSym cs = (pos, LexBSLASH) : nextinc lexer pos 1 cs
 lexer pos ('!' : cs) | nonSym cs  = (pos, LexEXCL) : nextinc lexer pos 1 cs

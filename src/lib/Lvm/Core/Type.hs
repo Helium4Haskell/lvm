@@ -58,7 +58,7 @@ data Type
   | TUniq !Uniq
   deriving (Eq, Ord)
 
-data Uniq = Unique | Shared | Uvar !Int deriving (Show, Eq, Ord)
+data Uniq = Unique | Shared | UVar !Int deriving (Show, Eq, Ord)
 
 data Quantor
   = Quantor !Int !(Maybe String)
@@ -88,6 +88,7 @@ instance Show IntType where
 data Kind
   = KFun !Kind !Kind
   | KStar
+  | KAnn
   deriving (Eq, Ord)
 
 typeConFromString :: String -> TypeConstant
@@ -214,7 +215,7 @@ ppType level quantorNames tp =
 ppUniq :: Uniq -> QuantorNames -> Doc
 ppUniq Unique _ = text "1"
 ppUniq Shared _ = text "w"
-ppUniq (Uvar a) quantorNames = ppQuantor quantorNames a
+ppUniq (UVar a) quantorNames = ppQuantor quantorNames a
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind =
@@ -222,6 +223,7 @@ ppKind level kind =
     case kind of
       KFun k1 k2 -> ppHi k1 <+> text "->" <+> ppEq k2
       KStar -> text "*"
+      KAnn -> text "&"
   where
     (klevel, parenthesized)
       | level <= levelFromKind kind = (levelFromKind kind, id)
@@ -244,6 +246,7 @@ levelFromKind kind =
   case kind of
     KFun {} -> 1
     KStar {} -> 2
+    KAnn {} -> 2
 
 typeInstantiate :: Int -> Type -> Type -> Type
 typeInstantiate var newType (TForall q@(Quantor idx _) k t)

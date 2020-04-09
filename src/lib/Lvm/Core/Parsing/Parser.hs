@@ -339,8 +339,12 @@ pexpr =
       return (foldr (Let . Strict) expr binds)
     <|> do
       lexeme LexFORALL
-      idx <- lexTypeVar
-      let kind = KStar
+      (kind, idx) <- do
+        idx <- lexTypeVar
+        return (KStar, idx)
+        <|> do
+        idx <- lexAnnVar
+        return (KAnn, idx)
       lexeme LexDOT
       Forall (Quantor idx Nothing) kind <$> pexpr
     <|> pexprAp
@@ -600,8 +604,12 @@ ptypeNormal = ptype
 ptype :: TokenParser Type
 ptype = ptypeFun <|> do
   lexeme LexFORALL
-  idx <- lexTypeVar
-  let kind = KStar
+  (kind, idx) <- do
+    idx <- lexTypeVar
+    return (KStar, idx)
+    <|> do
+    idx <- lexAnnVar
+    return (KAnn, idx)
   lexeme LexDOT
   TForall (Quantor idx Nothing) kind <$> ptype
 
@@ -621,21 +629,43 @@ ptypeAtom :: TokenParser Type
 ptypeAtom =
   do
     x <- typeid
-    ptypeStrict (TCon $ TConDataType x)
+    ptypeAnn (TCon $ TConDataType x)
     <|> do
       x <- lexTypeVar
       let t = TVar x
-      ptypeStrict t
-    <|> (listType >>= ptypeStrict)
-    <|> ((lexeme LexLPAREN *> parenType <* lexeme LexRPAREN) >>= ptypeStrict)
+      ptypeAnn t
+    <|> (listType >>= ptypeAnn)
+    <|> ((lexeme LexLPAREN *> parenType <* lexeme LexRPAREN) >>= ptypeAnn)
     <?> "atomic type"
 
-ptypeStrict :: Type -> TokenParser Type
-ptypeStrict tp =
+-- We first parse a optional strictness annotation
+-- Then we parse the other annotations
+ptypeAnn :: Type -> TokenParser Type
+ptypeAnn tp =
   do
     lexeme LexEXCL
-    return (TStrict tp)
+    let tp' = typeToStrict tp
+    ptypeAnn' tp'
+    <|> ptypeAnn' tp
     <|> return tp
+
+ptypeAnn' :: Type -> TokenParser Type
+ptypeAnn' tp =
+  do
+    lexeme LexCOLON
+    (do
+        lexeme (LexInt 1)
+        return (TAp (TUniq Unique) tp)
+     <|>
+      do
+        lexeme (LexId "w")
+        return (TAp (TUniq Shared) tp)
+     <|>
+      do
+        idx <- lexAnnVar
+        return (TAp (TUniq (UVar idx)) tp)
+     )
+  <|> return tp
 
 parenType :: TokenParser Type
 parenType =
@@ -808,6 +838,14 @@ lexTypeVar =
   satisfy
     ( \case
         LexTypeVar idx -> Just idx
+        _ -> Nothing
+    )
+
+lexAnnVar :: TokenParser Int
+lexAnnVar =
+  satisfy
+    ( \case
+        LexAnnVar idx -> Just idx
         _ -> Nothing
     )
 

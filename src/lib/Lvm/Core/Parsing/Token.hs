@@ -31,6 +31,7 @@ data Lexeme     = LexUnknown Char
                 | LexFloat Double
                 | LexId String
                 | LexTypeVar Int
+                | LexAnnVar Int
                 | LexOp String
                 | LexCon String
                 | LexConOp String
@@ -50,6 +51,8 @@ data Lexeme     = LexUnknown Char
                 | LexTILDE      -- ~
                 | LexARROW      -- =>
                 | LexAT         -- @
+                | LexAMPERSAND  -- &
+                | LexSTAR       -- *
                 | LexEXCL       -- !
                 | LexDASH       -- -
 
