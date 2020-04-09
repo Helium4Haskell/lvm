@@ -5,39 +5,7 @@
 --------------------------------------------------------------------------------
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
-module Lvm.Core.Type
-  ( Type (..),
-    Kind (..),
-    Uniq (..),
-    TypeConstant (..),
-    Quantor (..),
-    QuantorNames,
-    IntType (..),
-    ppQuantor,
-    ppType,
-    showType,
-    showTypeWithQuantors,
-    showTypeConstant,
-    arityFromType,
-    typeUnit,
-    typeBool,
-    typeToStrict,
-    typeNotStrict,
-    typeIsStrict,
-    typeSetStrict,
-    typeConFromString,
-    typeFunction,
-    typeInstantiate,
-    typeSubstitute,
-    typeTupleElements,
-    typeRemoveArgumentStrictness,
-    typeSubstitutions,
-    typeExtractFunction,
-    typeApply,
-    typeApplyList,
-    dictionaryDataTypeName,
-  )
-where
+module Lvm.Core.Type where
 
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -50,15 +18,15 @@ import Text.PrettyPrint.Leijen
 data Type
   = TAp !Type !Type
   | TForall !Quantor !Kind !Type
-  | -- The inner type should have kind. The inner type
-    -- may not be TStrict
-    TStrict !Type
   | TVar !Int
   | TCon !TypeConstant
-  | TUniq !Uniq
-  deriving (Eq, Ord)
+  | TAnn !SAnn !UAnn
+  deriving (Eq, Ord, Show)
 
-data Uniq = Unique | Shared | UVar !Int deriving (Show, Eq, Ord)
+type UVar = Int
+
+data SAnn = SStrict | SNone deriving (Eq, Ord, Show)
+data UAnn = UUnique | UShared | UVar !UVar | UNone deriving (Eq, Ord, Show)
 
 data Quantor
   = Quantor !Int !(Maybe String)
@@ -99,31 +67,61 @@ typeConFromString ('(' : str)
     (commas, rest) = span (== ',') str
 typeConFromString name = TConDataType $ idFromString name
 
+addSAnnToType :: SAnn -> Type -> Type
+addSAnnToType a (TForall quantor kind t) = TForall quantor kind $ addSAnnToType a t
+addSAnnToType a (TAp (TAnn _ a2) t) = TAp (TAnn a a2) t
+addSAnnToType a t = TAp (TAnn a UNone) t
+
+addUAnnToType :: UAnn -> Type -> Type
+addUAnnToType a (TForall quantor kind t) = TForall quantor kind $ addUAnnToType a t
+addUAnnToType a (TAp (TAnn a1 _) t) = TAp (TAnn a1 a) t
+addUAnnToType a t = TAp (TAnn SNone a) t
+
+removeSAnnFromType :: Type -> Type
+removeSAnnFromType (TForall quantor kind t) = TForall quantor kind $ removeSAnnFromType t
+removeSAnnFromType (TAp (TAnn _ UNone) t) = t
+removeSAnnFromType (TAp (TAnn _ a2) t) = TAp (TAnn SNone a2) t
+removeSAnnFromType t = t
+
+removeUAnnFromType :: Type -> Type
+removeUAnnFromType (TForall quantor kind t) = TForall quantor kind $ removeUAnnFromType t
+removeUAnnFromType (TAp (TAnn SNone _) t)= t
+removeUAnnFromType (TAp (TAnn a1 _) t)= TAp (TAnn a1 UNone) t
+removeUAnnFromType t = t
+
+removeAnnotations :: Type -> Type
+removeAnnotations (TForall quantor kind t) = TForall quantor kind $ removeAnnotations t
+removeAnnotations (TAp (TAnn _ _) t) = t
+removeAnnotations t = t
+
+typeSetSAnn :: Bool -> SAnn -> Type -> Type
+typeSetSAnn True a = addSAnnToType a
+typeSetSAnn False _ = removeSAnnFromType
+
+typeRemoveArgumentAnn :: (Type -> Type) -> Type -> Type
+typeRemoveArgumentAnn f (TForall quantor kind tp) = TForall quantor kind $ typeRemoveArgumentAnn f tp
+typeRemoveArgumentAnn f (TAp (TAp (TCon TConFun) tArg) tReturn) =
+  TAp (TAp (TCon TConFun) $ f tArg) $ typeRemoveArgumentAnn f tReturn
+typeRemoveArgumentAnn f (TAp (TAnn a1 a2) tp) = TAp (TAnn a1 a2) $ typeRemoveArgumentAnn f tp
+typeRemoveArgumentAnn _ tp = tp
+
 typeToStrict :: Type -> Type
-typeToStrict (TForall quantor kind t) = TForall quantor kind $ typeToStrict t
-typeToStrict t@(TStrict _) = t
-typeToStrict t = TStrict t
+typeToStrict = addSAnnToType SStrict
 
 typeNotStrict :: Type -> Type
-typeNotStrict (TForall quantor kind t) = TForall quantor kind $ typeNotStrict t
-typeNotStrict (TStrict t) = typeNotStrict t
-typeNotStrict t = t
+typeNotStrict = removeSAnnFromType
 
 typeIsStrict :: Type -> Bool
 typeIsStrict (TForall _ _ t) = typeIsStrict t
-typeIsStrict (TStrict _) = True
+typeIsStrict (TAp (TAnn a1 _) _)  = a1 == SStrict
+typeIsStrict (TAnn a1 _)  = a1 == SStrict
 typeIsStrict _ = False
 
 typeSetStrict :: Bool -> Type -> Type
-typeSetStrict True = typeToStrict
-typeSetStrict False = typeNotStrict
+typeSetStrict b = typeSetSAnn b SStrict
 
 typeRemoveArgumentStrictness :: Type -> Type
-typeRemoveArgumentStrictness (TForall quantor kind tp) = TForall quantor kind $ typeRemoveArgumentStrictness tp
-typeRemoveArgumentStrictness (TAp (TAp (TCon TConFun) tArg) tReturn) =
-  TAp (TAp (TCon TConFun) $ typeNotStrict tArg) $ typeRemoveArgumentStrictness tReturn
-typeRemoveArgumentStrictness (TStrict tp) = TStrict $ typeRemoveArgumentStrictness tp
-typeRemoveArgumentStrictness tp = tp
+typeRemoveArgumentStrictness = typeRemoveArgumentAnn removeSAnnFromType
 
 typeUnit :: Type
 typeUnit = TCon $ TConTuple 0
@@ -139,9 +137,9 @@ arityFromType :: Type -> Int
 arityFromType tp =
   case tp of
     TAp (TAp (TCon TConFun) _) t2 -> arityFromType t2 + 1
+    TAp (TAnn _ _) t -> arityFromType t
     TAp _ _ -> 0 -- assumes saturated constructors!
     TForall _ _ t -> arityFromType t
-    TStrict t -> arityFromType t
     TVar _ -> 0
     TCon _ -> 0
 
@@ -189,11 +187,10 @@ ppQuantor names i = case lookup i names of
 
 ppType :: Int -> QuantorNames -> Type -> Doc
 ppType level quantorNames tp =
-  case tp of
-    TUniq a -> ppUniq a quantorNames <> text ":"
-    _ -> parenthesized $ case tp of
+    parenthesized $ case tp of
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]"
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
+      TAp (TAnn a1 a2) t -> ppSAnn a1 <> ppUAnn a2 <> ppEq t
       TAp t1 t2 -> ppEq t1 <+> ppHi t2
       TForall a k t ->
         let quantorNames' = case a of
@@ -201,9 +198,9 @@ ppType level quantorNames tp =
               _ -> quantorNames
          in text "forall" <+> text (show a {- <> text ":" <+> pretty k -}) <> text "."
               <+> ppType 0 quantorNames' t
-      TStrict t -> text "!" <> ppHi t
       TVar a -> ppQuantor quantorNames a
       TCon a -> pretty a
+      _ -> error (show tp)
   where
     tplevel = levelFromType tp
     parenthesized doc
@@ -212,10 +209,15 @@ ppType level quantorNames tp =
     ppHi = ppType (tplevel + 1) quantorNames
     ppEq = ppType tplevel quantorNames
 
-ppUniq :: Uniq -> QuantorNames -> Doc
-ppUniq Unique _ = text "1"
-ppUniq Shared _ = text "w"
-ppUniq (UVar a) quantorNames = ppQuantor quantorNames a
+ppSAnn :: SAnn -> Doc
+ppSAnn SStrict = text "!"
+ppSAnn SNone = text ""
+
+ppUAnn :: UAnn -> Doc
+ppUAnn UUnique = text "1:"
+ppUAnn UShared = text "w:"
+ppUAnn UNone = text ""
+ppUAnn (UVar a) = text "u$" <> text (show a) <> text ":"
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind =
@@ -237,7 +239,7 @@ levelFromType tp =
     TForall {} -> 2
     TAp (TAp (TCon TConFun) _) _ -> 3
     TAp {} -> 4
-    TStrict {} -> 5
+    TAnn {} -> 5
     TVar {} -> 6
     TCon {} -> 6
 
@@ -273,6 +275,9 @@ typeSubstitutions initialSubstitutions leftType = fst $ substitute leftType (M.f
     rightFree = foldr1 S.union $ map (typeFreeVars . snd) initialSubstitutions
     leftUsed = typeUsedVars leftType
     substitute :: Type -> M.Map Int Type -> [Int] -> (Type, [Int])
+    substitute (TAp (TAnn a1 a2) t) mapping fresh = (TAp (TAnn a1 a2) t', fresh')
+      where
+        (t', fresh') = substitute t mapping fresh
     substitute (TAp t1 t2) mapping fresh = (TAp t1' t2', fresh'')
       where
         (t1', fresh') = substitute t1 mapping fresh
@@ -288,9 +293,6 @@ typeSubstitutions initialSubstitutions leftType = fst $ substitute leftType (M.f
         let mapping' = M.delete idx mapping
             (t', fresh') = substitute t mapping' fresh
          in (TForall (Quantor idx Nothing) k t', fresh')
-    substitute (TStrict t) mapping fresh = (TStrict t', fresh')
-      where
-        (t', fresh') = substitute t mapping fresh
     substitute t@(TVar idx) mapping fresh = case M.lookup idx mapping of
       Just tp -> (tp, fresh)
       Nothing -> (t, fresh)
@@ -327,14 +329,12 @@ typeApplyList = foldl typeApply
 
 typeUsedVars :: Type -> S.Set Int
 typeUsedVars (TAp t1 t2) = typeUsedVars t1 `S.union` typeUsedVars t2
-typeUsedVars (TForall (Quantor idx _) _ tp) = S.insert idx $ typeUsedVars tp
-typeUsedVars (TStrict tp) = typeUsedVars tp
+typeUsedVars (TForall (Quantor idx _) KStar tp) = S.insert idx $ typeUsedVars tp
 typeUsedVars (TVar idx) = S.singleton idx
-typeUsedVars (TCon _) = S.empty
+typeUsedVars _ = S.empty
 
 typeFreeVars :: Type -> S.Set Int
 typeFreeVars (TAp t1 t2) = typeFreeVars t1 `S.union` typeFreeVars t2
-typeFreeVars (TForall (Quantor idx _) _ tp) = S.delete idx $ typeFreeVars tp
-typeFreeVars (TStrict tp) = typeFreeVars tp
+typeFreeVars (TForall (Quantor idx _) KStar tp) = S.delete idx $ typeFreeVars tp
 typeFreeVars (TVar idx) = S.singleton idx
-typeFreeVars (TCon _) = S.empty
+typeFreeVars _ = S.empty

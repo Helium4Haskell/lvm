@@ -655,15 +655,15 @@ ptypeAnn' tp =
     lexeme LexCOLON
     (do
         lexeme (LexInt 1)
-        return (TAp (TUniq Unique) tp)
+        return (addUAnnToType UUnique tp)
      <|>
       do
         lexeme (LexId "w")
-        return (TAp (TUniq Shared) tp)
+        return (addUAnnToType UShared tp)
      <|>
       do
         idx <- lexAnnVar
-        return (TAp (TUniq (UVar idx)) tp)
+        return (addUAnnToType (UVar idx) tp)
      )
   <|> return tp
 
