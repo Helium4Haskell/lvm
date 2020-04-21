@@ -20,6 +20,8 @@ data Type
   | TForall !Quantor !Kind !Type
   | TVar !Int
   | TCon !TypeConstant
+  -- Constraint on type level, of form p ⊑ q =>
+  | TQTy UAnn UAnn Type
   | TAnn !SAnn !UAnn
   deriving (Eq, Ord, Show)
 
@@ -170,7 +172,7 @@ instance Show Quantor where
 
 instance Pretty TypeConstant where
   pretty (TConDataType name) = pretty name
-  pretty (TConTypeClassDictionary name) = text "(@dictionary" <+> pretty name <+> text ")"
+  pretty (TConTypeClassDictionary name) = text "(@dictionary" <+> pretty name <> text ")"
   pretty (TConTuple arity) = text ('(' : replicate (arity - 1) ',' ++ ")")
   pretty TConFun = text "->"
 
@@ -192,6 +194,7 @@ ppType level quantorNames tp =
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp (TAnn a1 a2) t -> ppSAnn a1 <> ppUAnn a2 <> ppEq t
       TAp t1 t2 -> ppEq t1 <+> ppHi t2
+      TQTy u1 u2 t -> text (show u1) <+> text "⊑" <+> text (show u2) <+> text "=>" <+> ppType 0 quantorNames t
       TForall a k t ->
         let quantorNames' = case a of
               Quantor idx (Just name) -> (idx, name) : quantorNames
@@ -217,7 +220,7 @@ ppUAnn :: UAnn -> Doc
 ppUAnn UUnique = text "1:"
 ppUAnn UShared = text "w:"
 ppUAnn UNone = text ""
-ppUAnn (UVar a) = text "u$" <> text (show a) <> text ":"
+ppUAnn (UVar a) = text (show a) <> text ":"
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind =
@@ -238,8 +241,8 @@ levelFromType tp =
   case tp of
     TForall {} -> 2
     TAp (TAp (TCon TConFun) _) _ -> 3
+    TAp (TAnn _ _) _ -> 5
     TAp {} -> 4
-    TAnn {} -> 5
     TVar {} -> 6
     TCon {} -> 6
 
