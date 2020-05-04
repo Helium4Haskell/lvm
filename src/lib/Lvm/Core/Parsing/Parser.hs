@@ -346,7 +346,7 @@ pexpr =
         idx <- lexAnnVar
         return (KAnn, idx)
       lexeme LexDOT
-      Forall (Quantor idx Nothing) kind <$> pexpr
+      Forall (Quantor idx kind Nothing) <$> pexpr
     <|> pexprAp
     <?> "expression"
 
@@ -611,7 +611,7 @@ ptype = ptypeFun <|> do
     idx <- lexAnnVar
     return (KAnn, idx)
   lexeme LexDOT
-  TForall (Quantor idx Nothing) kind <$> ptype
+  TForall (Quantor idx kind Nothing) <$> ptype
 
 ptypeFun :: TokenParser Type
 ptypeFun = chainr1 ptypeAp pFun

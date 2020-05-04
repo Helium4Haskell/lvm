@@ -90,8 +90,8 @@ mapExprWithSupply f supply m = m
 
 createFunction :: [Quantor] -> [Variable] -> Expr -> Type -> (Expr, Type)
 createFunction quantors arguments bodyExpr bodyType =
-  ( foldr (`Forall` KStar)  functionExpr quantors
-  , foldr (`TForall` KStar) functionType quantors
+  ( foldr Forall functionExpr quantors
+  , foldr TForall functionType quantors
   )
  where
   functionExpr = foldr (Lam False) bodyExpr arguments

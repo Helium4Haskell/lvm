@@ -17,7 +17,7 @@ import Text.PrettyPrint.Leijen
 ----------------------------------------------------------------
 data Type
   = TAp !Type !Type
-  | TForall !Quantor !Kind !Type
+  | TForall !Quantor !Type
   | TVar !Int
   | TCon !TypeConstant
   -- Constraint on type level, of form p ⊑ q =>
@@ -31,7 +31,7 @@ data SAnn = SStrict | SNone deriving (Eq, Ord, Show)
 data UAnn = UUnique | UShared | UVar !UVar | UNone deriving (Eq, Ord, Show)
 
 data Quantor
-  = Quantor !Int !(Maybe String)
+  = Quantor !Int !Kind !(Maybe String)
   deriving (Eq, Ord)
 
 type QuantorNames = [(Int, String)]
@@ -70,29 +70,29 @@ typeConFromString ('(' : str)
 typeConFromString name = TConDataType $ idFromString name
 
 addSAnnToType :: SAnn -> Type -> Type
-addSAnnToType a (TForall quantor kind t) = TForall quantor kind $ addSAnnToType a t
+addSAnnToType a (TForall quantor t) = TForall quantor $ addSAnnToType a t
 addSAnnToType a (TAp (TAnn _ a2) t) = TAp (TAnn a a2) t
 addSAnnToType a t = TAp (TAnn a UNone) t
 
 addUAnnToType :: UAnn -> Type -> Type
-addUAnnToType a (TForall quantor kind t) = TForall quantor kind $ addUAnnToType a t
+addUAnnToType a (TForall quantor t) = TForall quantor $ addUAnnToType a t
 addUAnnToType a (TAp (TAnn a1 _) t) = TAp (TAnn a1 a) t
 addUAnnToType a t = TAp (TAnn SNone a) t
 
 removeSAnnFromType :: Type -> Type
-removeSAnnFromType (TForall quantor kind t) = TForall quantor kind $ removeSAnnFromType t
+removeSAnnFromType (TForall quantor t) = TForall quantor $ removeSAnnFromType t
 removeSAnnFromType (TAp (TAnn _ UNone) t) = t
 removeSAnnFromType (TAp (TAnn _ a2) t) = TAp (TAnn SNone a2) t
 removeSAnnFromType t = t
 
 removeUAnnFromType :: Type -> Type
-removeUAnnFromType (TForall quantor kind t) = TForall quantor kind $ removeUAnnFromType t
+removeUAnnFromType (TForall quantor t) = TForall quantor $ removeUAnnFromType t
 removeUAnnFromType (TAp (TAnn SNone _) t)= t
 removeUAnnFromType (TAp (TAnn a1 _) t)= TAp (TAnn a1 UNone) t
 removeUAnnFromType t = t
 
 removeAnnotations :: Type -> Type
-removeAnnotations (TForall quantor kind t) = TForall quantor kind $ removeAnnotations t
+removeAnnotations (TForall quantor t) = TForall quantor $ removeAnnotations t
 removeAnnotations (TAp (TAnn _ _) t) = t
 removeAnnotations t = t
 
@@ -101,7 +101,7 @@ typeSetSAnn True a = addSAnnToType a
 typeSetSAnn False _ = removeSAnnFromType
 
 typeRemoveArgumentAnn :: (Type -> Type) -> Type -> Type
-typeRemoveArgumentAnn f (TForall quantor kind tp) = TForall quantor kind $ typeRemoveArgumentAnn f tp
+typeRemoveArgumentAnn f (TForall quantor tp) = TForall quantor $ typeRemoveArgumentAnn f tp
 typeRemoveArgumentAnn f (TAp (TAp (TCon TConFun) tArg) tReturn) =
   TAp (TAp (TCon TConFun) $ f tArg) $ typeRemoveArgumentAnn f tReturn
 typeRemoveArgumentAnn f (TAp (TAnn a1 a2) tp) = TAp (TAnn a1 a2) $ typeRemoveArgumentAnn f tp
@@ -114,7 +114,7 @@ typeNotStrict :: Type -> Type
 typeNotStrict = removeSAnnFromType
 
 typeIsStrict :: Type -> Bool
-typeIsStrict (TForall _ _ t) = typeIsStrict t
+typeIsStrict (TForall _ t) = typeIsStrict t
 typeIsStrict (TAp (TAnn a1 _) _)  = a1 == SStrict
 typeIsStrict (TAnn a1 _)  = a1 == SStrict
 typeIsStrict _ = False
@@ -141,7 +141,7 @@ arityFromType tp =
     TAp (TAp (TCon TConFun) _) t2 -> arityFromType t2 + 1
     TAp (TAnn _ _) t -> arityFromType t
     TAp _ _ -> 0 -- assumes saturated constructors!
-    TForall _ _ t -> arityFromType t
+    TForall _ t -> arityFromType t
     TVar _ -> 0
     TCon _ -> 0
 
@@ -167,8 +167,8 @@ instance Pretty Kind where
   pretty = ppKind 0
 
 instance Show Quantor where
-  show (Quantor i (Just name)) = "v$" ++ name ++ show i
-  show (Quantor i _) = "v$" ++ show i
+  show (Quantor i _ (Just name)) = "v$" ++ name ++ show i
+  show (Quantor i _ _) = "v$" ++ show i
 
 instance Pretty TypeConstant where
   pretty (TConDataType name) = pretty name
@@ -195,9 +195,9 @@ ppType level quantorNames tp =
       TAp (TAnn a1 a2) t -> ppSAnn a1 <> ppUAnn a2 <> ppEq t
       TAp t1 t2 -> ppEq t1 <+> ppHi t2
       TQTy u1 u2 t -> text (show u1) <+> text "⊑" <+> text (show u2) <+> text "=>" <+> ppType 0 quantorNames t
-      TForall a k t ->
+      TForall a t ->
         let quantorNames' = case a of
-              Quantor idx (Just name) -> (idx, name) : quantorNames
+              Quantor idx k (Just name) -> (idx, name) : quantorNames
               _ -> quantorNames
          in text "forall" <+> text (show a {- <> text ":" <+> pretty k -}) <> text "."
               <+> ppType 0 quantorNames' t
@@ -254,9 +254,9 @@ levelFromKind kind =
     KAnn {} -> 2
 
 typeInstantiate :: Int -> Type -> Type -> Type
-typeInstantiate var newType (TForall q@(Quantor idx _) k t)
+typeInstantiate var newType (TForall q@(Quantor idx _ _) t)
   | var == idx = typeSubstitute var newType t
-  | otherwise = TForall q k $ typeInstantiate var newType t
+  | otherwise = TForall q $ typeInstantiate var newType t
 typeInstantiate _ _ t = t
 
 -- When performing beta reduction on a term of the form (forall x. t1) t2
@@ -285,17 +285,17 @@ typeSubstitutions initialSubstitutions leftType = fst $ substitute leftType (M.f
       where
         (t1', fresh') = substitute t1 mapping fresh
         (t2', fresh'') = substitute t2 mapping fresh'
-    substitute (TForall (Quantor idx _) k t) mapping fresh
+    substitute (TForall (Quantor idx k _) t) mapping fresh
       | idx `S.member` rightFree =
         -- Conflicting type variable. Give the variable a new index
         let idx' : fresh' = fresh
             mapping' = M.insert idx (TVar idx') mapping
             (t', fresh'') = substitute t mapping' fresh'
-         in (TForall (Quantor idx' Nothing) k t', fresh'')
+         in (TForall (Quantor idx' k Nothing) t', fresh'')
       | otherwise =
         let mapping' = M.delete idx mapping
             (t', fresh') = substitute t mapping' fresh
-         in (TForall (Quantor idx Nothing) k t', fresh')
+         in (TForall (Quantor idx k Nothing) t', fresh')
     substitute t@(TVar idx) mapping fresh = case M.lookup idx mapping of
       Just tp -> (tp, fresh)
       Nothing -> (t, fresh)
@@ -324,7 +324,7 @@ typeExtractFunction (TAp (TAp (TCon TConFun) t1) t2) = (t1 : args, ret)
 typeExtractFunction tp = ([], tp)
 
 typeApply :: Type -> Type -> Type
-typeApply (TForall (Quantor x _) _ t1) t2 = typeSubstitute x t2 t1
+typeApply (TForall (Quantor x _ _) t1) t2 = typeSubstitute x t2 t1
 typeApply t1 t2 = TAp t1 t2
 
 typeApplyList :: Type -> [Type] -> Type
@@ -332,12 +332,12 @@ typeApplyList = foldl typeApply
 
 typeUsedVars :: Type -> S.Set Int
 typeUsedVars (TAp t1 t2) = typeUsedVars t1 `S.union` typeUsedVars t2
-typeUsedVars (TForall (Quantor idx _) KStar tp) = S.insert idx $ typeUsedVars tp
+typeUsedVars (TForall (Quantor idx KStar _) tp) = S.insert idx $ typeUsedVars tp
 typeUsedVars (TVar idx) = S.singleton idx
 typeUsedVars _ = S.empty
 
 typeFreeVars :: Type -> S.Set Int
 typeFreeVars (TAp t1 t2) = typeFreeVars t1 `S.union` typeFreeVars t2
-typeFreeVars (TForall (Quantor idx _) KStar tp) = S.delete idx $ typeFreeVars tp
+typeFreeVars (TForall (Quantor idx KStar _) tp) = S.delete idx $ typeFreeVars tp
 typeFreeVars (TVar idx) = S.singleton idx
 typeFreeVars _ = S.empty

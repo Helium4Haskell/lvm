@@ -47,7 +47,7 @@ data Expr
   | Ap Expr Expr
   | ApType !Expr !Type
   | Lam !Bool !Variable Expr
-  | Forall !Quantor !Kind !Expr
+  | Forall !Quantor !Expr
   | Con !Con !(Maybe Id)
   | Var !Id
   | Lit !Literal
@@ -110,15 +110,13 @@ ppExpr p quantorNames expr = case expr of
         <> ppType 0 quantorNames t
         <+> text "->"
         <$> indent 2 (ppExpr 0 quantorNames e)
-  Forall quantor k e ->
-    let quantorNames' = case quantor of
-          Quantor idx (Just name) -> (idx, name) : quantorNames
+  Forall q@(Quantor idx k n) e ->
+    let quantorNames' = case n of
+          Just name -> (idx, name) : quantorNames
           _ -> quantorNames
      in prec 0 $
           text "forall"
-            <+> text (show quantor)
-            <> text ": "
-            <> pretty k
+            <+> text (show q)
             <> text "."
             <$> indent 2 (ppExpr 0 quantorNames' e)
   Ap e1 e2 -> prec 9 $ ppExpr 9 quantorNames e1 <+> ppExpr 10 quantorNames e2
@@ -202,7 +200,7 @@ instance Pretty Literal where
     LitBytes s -> text (show (stringFromBytes s))
 
 getExpressionStrictness :: Expr -> [Bool]
-getExpressionStrictness (Forall _ _ expr) = getExpressionStrictness expr
+getExpressionStrictness (Forall _ expr) = getExpressionStrictness expr
 getExpressionStrictness (Lam strict _ expr) =
   strict : getExpressionStrictness expr
 getExpressionStrictness _ = []

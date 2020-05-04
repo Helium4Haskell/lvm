@@ -134,7 +134,7 @@ lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor m
     travType :: Type -> Type
     travType (TAp (TAnn a1 a2) tp) = TAp (TAnn a1 a2) $ travType tp
     travType (TAp t1 t2) = travType t1 `TAp` travType t2
-    travType (TForall quantor kind tp) = TForall quantor kind $ travType tp
+    travType (TForall quantor tp) = TForall quantor $ travType tp
     travType (TVar idx) = TVar idx
     travType (TCon tcon) = TCon $ case tcon of
       TConDataType name -> TConDataType $ renameType name
@@ -162,7 +162,7 @@ lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor m
     travExpr locals (Lam strict var body) = Lam strict (travVariable var) $ travExpr locals' body
       where
         locals' = insertSet (variableName var) locals
-    travExpr locals (Forall quantor kind expr) = Forall quantor kind $ travExpr locals expr
+    travExpr locals (Forall quantor expr) = Forall quantor $ travExpr locals expr
     travExpr locals (Con c mv) = Con (travCon c) mv
     travExpr locals (Var name) = Var $ renameValue locals name
     travExpr locals (Lit lit) = Lit lit
