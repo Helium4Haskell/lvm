@@ -122,7 +122,7 @@ pconDecl = do
   x <- constructor
   (access, mod, custom) <- pAttributes x constructor
   lexeme LexCOLCOL
-  t <- ptype
+  t <- ptypeConstraint
   return $ DeclCon x access mod t [] custom
 
 -- constructor info: (@tag, arity)
@@ -596,10 +596,17 @@ pExternName mname =
 ptypeDecl :: TokenParser Type
 ptypeDecl = do
   lexeme LexCOLCOL
-  ptypeNormal
+  ptypeConstraint
 
-ptypeNormal :: TokenParser Type
-ptypeNormal = ptype
+-- We first parse the type of the function, then possible uniqueness constraints follow
+ptypeConstraint :: TokenParser Type
+ptypeConstraint = ap maybe TQTy <$> ptype <*> optionMaybe (lexeme LexCOMMA *> pTQTy)
+
+pTQTy :: TokenParser [(UAnn, UAnn)]
+pTQTy = lexeme LexLBRACKET *> sepBy pConstraint (lexeme LexCOMMA) <* lexeme LexRBRACKET
+
+pConstraint :: TokenParser (UAnn, UAnn)
+pConstraint = (,) <$> pUAnn <* lexeme (LexOp "<=") <*> pUAnn
 
 ptype :: TokenParser Type
 ptype = ptypeFun <|> do
@@ -616,9 +623,11 @@ ptype = ptypeFun <|> do
 ptypeFun :: TokenParser Type
 ptypeFun = chainr1 ptypeAp pFun
   where
-    pFun = do
-      lexeme LexRARROW
-      return (\t1 t2 -> TAp (TAp (TCon TConFun) t1) t2)
+    pFun = ((TAp .) . TAp) <$ lexeme LexRARROW <*> pArrow
+
+pArrow :: TokenParser Type
+pArrow = option arr (flip addUAnnToType arr <$ lexeme LexCOLON <*> pUAnn)
+  where arr = TCon TConFun
 
 ptypeAp :: TokenParser Type
 ptypeAp = do
@@ -626,46 +635,30 @@ ptypeAp = do
   return (foldl1 TAp atoms)
 
 ptypeAtom :: TokenParser Type
-ptypeAtom =
+ptypeAtom = ptypeAnn ptypeAtom'
+
+ptypeAtom' :: TokenParser Type
+ptypeAtom' =
   do
     x <- typeid
-    ptypeAnn (TCon $ TConDataType x)
+    return (TCon $ TConDataType x)
     <|> do
       x <- lexTypeVar
-      let t = TVar x
-      ptypeAnn t
-    <|> (listType >>= ptypeAnn)
-    <|> ((lexeme LexLPAREN *> parenType <* lexeme LexRPAREN) >>= ptypeAnn)
+      return (TVar x)
+    <|> listType
+    <|> (lexeme LexLPAREN *> parenType <* lexeme LexRPAREN)
     <?> "atomic type"
 
 -- We first parse a optional strictness annotation
--- Then we parse the other annotations
-ptypeAnn :: Type -> TokenParser Type
-ptypeAnn tp =
-  do
-    lexeme LexEXCL
-    let tp' = typeToStrict tp
-    ptypeAnn' tp'
-    <|> ptypeAnn' tp
-    <|> return tp
+-- Then we parse the other annotations, followed by parsing the type
+ptypeAnn :: TokenParser Type -> TokenParser Type
+ptypeAnn p = (typeToStrict <$ lexeme LexEXCL <*> ptypeUAnn p) <|> ptypeUAnn p
 
-ptypeAnn' :: Type -> TokenParser Type
-ptypeAnn' tp =
-  do
-    lexeme LexCOLON
-    (do
-        lexeme (LexInt 1)
-        return (addUAnnToType UUnique tp)
-     <|>
-      do
-        lexeme (LexId "w")
-        return (addUAnnToType UShared tp)
-     <|>
-      do
-        idx <- lexAnnVar
-        return (addUAnnToType (UVar idx) tp)
-     )
-  <|> return tp
+ptypeUAnn :: TokenParser Type -> TokenParser Type
+ptypeUAnn p = (addUAnnToType <$> pUAnn <* lexeme LexCOLON <*> p) <|> p
+
+pUAnn :: TokenParser UAnn
+pUAnn = (UShared <$ lexeme (LexId "w") <|> UUnique <$ lexeme (LexInt 1) <|> (UVar <$> lexAnnVar))
 
 parenType :: TokenParser Type
 parenType =

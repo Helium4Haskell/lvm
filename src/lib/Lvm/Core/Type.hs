@@ -20,8 +20,8 @@ data Type
   | TForall !Quantor !Type
   | TVar !Int
   | TCon !TypeConstant
-  -- Constraint on type level, of form p ⊑ q =>
-  | TQTy UAnn UAnn Type
+  -- Constraint on type level, of form p ⊑ q
+  | TQTy Type [(UAnn, UAnn)]
   | TAnn !SAnn !UAnn
   deriving (Eq, Ord, Show)
 
@@ -69,28 +69,33 @@ typeConFromString ('(' : str)
     (commas, rest) = span (== ',') str
 typeConFromString name = TConDataType $ idFromString name
 
+-- add strictness annotation to a variable or forall variable
 addSAnnToType :: SAnn -> Type -> Type
 addSAnnToType a (TForall quantor t) = TForall quantor $ addSAnnToType a t
 addSAnnToType a (TAp (TAnn _ a2) t) = TAp (TAnn a a2) t
 addSAnnToType a t = TAp (TAnn a UNone) t
 
+-- add uniqueness annotation to a variable or forall variable
 addUAnnToType :: UAnn -> Type -> Type
 addUAnnToType a (TForall quantor t) = TForall quantor $ addUAnnToType a t
 addUAnnToType a (TAp (TAnn a1 _) t) = TAp (TAnn a1 a) t
 addUAnnToType a t = TAp (TAnn SNone a) t
 
+-- Remove strictness annotation from a variable or forall variable
 removeSAnnFromType :: Type -> Type
 removeSAnnFromType (TForall quantor t) = TForall quantor $ removeSAnnFromType t
 removeSAnnFromType (TAp (TAnn _ UNone) t) = t
 removeSAnnFromType (TAp (TAnn _ a2) t) = TAp (TAnn SNone a2) t
 removeSAnnFromType t = t
 
+-- Remove uniqueness annotation from a variable or forall variable
 removeUAnnFromType :: Type -> Type
 removeUAnnFromType (TForall quantor t) = TForall quantor $ removeUAnnFromType t
-removeUAnnFromType (TAp (TAnn SNone _) t)= t
-removeUAnnFromType (TAp (TAnn a1 _) t)= TAp (TAnn a1 UNone) t
+removeUAnnFromType (TAp (TAnn SNone _) t) = t
+removeUAnnFromType (TAp (TAnn a1 _) t) = TAp (TAnn a1 UNone) t
 removeUAnnFromType t = t
 
+-- remove annotation from a variable (strictness and uniqueness)
 removeAnnotations :: Type -> Type
 removeAnnotations (TForall quantor t) = TForall quantor $ removeAnnotations t
 removeAnnotations (TAp (TAnn _ _) t) = t
@@ -100,11 +105,29 @@ typeSetSAnn :: Bool -> SAnn -> Type -> Type
 typeSetSAnn True a = addSAnnToType a
 typeSetSAnn False _ = removeSAnnFromType
 
+-- Remove all annotations
+typeRemoveAnn :: Type -> Type
+typeRemoveAnn = typeRemoveAnn' True
+
+typeRemoveUAnn :: Type -> Type
+typeRemoveUAnn = typeRemoveAnn' False
+
+typeRemoveAnn' :: Bool -> Type -> Type
+typeRemoveAnn' b (TForall (Quantor _ KAnn _) tp) = typeRemoveAnn' b tp
+typeRemoveAnn' b (TForall quantor tp) = TForall quantor $ typeRemoveAnn' b tp
+typeRemoveAnn' b@True (TAp (TAnn a1 a2) tp) = typeRemoveAnn' b tp
+typeRemoveAnn' b@False (TAp (TAnn a1 a2) tp) = case a1 of
+                                                 SNone -> typeRemoveAnn' b tp
+                                                 _ -> TAp (TAnn a1 UNone) (typeRemoveAnn' b tp)
+typeRemoveAnn' b (TQTy tp _) = typeRemoveAnn' b tp
+typeRemoveAnn' b (TAp tp1 tp2) = TAp (typeRemoveAnn' b tp1) (typeRemoveAnn' b tp2)
+typeRemoveAnn' _ tp = tp
+
 typeRemoveArgumentAnn :: (Type -> Type) -> Type -> Type
 typeRemoveArgumentAnn f (TForall quantor tp) = TForall quantor $ typeRemoveArgumentAnn f tp
+typeRemoveArgumentAnn f (TAp (TAnn a1 a2) tp) = TAp (TAnn a1 a2) $ typeRemoveArgumentAnn f tp
 typeRemoveArgumentAnn f (TAp (TAp (TCon TConFun) tArg) tReturn) =
   TAp (TAp (TCon TConFun) $ f tArg) $ typeRemoveArgumentAnn f tReturn
-typeRemoveArgumentAnn f (TAp (TAnn a1 a2) tp) = TAp (TAnn a1 a2) $ typeRemoveArgumentAnn f tp
 typeRemoveArgumentAnn _ tp = tp
 
 typeToStrict :: Type -> Type
@@ -168,6 +191,7 @@ instance Pretty Kind where
 
 instance Show Quantor where
   show (Quantor i _ (Just name)) = "v$" ++ name ++ show i
+  show (Quantor i KAnn _) = "u$" ++ show i
   show (Quantor i _ _) = "v$" ++ show i
 
 instance Pretty TypeConstant where
@@ -188,13 +212,14 @@ ppQuantor names i = case lookup i names of
   Nothing -> text $ "v$" ++ show i
 
 ppType :: Int -> QuantorNames -> Type -> Doc
+ppType level quantorNames (TQTy t cs) = ppType (level + 1) quantorNames t <> text "," <+> list (map ppTQTy cs)
 ppType level quantorNames tp =
     parenthesized $ case tp of
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]"
+      TAp (TAp (TAp (TAnn _ a2) (TCon TConFun)) t1) t2 -> ppHi t1 <+> text "->" <> text ":" <> ppUAnn a2 <+> ppEq t2
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
-      TAp (TAnn a1 a2) t -> ppSAnn a1 <> ppUAnn a2 <> ppEq t
+      TAp (TAnn a1 a2) t -> ppSAnn a1 <> ppTUAnn a2 <> ppEq t
       TAp t1 t2 -> ppEq t1 <+> ppHi t2
-      TQTy u1 u2 t -> text (show u1) <+> text "⊑" <+> text (show u2) <+> text "=>" <+> ppType 0 quantorNames t
       TForall a t ->
         let quantorNames' = case a of
               Quantor idx k (Just name) -> (idx, name) : quantorNames
@@ -205,6 +230,9 @@ ppType level quantorNames tp =
       TCon a -> pretty a
       _ -> error (show tp)
   where
+    ppTUAnn u
+      | u == UNone = text ""
+      | otherwise = ppUAnn u <> text ":"
     tplevel = levelFromType tp
     parenthesized doc
       | level <= tplevel = doc
@@ -212,15 +240,18 @@ ppType level quantorNames tp =
     ppHi = ppType (tplevel + 1) quantorNames
     ppEq = ppType tplevel quantorNames
 
+ppTQTy :: (UAnn, UAnn) -> Doc
+ppTQTy (u1, u2) = ppUAnn u1 <+> text "<=" <+> ppUAnn u2
+
 ppSAnn :: SAnn -> Doc
 ppSAnn SStrict = text "!"
 ppSAnn SNone = text ""
 
 ppUAnn :: UAnn -> Doc
-ppUAnn UUnique = text "1:"
-ppUAnn UShared = text "w:"
+ppUAnn UUnique = text "1"
+ppUAnn UShared = text "w"
 ppUAnn UNone = text ""
-ppUAnn (UVar a) = text (show a) <> text ":"
+ppUAnn (UVar a) = text "u$" <> text (show a)
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind =

@@ -50,6 +50,7 @@ data Lexeme     = LexUnknown Char
                 | LexRARROW     -- ->
                 | LexTILDE      -- ~
                 | LexARROW      -- =>
+                | LexLTE        -- <=
                 | LexAT         -- @
                 | LexAMPERSAND  -- &
                 | LexSTAR       -- *

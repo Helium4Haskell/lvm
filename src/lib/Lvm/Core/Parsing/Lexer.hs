@@ -490,6 +490,7 @@ nonId (c : _) = not (isLetter c)
 nonId []      = True
 
 nonSym :: String -> Bool
+nonSym (':' : _) = True
 nonSym (c : _) = not (isSymbol c)
 nonSym []      = True
 

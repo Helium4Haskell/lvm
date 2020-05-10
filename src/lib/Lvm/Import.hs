@@ -121,6 +121,7 @@ lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor m
       | isDeclInfix d = d {declName = renameWith emptySet valuesMap (declName d)}
       | otherwise = d
     travType :: Type -> Type
+    travType (TQTy t c) = TQTy (travType t) c
     travType (TAp (TAnn a1 a2) tp) = TAp (TAnn a1 a2) $ travType tp
     travType (TAp t1 t2) = travType t1 `TAp` travType t2
     travType (TForall quantor tp) = TForall quantor $ travType tp
