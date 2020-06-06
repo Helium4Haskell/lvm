@@ -190,7 +190,6 @@ instance Pretty Kind where
   pretty = ppKind 0
 
 instance Show Quantor where
-  show (Quantor i _ (Just name)) = "v$" ++ name ++ show i
   show (Quantor i KAnn _) = "u$" ++ show i
   show (Quantor i _ _) = "v$" ++ show i
 

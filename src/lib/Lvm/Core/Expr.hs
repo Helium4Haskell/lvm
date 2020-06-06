@@ -91,9 +91,9 @@ ppExpr p quantorNames expr = case expr of
   Match x as ->
     prec 0 $
       align
-        ( text "match"
+        ( text "case"
             <+> ppVarId x
-            <+> text "with"
+            <+> text "of"
             <+> text "{"
             <$> indent 2 (ppAlts quantorNames as)
             <+> text "}"
@@ -107,7 +107,7 @@ ppExpr p quantorNames expr = case expr of
       text (if strict then "\\ !" else "\\")
         <> ppVarId x
         <> text ": "
-        <> ppType 0 quantorNames t
+        <> parens (ppType 0 quantorNames t)
         <+> text "->"
         <$> indent 2 (ppExpr 0 quantorNames e)
   Forall q@(Quantor idx k n) e ->
@@ -156,9 +156,9 @@ ppBind quantorNames (Bind (Variable x t) expr) =
   nest
     2
     ( ppId x
-        <> text ": "
-        <+> ppType 0 quantorNames t
-        <> text " = "
+        <> text ":"
+        <+> parens (ppType 0 quantorNames t)
+        <> text " ="
         <+> ppExpr 0 quantorNames expr
         <> semi
     )
@@ -191,7 +191,7 @@ ppPattern quantorNames (PatCon con tps ids) =
         ++ map ppVarId ids
     )
 ppPattern _ (PatLit lit) = pretty lit
-ppPattern _ PatDefault = text "_"
+ppPattern _ PatDefault = text "default"
 
 instance Pretty Literal where
   pretty lit = case lit of

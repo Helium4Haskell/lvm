@@ -44,7 +44,7 @@ ppString s = dquotes (text (concatMap escape s))
 ppEscapeId :: (Char -> Bool) -> (String -> String) -> Id -> Doc
 ppEscapeId isValid esc x = if not (isReserved x) && firstOk && ordinary
   then text name
-  else text (esc (concatMap escapeId name)) <> char ' '
+  else text (esc (concatMap escapeId name))
  where
   name    = stringFromId x
   firstOk = case name of

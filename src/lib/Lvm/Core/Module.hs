@@ -175,7 +175,7 @@ customDeclKind = DeclKindCustom . idFromString
 customData, customTypeDecl, customClassDefinition :: DeclKind
 customData = customDeclKind "data"
 customTypeDecl = customDeclKind "typedecl"
-customClassDefinition = customDeclKind "ClassDefinition"
+customClassDefinition = customDeclKind "classDefinition"
 
 declKindFromDecl :: Decl a -> DeclKind
 declKindFromDecl decl = case decl of
@@ -225,31 +225,32 @@ instance Pretty a => Pretty (Module a) where
     text "module"
       <+> ppConId name
       <+> text "where"
-      <$> text ("import(" ++ intercalate ", " (map show imports) ++ ")")
+      <$> text ("import (" ++ intercalate ", " (map stringFromId imports) ++ ")\n")
       <$> vcat (map (\decl -> pretty decl <> semi <> line) decls)
       <$> empty
 
 instance Pretty a => Pretty (Decl a) where
-  pretty decl = nest 2 $ case decl of
+  pretty decl = case decl of
     DeclValue {} ->
       ppVarId (declName decl)
         <+> text "::"
         <+> pretty (declType decl)
-        <+> ppAttrs decl
-        <$> text "="
+        <$> ppVarId (declName decl)
+        <+> ppAttrs ppVarId decl
+        <+> text "="
         <+> pretty (valueValue decl)
     DeclCon {} ->
       text "con"
         <+> ppConId (declName decl)
-        <+> ppAttrs decl
+        <+> nest 2 (ppAttrs ppConId decl
         <$> text "::"
         <+> pretty (declType decl)
-        <$> ppFields (declFields decl)
+        <$> ppFields (declFields decl))
     DeclCustom {} ->
       text "custom"
         <+> pretty (declKind decl)
         <+> ppId (declName decl)
-        <+> ppAttrs decl
+        <+> ppAttrs ppId decl
     DeclExtern {} ->
       text "extern"
         <> pretty (externLink decl)
@@ -260,13 +261,13 @@ instance Pretty a => Pretty (Decl a) where
     DeclAbstract {} ->
       text "abstract"
         <+> ppVarId (declName decl)
-        <+> ppAttrs decl
+        <+> ppAttrs ppVarId decl
         <$> text " :: "
         <+> pretty (declType decl)
     DeclTypeSynonym name _ _ tp cs ->
       text "type"
-        <+> ppVarId name
-        <+> ppAttrs decl
+        <+> text (stringFromId name)
+        <+> ppAttrs ppId decl
         <+> text "="
         <+> pretty tp
 
@@ -300,29 +301,29 @@ ppExternType callConv tp = text "::" <+> case callConv of
   CallInstr -> pretty tp
   _ -> ppString tp
 
-ppNoImpAttrs :: Decl a -> Doc
-ppNoImpAttrs = ppAttrsEx True
+ppNoImpAttrs :: (Id -> Doc) -> Decl a -> Doc
+ppNoImpAttrs pp = ppAttrsEx pp True
 
 ppFields :: [Field] -> Doc
 ppFields [] = empty
 ppFields fs = encloseSep (text "<") (text ">") (text ", ") $ map pretty fs
 
-ppAttrs :: Decl a -> Doc
-ppAttrs = ppAttrsEx False
+ppAttrs :: (Id -> Doc) -> Decl a -> Doc
+ppAttrs pp = ppAttrsEx pp False
 
-ppAttrsEx :: Bool -> Decl a -> Doc
-ppAttrsEx hideImp decl =
+ppAttrsEx :: (Id -> Doc) -> Bool -> Decl a -> Doc
+ppAttrsEx pp hideImp decl =
   if null (declCustoms decl) && declModule decl == Nothing && not (accessPublic (declAccess decl))
     then empty
     else
       text ":"
-        <+> ppAccess (declAccess decl)
+        <+> ppAccess pp (declAccess decl)
         <+> ppModule (declModule decl)
         <+> pretty (declCustoms decl)
 
-ppAccess :: Access -> Doc
-ppAccess (Export name) = text "export" <+> ppId name
-ppAccess Private = empty
+ppAccess :: (Id -> Doc) -> Access -> Doc
+ppAccess pp (Export name) = text "export" <+> pp name
+ppAccess _  Private = empty
 
 ppModule :: Maybe Id -> Doc
 ppModule Nothing = empty
