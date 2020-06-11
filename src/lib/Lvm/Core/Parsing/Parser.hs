@@ -11,6 +11,7 @@ module Lvm.Core.Parsing.Parser
   ( parseModule,
     parseCore,
     pexpr,
+    pmodule,
     TokenParser,
     parens,
   )
@@ -383,7 +384,7 @@ patom :: TokenParser Expr
 patom =
   Var
     <$> varid
-    <|> (flip Con Nothing . ConId) <$> conid
+    <|> (Con . ConId) <$> conid <*> option Nothing (Just <$ lexeme LexAT <*> varid)
     <|> Lit <$> pliteral
     <|> parenExpr
     <|> listExpr
@@ -405,7 +406,7 @@ parenExpr = do
   expr <-
     Var
       <$> opid
-      <|> (flip Con Nothing . ConId) <$> conopid
+      <|> (Con . ConId) <$> conopid <*> option Nothing (Just <$ lexeme LexAT <*> varid)
       <|> (do
         lexeme LexAT
         (do
