@@ -236,7 +236,7 @@ instance Pretty a => Pretty (Decl a) where
         <+> text "::"
         <+> pretty (declType decl)
         <$> ppVarId (declName decl)
-        <+> ppAttrs ppVarId decl
+        <> ppAttrs ppVarId decl
         <+> text "="
         <+> pretty (valueValue decl)
     DeclCon {} ->

@@ -128,7 +128,7 @@ ppExpr p quantorNames expr = case expr of
         <> text " }"
   Var x -> ppVarId x
   Con con mv -> case mv of
-    (Just mid) -> ppVarId mid <> char '@' <> parens (pretty con)
+    (Just mid) -> parens (pretty con <+> char '@' <+> ppVarId mid)
     Nothing -> pretty con
   Lit lit -> pretty lit
   where
