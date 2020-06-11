@@ -12,7 +12,7 @@ module Lvm.Common.IdMap
    , insertMapWith, lookupMap, findMap, filterMap, listFromMap
    , mapMapWithId, unionMap, unionMapWith, updateMap
    -- exotic: used by core compiler
-   , foldMap, deleteMap, filterMapWithId, mapFromList
+   , foldMap, deleteMap, filterMapWithId, mapFromList, getMap
    , unionMaps, diffMap, unionlMap, foldMapWithId
    , isEmptyMap, sizeMap
    ) where
@@ -29,6 +29,12 @@ newtype IdMap a = IdMap (IntMap.IntMap a)
 
 instance Functor IdMap where
   fmap = mapMap
+
+instance Foldable IdMap where
+  foldr = foldMap
+
+instance Traversable IdMap where
+  traverse = traverseMap
 
 --instance Monoid IdMap where
 --  mappend = Ambiguity mine field...
@@ -49,7 +55,6 @@ singleMap x a = insertMap x a emptyMap
 isEmptyMap :: IdMap a -> Bool
 isEmptyMap (IdMap m) = IntMap.null m
 
-
 elemMap :: Id -> IdMap a -> Bool
 elemMap x (IdMap m)
   = IntMap.member (intFromId x) m
@@ -58,10 +63,12 @@ mapMap :: (a -> b) -> IdMap a -> IdMap b
 mapMap f (IdMap m)
   = IdMap (IntMap.map f m)
 
+traverseMap :: (Applicative t) => (a -> t b) -> IdMap a -> t (IdMap b)
+traverseMap  f (IdMap m) = IdMap <$> (traverse f m)
+
 mapMapWithId :: (Id -> a -> b) -> IdMap a -> IdMap b
 mapMapWithId f (IdMap m)
   = IdMap (IntMap.mapWithKey (\i x -> f (idFromInt i) x) m)
-
 
 insertMap :: Id -> a -> IdMap a -> IdMap a
 insertMap x a (IdMap m)
@@ -89,6 +96,9 @@ lookupMap :: Id -> IdMap a -> Maybe a
 lookupMap x (IdMap m)
   = IntMap.lookup (intFromId x) m
 
+getMap :: Id -> IdMap a -> a
+getMap x (IdMap m) = m IntMap.! (intFromId x)
+
 filterMap :: (a -> Bool) -> IdMap a -> IdMap a
 filterMap p (IdMap m)
   = IdMap (IntMap.filter p m)
@@ -99,13 +109,13 @@ filterMapWithId p (IdMap m)
 
 findMap :: Id -> IdMap a -> a
 findMap x = fromMaybe (error msg) . lookupMap x
- where  
+ where
    msg = "IdMap.findMap: unknown identifier " ++ show x
 
 -- sort is needed to not rely on an id's index
 listFromMap :: IdMap a -> [(Id,a)]
 listFromMap (IdMap idmap)
-  = sortBy (\x y -> fst x `compare` fst y) 
+  = sortBy (\x y -> fst x `compare` fst y)
   $ map (first idFromInt) (IntMap.toList idmap)
 
 mapFromList :: [(Id,a)] -> IdMap a
