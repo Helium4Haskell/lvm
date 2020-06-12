@@ -8,12 +8,12 @@
 module Lvm.Common.IdMap
    ( IdMap(..), Id
      -- essential: used by "Asm" and "Lvm"
-   , emptyMap, singleMap, elemMap, mapMap, insertMap, extendMap
+   , emptyMap, singleMap, elemMap, mapMap, insertMap, extendMap, keysMap
    , insertMapWith, lookupMap, findMap, filterMap, listFromMap
    , mapMapWithId, unionMap, unionMapWith, updateMap
    -- exotic: used by core compiler
    , foldMap, deleteMap, filterMapWithId, mapFromList, getMap
-   , unionMaps, diffMap, unionlMap, foldMapWithId
+   , unionMaps, diffMap, unionlMap, foldMapWithId, partitionMapWithId
    , isEmptyMap, sizeMap
    ) where
 
@@ -58,6 +58,9 @@ isEmptyMap (IdMap m) = IntMap.null m
 elemMap :: Id -> IdMap a -> Bool
 elemMap x (IdMap m)
   = IntMap.member (intFromId x) m
+
+keysMap :: IdMap a -> [Int]
+keysMap (IdMap m) = IntMap.keys m
 
 mapMap :: (a -> b) -> IdMap a -> IdMap b
 mapMap f (IdMap m)
@@ -149,3 +152,6 @@ foldMap f z (IdMap m) = IntMap.foldr f z m
 
 sizeMap :: IdMap a -> Int
 sizeMap (IdMap m) = IntMap.size m
+
+partitionMapWithId :: (Id -> a -> Bool) -> IdMap a -> (IdMap a, IdMap a)
+partitionMapWithId f (IdMap m) = let (m1, m2) = IntMap.partitionWithKey (f . idFromInt) m in (IdMap m1, IdMap m2)
