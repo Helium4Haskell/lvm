@@ -71,7 +71,10 @@ lvmImportRenameMap = foldl' (flip insert) (emptyMap, emptyMap)
         | otherwise ->
           let typesMap' = insertMap alias name typesMap
            in typesMap' `seq` (valuesMap, typesMap')
+      _ -> (insertMap ualias name valuesMap, typesMap)
       where
+        ualias = idFromString (unqualify (stringFromId name))
+        unqualify (x:xs) = if x == '.' then xs else unqualify xs
         name = declName decl
 
 -- Makes variable names quantified.
