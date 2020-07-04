@@ -74,6 +74,7 @@ lvmImportRenameMap = foldl' (flip insert) (emptyMap, emptyMap)
       _ -> (insertMap ualias name valuesMap, typesMap)
       where
         ualias = idFromString (unqualify (stringFromId name))
+        unqualify [] = stringFromId name
         unqualify (x:xs) = if x == '.' then xs else unqualify xs
         name = declName decl
 
