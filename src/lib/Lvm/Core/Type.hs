@@ -206,9 +206,7 @@ dictionaryDataTypeName :: Id -> Id
 dictionaryDataTypeName = idFromString . ("Dict$" ++) . stringFromId
 
 ppQuantor :: QuantorNames -> Int -> Doc
-ppQuantor names i = case lookup i names of
-  Just name -> text $ "v$" ++ name ++ show i
-  Nothing -> text $ "v$" ++ show i
+ppQuantor _ i = text $ "v$" ++ show i
 
 ppType :: Int -> QuantorNames -> Type -> Doc
 ppType level quantorNames (TQTy t cs) = ppType (level + 1) quantorNames t <> text "," <+> list (map ppTQTy cs)
