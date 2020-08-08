@@ -28,7 +28,13 @@ data Type
 type UVar = Int
 
 data SAnn = SStrict | SNone deriving (Eq, Ord, Show)
-data UAnn = UUnique | UShared | UVar !UVar | UNone deriving (Eq, Ord, Show)
+data UAnn = UUnique | UShared | UVar !UVar | UNone deriving (Eq, Ord)
+
+instance Show UAnn where
+  show UUnique = "1"
+  show UShared = "w"
+  show (UVar u) = "u" ++ show u
+  show UNone = "∅"
 
 data Quantor
   = Quantor !Int !Kind !(Maybe String)
@@ -215,7 +221,8 @@ ppType level quantorNames tp =
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]"
       TAp (TAp (TAp (TAnn _ a2) (TCon TConFun)) t1) t2 -> ppHi t1 <+> text "->" <> text ":" <> ppUAnn a2 <+> ppEq t2
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
-      TAp (TAnn a1 a2) t -> ppSAnn a1 <> ppTUAnn a2 <> ppEq t
+      TAp (TAnn a1 a2) t -> ppSAnn a1 <> ppTUAnn True a2 <> ppEq t
+      TAnn a1 a2 -> ppSAnn a1 <> ppTUAnn False a2
       TAp t1 t2 -> ppEq t1 <+> ppHi t2
       TForall a t ->
         let quantorNames' = case a of
@@ -227,9 +234,9 @@ ppType level quantorNames tp =
       TCon a -> pretty a
       _ -> error (show tp)
   where
-    ppTUAnn u
+    ppTUAnn isType u
       | u == UNone = text ""
-      | otherwise = ppUAnn u <> text ":"
+      | otherwise = ppUAnn u <> if isType then text ":" else text ""
     tplevel = levelFromType tp
     parenthesized doc
       | level <= tplevel = doc
@@ -270,6 +277,7 @@ levelFromType tp =
     TForall {} -> 2
     TAp (TAp (TCon TConFun) _) _ -> 3
     TAp (TAnn _ _) _ -> 5
+    TAnn _ _ -> 5
     TAp {} -> 4
     TVar {} -> 6
     TCon {} -> 6

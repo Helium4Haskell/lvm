@@ -11,6 +11,7 @@ module Lvm.Core.Parsing.Parser
   ( parseModule,
     parseCore,
     pexpr,
+    ptypeConstraint,
     pmodule,
     TokenParser,
     parens,
