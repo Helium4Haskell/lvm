@@ -119,7 +119,7 @@ pconDecl = do
   x                <- constructor
   (access, mod, custom) <- pAttributes x constructor
   lexeme LexCOLCOL
-  t <- ptype
+  t <- ptype []
   return $ DeclCon x access mod t [] custom
 
 -- constructor info: (@tag, arity)
@@ -168,17 +168,15 @@ pbindTopRhs name palias =
   do
       (access, mod, custom) <- pAttributes name palias
       lexeme LexASG
-      body <- pexpr
+      body <- pexpr []
       return (access, mod, custom, body)
     <?> "declaration"
 
-
-
-pbind :: TokenParser Bind
-pbind = do
-  var <- variable
+pbind :: QuantorNames -> TokenParser Bind
+pbind quantors = do
+  var <- variable quantors
   lexeme LexASG
-  Bind var <$> pexpr
+  Bind var <$> pexpr quantors
 
 ----------------------------------------------------------------
 -- data declarations
@@ -194,22 +192,23 @@ pdata :: TokenParser [CoreDecl]
 pdata = do
   lexeme LexDATA
   x    <- typeid
-  args <- many lexTypeVar
-  let kind     = foldr (KFun . const KStar) KStar args
+  (quantorNames, quantors) <- pquantors []
+  let args     = reverse $ take (length quantors) [0..]
+      kind     = foldr (KFun . const KStar) KStar args
       datadecl = DeclCustom x (Export x) Nothing customData [customKind kind]
   do
       lexeme LexASG
       let t1 = foldl TAp (TCon $ TConDataType x) (map TVar args)
-      cons <- sepBy1 (pconstructor t1) (lexeme LexBAR)
+      cons <- sepBy1 (pconstructor quantorNames t1) (lexeme LexBAR)
       let con (cid, t2) = DeclCon cid (Export cid) Nothing t2 [] [CustomLink x customData]
       return (datadecl : map con cons)
     <|> {- empty data types -}
         return [datadecl]
 
-pconstructor :: Type -> TokenParser (Id, Type)
-pconstructor tp = do
+pconstructor :: QuantorNames -> Type -> TokenParser (Id, Type)
+pconstructor quantors tp = do
   x    <- constructor
-  args <- many ptypeAtom
+  args <- many (ptypeAtom quantors)
   return (x, foldr (\t1 t2 -> TAp (TAp (TCon TConFun) t1) t2) tp args)
 
 ----------------------------------------------------------------
@@ -222,7 +221,7 @@ ptypeTopDecl = do
   x <- typeid
 -- ; args <- many lexTypeVar
   lexeme LexASG
-  tp <- ptype
+  tp <- ptype []
   return [DeclTypeSynonym x (Export x) Nothing tp []] -- TODO: Handle type arguments
 
 ----------------------------------------------------------------
@@ -312,61 +311,61 @@ pdeclKind =
 -- Expressions
 ----------------------------------------------------------------
 
-pexpr :: TokenParser Expr
-pexpr =
+pexpr :: QuantorNames -> TokenParser Expr
+pexpr quantors =
   do
       lexeme LexBSLASH
       strict <- lexeme LexEXCL $> True <|> return False
-      arg    <- variable
+      arg    <- variable quantors
       lexeme LexRARROW
-      Lam strict arg <$> pexpr
+      Lam strict arg <$> pexpr quantors
     <|> do
           lexeme LexLET
-          binds <- semiBraces pbind
+          binds <- semiBraces (pbind quantors)
           lexeme LexIN
-          Let (Rec binds) <$> pexpr
+          Let (Rec binds) <$> pexpr quantors
     <|> do
           lexeme LexCASE
           var <- pVariableName
           lexeme LexOF
-          Match var <$> palts
+          Match var <$> palts quantors
     <|> do
           lexeme LexLETSTRICT
-          binds <- semiBraces pbind
+          binds <- semiBraces (pbind quantors)
           lexeme LexIN
-          expr <- pexpr
+          expr <- pexpr quantors
           return (foldr (Let . Strict) expr binds)
     <|> do
           lexeme LexFORALL
-          idx <- lexTypeVar
+          (quantors', quantor) <- pquantor quantors
           let kind = KStar
           lexeme LexDOT
-          Forall (Quantor idx Nothing) kind <$> pexpr
-    <|> pexprAp
+          Forall quantor kind <$> pexpr quantors'
+    <|> pexprAp quantors
     <?> "expression"
 
 wildId :: Id
 wildId = idFromString "_"
 
-pexprAp :: TokenParser Expr
-pexprAp = do
-  e1   <- patom
-  args <- many pApArg
+pexprAp :: QuantorNames -> TokenParser Expr
+pexprAp quantors = do
+  e1   <- patom quantors
+  args <- many $ pApArg quantors
   return (foldl (flip id) e1 args)
 
-pApArg :: TokenParser (Expr -> Expr)
-pApArg =
+pApArg :: QuantorNames -> TokenParser (Expr -> Expr)
+pApArg quantors =
   do
-      atom <- patom
+      atom <- patom quantors
       return (`Ap` atom)
     <|> do
           lexeme LexLBRACE
-          tp <- ptype
+          tp <- ptype quantors
           lexeme LexRBRACE
           return (`ApType` tp)
 
-patom :: TokenParser Expr
-patom =
+patom :: QuantorNames -> TokenParser Expr
+patom quantors =
   Var
     <$> varid
     <|> Con
@@ -374,23 +373,23 @@ patom =
     <$> conid
     <|> Lit
     <$> pliteral
-    <|> parenExpr
-    <|> listExpr
+    <|> parenExpr quantors
+    <|> listExpr quantors
     <?> "atomic expression"
 
 
-listExpr :: TokenParser Expr
-listExpr = do
+listExpr :: QuantorNames -> TokenParser Expr
+listExpr quantors = do
   lexeme LexLBRACKET
-  exprs <- sepBy pexpr (lexeme LexCOMMA)
+  exprs <- sepBy (pexpr quantors) (lexeme LexCOMMA)
   lexeme LexRBRACKET
   return (foldr cons nil exprs)
  where
   cons = Ap . Ap (Con (ConId (idFromString ":")))
   nil  = Con (ConId (idFromString "[]"))
 
-parenExpr :: TokenParser Expr
-parenExpr = do
+parenExpr :: QuantorNames -> TokenParser Expr
+parenExpr quantors = do
   lexeme LexLPAREN
   expr <-
     Var
@@ -403,7 +402,7 @@ parenExpr = do
           arity <- lexInt <?> "arity"
           return (Con (ConTuple (fromInteger arity)))
     <|> do
-          exprs <- pexpr `sepBy` lexeme LexCOMMA
+          exprs <- pexpr quantors `sepBy` lexeme LexCOMMA
           case exprs of
             [expr] -> return expr
             _ ->
@@ -439,24 +438,24 @@ pnumber signint signdouble =
 ----------------------------------------------------------------
 -- alternatives
 ----------------------------------------------------------------
-palts :: TokenParser Alts
-palts = do
+palts :: QuantorNames -> TokenParser Alts
+palts quantors = do
   lexeme LexLBRACE
-  paltSemis
+  paltSemis quantors
 
-paltSemis :: TokenParser Alts
-paltSemis =
+paltSemis :: QuantorNames -> TokenParser Alts
+paltSemis quantors =
   do
-      alt <- paltDefault
+      alt <- paltDefault quantors
       optional (lexeme LexSEMI)
       lexeme LexRBRACE
       return [alt]
     <|> do
-          alt <- palt
+          alt <- palt quantors
           do
               lexeme LexSEMI
               do
-                  alts <- paltSemis
+                  alts <- paltSemis quantors
                   return (alt : alts)
                 <|> do
                       lexeme LexRBRACE
@@ -465,20 +464,20 @@ paltSemis =
                   lexeme LexRBRACE
                   return [alt]
 
-palt :: TokenParser Alt
-palt = do
-  pat <- ppat
+palt :: QuantorNames -> TokenParser Alt
+palt quantors = do
+  pat <- ppat quantors
   lexeme LexRARROW
-  Alt pat <$> pexpr
+  Alt pat <$> pexpr quantors
 
-pInstantiation :: TokenParser [Type]
-pInstantiation = many (lexeme LexLBRACE *> ptype <* lexeme LexRBRACE)
+pInstantiation :: QuantorNames -> TokenParser [Type]
+pInstantiation quantors = many (lexeme LexLBRACE *> ptype quantors <* lexeme LexRBRACE)
 
-ppat :: TokenParser Pat
-ppat = ppatCon <|> ppatLit <|> ppatParens
+ppat :: QuantorNames -> TokenParser Pat
+ppat quantors = ppatCon quantors <|> ppatLit <|> ppatParens quantors
 
-ppatParens :: TokenParser Pat
-ppatParens = do
+ppatParens :: QuantorNames -> TokenParser Pat
+ppatParens quantors = do
   lexeme LexLPAREN
   do
       lexeme LexAT
@@ -489,21 +488,21 @@ ppatParens = do
     <|> do
           x <- conopid
           lexeme LexRPAREN
-          instantiation <- pInstantiation
+          instantiation <- pInstantiation quantors
           ids           <- many bindid
           return (PatCon (ConId x) instantiation ids)
     <|> do
-          pat <- ppat <|> ppatTuple
+          pat <- ppat quantors <|> ppatTuple
           lexeme LexRPAREN
           return pat
 
-ppatCon :: TokenParser Pat
-ppatCon = do
+ppatCon :: QuantorNames -> TokenParser Pat
+ppatCon quantors = do
   x <- conid <|> do
     lexeme LexLBRACKET
     lexeme LexRBRACKET
     return (idFromString "[]")
-  instantiation <- pInstantiation
+  instantiation <- pInstantiation quantors
   args          <- many bindid
   return (PatCon (ConId x) instantiation args)
 
@@ -515,11 +514,11 @@ ppatTuple = do
   ids <- bindid `sepBy` lexeme LexCOMMA
   return (PatCon (ConTuple (length ids)) [] ids)
 
-paltDefault :: TokenParser Alt
-paltDefault = do
+paltDefault :: QuantorNames -> TokenParser Alt
+paltDefault quantors = do
   lexeme LexDEFAULT
   lexeme LexRARROW
-  Alt PatDefault <$> pexpr
+  Alt PatDefault <$> pexpr quantors
 
 wildcard :: TokenParser Id
 wildcard = identifier (return "_")
@@ -597,43 +596,68 @@ pExternName mname =
 ptypeDecl :: TokenParser Type
 ptypeDecl = do
   lexeme LexCOLCOL
-  ptypeNormal
+  ptype []
 
-ptypeNormal :: TokenParser Type
-ptypeNormal = ptype
-
-
-ptype :: TokenParser Type
-ptype = ptypeFun <|> do
+ptype :: QuantorNames -> TokenParser Type
+ptype quantors = ptypeFun quantors <|> do
   lexeme LexFORALL
-  idx <- lexTypeVar
+  (quantors', quantor) <- pquantor quantors
   let kind = KStar
   lexeme LexDOT
-  TForall (Quantor idx Nothing) kind <$> ptype
+  TForall quantor kind <$> ptype quantors'
 
-ptypeFun :: TokenParser Type
-ptypeFun = chainr1 ptypeAp pFun
+pquantor :: QuantorNames -> TokenParser (QuantorNames, Quantor)
+pquantor quantorNames
+  =   (\name -> let str = stringFromId name in (str : quantorNames, Quantor $ Just str)) <$> varid
+  <|> do
+    idx <- lexTypeVar
+    when (idx /= length quantorNames) $ fail
+      (  "identifier for type argument v$"
+      ++ show idx
+      ++ " doesn't match the next fresh type argument v$"
+      ++ show (length quantorNames)
+      )
+    return $ (("v$" ++ show idx) : quantorNames, Quantor Nothing)
+
+pquantors :: QuantorNames -> TokenParser (QuantorNames, [Quantor])
+pquantors quantorNames
+  = do
+      (quantorNames', quantor) <- pquantor quantorNames
+      (quantorNames'', quantors) <- pquantors quantorNames'
+      return (quantorNames'', quantor : quantors)
+  <|> return (quantorNames, [])
+
+ptypeFun :: QuantorNames -> TokenParser Type
+ptypeFun quantors = chainr1 (ptypeAp quantors) pFun
  where
   pFun = do
     lexeme LexRARROW
     return (\t1 t2 -> TAp (TAp (TCon TConFun) t1) t2)
 
-ptypeAp :: TokenParser Type
-ptypeAp = do
-  atoms <- many1 ptypeAtom
+ptypeAp :: QuantorNames -> TokenParser Type
+ptypeAp quantors = do
+  atoms <- many1 (ptypeAtom quantors)
   return (foldl1 TAp atoms)
 
-ptypeAtom :: TokenParser Type
-ptypeAtom =
+ptypeAtom :: QuantorNames -> TokenParser Type
+ptypeAtom quantors =
   do
       x <- typeid
       ptypeStrict (TCon $ TConDataType x)
     <|> do
-          x <- lexTypeVar
-          let t = TVar x
+          -- unnamed type variable
+          idx <- lexTypeVar
+          let t = TVar $ length quantors - 1 - idx
+          when (idx > length quantors) $ fail $ "Unnamed type variable v$" ++ show idx ++ " not in scope"
           ptypeStrict t
-    <|> (listType >>= ptypeStrict)
-    <|> ((lexeme LexLPAREN *> parenType <* lexeme LexRPAREN) >>= ptypeStrict)
+    <|> do
+          -- named type variable
+          name <- varid
+          case stringFromId name `elemIndex` quantors of
+            Nothing -> fail $ "Named type variable " ++ stringFromId name ++ " not in scope"
+            Just idx -> ptypeStrict $ TVar idx
+    <|> (listType quantors >>= ptypeStrict)
+    <|> ((lexeme LexLPAREN *> parenType quantors <* lexeme LexRPAREN) >>= ptypeStrict)
     <?> "atomic type"
 
 ptypeStrict :: Type -> TokenParser Type
@@ -643,8 +667,8 @@ ptypeStrict tp =
       return (TStrict tp)
     <|> return tp
 
-parenType :: TokenParser Type
-parenType =
+parenType :: QuantorNames -> TokenParser Type
+parenType quantors =
   do
       lexeme LexAT
       lexeme LexCOMMA
@@ -656,16 +680,16 @@ parenType =
           lexeme (LexId "dictionary")
           TCon . TConTypeClassDictionary <$> typeid
     <|> do
-          tps <- sepBy ptype (lexeme LexCOMMA)
+          tps <- sepBy (ptype quantors) (lexeme LexCOMMA)
           case tps of
             [tp] -> return tp
             _    -> return (foldl TAp (TCon $ TConTuple $ length tps) tps)
 
-listType :: TokenParser Type
-listType = do
+listType :: QuantorNames -> TokenParser Type
+listType quantors = do
   lexeme LexLBRACKET
   do
-      tp <- ptype
+      tp <- ptype quantors
       lexeme LexRBRACKET
       x <- identifier (return "[]")
       return (TAp (TCon $ TConDataType x) tp)
@@ -715,11 +739,11 @@ customid =
 pVariableName :: TokenParser Id
 pVariableName = varid <|> parens opid
 
-variable :: TokenParser Variable
-variable = do
+variable :: QuantorNames -> TokenParser Variable
+variable quantors = do
   name <- pVariableName
   lexeme LexCOLON
-  Variable name <$> ptypeAp
+  Variable name <$> ptypeAp quantors
 
 opid :: TokenParser Id
 opid = identifier lexOp <?> "operator"

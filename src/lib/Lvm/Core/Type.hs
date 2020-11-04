@@ -7,9 +7,9 @@
 
 module Lvm.Core.Type 
    ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..)
-   , ppQuantor, ppType, showType, arityFromType, typeUnit, typeBool
+   , ppTypeVar, ppType, showType, freshQuantorName, arityFromType, typeUnit, typeBool
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
-   , typeInstantiate, typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness
+   , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeWeaken, typeApply
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
    ) where
 
@@ -27,15 +27,16 @@ data Type = TAp !Type !Type
           -- * The inner type should have kind *. The inner type
           -- may not be TStrict
           | TStrict !Type
+          -- * We use Debruijn indices to identify type variables.
           | TVar !Int
           | TCon !TypeConstant
           deriving (Eq, Ord)
 
-data Quantor
-  = Quantor !Int !(Maybe String)
+newtype Quantor
+  = Quantor (Maybe String)
   deriving (Eq, Ord)
 
-type QuantorNames = [(Int, String)]
+type QuantorNames = [String]
 
 data TypeConstant
   = TConDataType !Id
@@ -130,10 +131,6 @@ instance Pretty Type where
 instance Pretty Kind where
   pretty = ppKind 0
 
-instance Show Quantor where
-  show (Quantor _ (Just name)) = name
-  show (Quantor i _) = "v$" ++ show i
-
 instance Pretty TypeConstant where
   pretty (TConDataType name) = pretty name
   pretty (TConTypeClassDictionary name) = text "(@dictionary" <+> pretty name <+> text ")"
@@ -146,10 +143,15 @@ dictionaryDataTypeName = idFromString . ("Dict$" ++) . stringFromId
 instance Show TypeConstant where
   show = show . pretty
 
-ppQuantor :: QuantorNames -> Int -> Doc
-ppQuantor names i = case lookup i names of
-  Just name -> text name
-  Nothing -> text $ "v$" ++ show i
+ppTypeVar :: QuantorNames -> Int -> Doc
+ppTypeVar (q:_ ) 0 = text q
+ppTypeVar (_:qs) i = ppTypeVar qs (i - 1)
+ppTypeVar []     i = text $ "f$" ++ show i ++ ""
+
+freshQuantorName :: QuantorNames -> Quantor -> String
+freshQuantorName quantorNames (Quantor (Just name))
+  | name `notElem` quantorNames = name
+freshQuantorName quantorNames _ = "v$" ++ show (length quantorNames)
 
 ppType :: Int -> QuantorNames -> Type -> Doc
 ppType level quantorNames tp
@@ -158,14 +160,12 @@ ppType level quantorNames tp
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]" 
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
-      TForall a k t   ->
-        let quantorNames' = case a of
-              Quantor idx (Just name) -> (idx, name) : quantorNames
-              _ -> quantorNames
-        in text "forall" <+> text (show a) {- <> text ":" <+> pretty k -} <> text "."
-            <+> ppType 0 quantorNames' t
+      TForall quantor k t   ->
+        let quantorName = freshQuantorName quantorNames quantor
+        in text "forall" <+> text quantorName {- <> text ":" <+> pretty k -} <> text "."
+            <+> ppType 0 (quantorName : quantorNames) t
       TStrict t       -> text "!" <> ppHi t
-      TVar    a       -> ppQuantor quantorNames a
+      TVar    a       -> ppTypeVar quantorNames a
       TCon    a       -> pretty a
   where
     tplevel = levelFromType tp
@@ -205,58 +205,52 @@ levelFromKind kind
       KFun{}    -> 1
       KStar{}   -> 2
 
-typeInstantiate :: Int -> Type -> Type -> Type
-typeInstantiate var newType (TForall q@(Quantor idx _) k t)
-  | var == idx = typeSubstitute var newType t
-  | otherwise = TForall q k $ typeInstantiate var newType t
-typeInstantiate _ _ t = t
-
--- When performing beta reduction on a term of the form (forall x. t1) t2
--- we need to substitute x in t1 with t2. This may cause issues with
--- capturing or shadowing. Consider the following substitution
---    forall b. (forall a. forall b. a) b
---    = forall b. forall c. b
--- We need to rename type variable 'b' in the last 'forall' with a
--- fresh type variable. As a general rule, we will rename quantors
--- in t1 if the variable is free in t2. The fresh variable must be fresh in t2
--- and must not occur in t1.
-typeSubstitute :: Int -> Type -> Type -> Type
-typeSubstitute var rightType leftType = typeSubstitutions [(var, rightType)] leftType
-  
-typeSubstitutions :: [(Int, Type)] -> Type -> Type
-typeSubstitutions [] t = t
-typeSubstitutions initialSubstitutions leftType = fst $ substitute leftType (M.fromList initialSubstitutions) $ filter (\idx -> idx `S.notMember` leftUsed && idx `S.notMember` rightFree) [0..]
+-- Reindexes the type variables in the type
+typeReindex :: (Int -> Int) -> Type -> Type
+typeReindex k = go 0
   where
-    rightFree = foldr1 S.union $ map (typeFreeVars . snd) initialSubstitutions
-    leftUsed = typeUsedVars leftType
+    -- n is the number of TForalls that we descended into.
+    -- That is an offset when calling `k`, as we shouldn't
+    -- reindex any bound type variables
+    go :: Int -> Type -> Type
+    go n (TAp t1 t2) = TAp (go n t1) (go n t2)
+    go n (TForall q kind t) = TForall q kind $ go (n + 1) t
+    go n (TStrict t) = TStrict $ go n t
+    go n (TVar idx)
+      | idx < n = TVar idx
+      | otherwise = TVar $ n + k (idx - n)
+    go n (TCon c) = TCon c
 
-    substitute :: Type -> M.Map Int Type -> [Int] -> (Type, [Int])
-    substitute (TAp t1 t2) mapping fresh = (TAp t1' t2', fresh'')
-      where
-        (t1', fresh') = substitute t1 mapping fresh
-        (t2', fresh'') = substitute t2 mapping fresh'
-    substitute (TForall (Quantor idx _) k t) mapping fresh
-      | idx `S.member` rightFree =
-        -- Conflicting type variable. Give the variable a new index
-        let
-          idx' : fresh' = fresh
-          mapping' = M.insert idx (TVar idx') mapping
-          (t', fresh'') = substitute t mapping' fresh'
-        in
-          (TForall (Quantor idx' Nothing) k t', fresh'')
-      | otherwise =
-        let
-          mapping' = M.delete idx mapping
-          (t', fresh') = substitute t mapping' fresh
-        in
-          (TForall (Quantor idx Nothing) k t', fresh')
-    substitute (TStrict t) mapping fresh = (TStrict t', fresh')
-      where
-        (t', fresh') = substitute t mapping fresh
-    substitute t@(TVar idx) mapping fresh = case M.lookup idx mapping of
-      Just tp -> (tp, fresh)
-      Nothing -> (t, fresh)
-    substitute t _ fresh = (t, fresh)
+-- Increases all Debruijn indices of free type variables
+typeWeaken :: Int -> Type -> Type
+typeWeaken 0 = id
+typeWeaken m = typeReindex (m+)
+
+-- Applies a type substitution of free type variables with Debruijn indices
+-- k..(k + length tps). It maps `k` to `head tps`, `k + 1` to `tps !! 1`, ...
+typeSubstitutions :: Int -> [Type] -> Type -> Type
+typeSubstitutions _ []  = id
+typeSubstitutions k tps = go k
+  where
+    tpCount = length tps
+
+    go :: Int -> Type -> Type
+    go k' (TAp t1 t2) = TAp (go k' t1) (go k' t2)
+    go k' (TForall q kind t) = TForall q kind $ go (k' + 1) t
+    go k' (TStrict t) = TStrict $ go k' t
+    go k' (TVar idx) = substitute k' idx
+    go k' (TCon c) = TCon c
+
+    substitute :: Int -> Int -> Type
+    substitute k' idx
+      | idx < k' = TVar idx
+      -- Note that we need to weaken here if we descended into TForalls.
+      -- We did that k'-k times.
+      | idx < k' + tpCount = typeWeaken (k' - k) $ tps !! (idx - k')
+      | otherwise = TVar $ idx - tpCount
+
+typeSubstitute :: Int -> Type -> Type -> Type
+typeSubstitute var rightType leftType = typeSubstitutions var [rightType] leftType
 
 typeListElement :: Type -> Type
 typeListElement (TAp (TCon (TConDataType dataType)) a)
@@ -281,22 +275,16 @@ typeExtractFunction (TAp (TAp (TCon TConFun) t1) t2) = (t1 : args, ret)
 typeExtractFunction tp = ([], tp)
 
 typeApply :: Type -> Type -> Type
-typeApply (TForall (Quantor x _) _ t1) t2 = typeSubstitute x t2 t1
+typeApply (TForall _ _ t1) t2 = typeSubstitute 0 t2 t1
 typeApply t1 t2 = TAp t1 t2
 
 typeApplyList :: Type -> [Type] -> Type
-typeApplyList = foldl typeApply
-
-typeUsedVars :: Type -> S.Set Int
-typeUsedVars (TAp t1 t2) = typeUsedVars t1 `S.union` typeUsedVars t2
-typeUsedVars (TForall (Quantor idx _) _ tp) = S.insert idx $ typeUsedVars tp
-typeUsedVars (TStrict tp) = typeUsedVars tp
-typeUsedVars (TVar idx) = S.singleton idx
-typeUsedVars (TCon _) = S.empty
-
-typeFreeVars :: Type -> S.Set Int
-typeFreeVars (TAp t1 t2) = typeFreeVars t1 `S.union` typeFreeVars t2
-typeFreeVars (TForall (Quantor idx _) _ tp) = S.delete idx $ typeFreeVars tp
-typeFreeVars (TStrict tp) = typeFreeVars tp
-typeFreeVars (TVar idx) = S.singleton idx
-typeFreeVars (TCon _) = S.empty
+-- typeApplyList = foldl typeApply
+typeApplyList tp args = go tp args []
+  where
+    go :: Type -> [Type] -> [Type] -> Type
+    go tp [] [] = tp
+    go tp [] substitution = typeSubstitutions 0 substitution tp
+    go (TForall _ _ tp) (arg:args) substitution = go tp args (arg:substitution)
+    go tp args [] = foldl TAp tp args
+    go tp args substitution = go (typeSubstitutions 0 substitution tp) args []
