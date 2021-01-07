@@ -217,12 +217,12 @@ pconstructor quantors tp = do
 
 ptypeTopDecl :: TokenParser [CoreDecl]
 ptypeTopDecl = do
-  lexeme LexTYPE
+  s <- (TypeSynonymAlias <$ lexeme LexTYPE) <|> (TypeSynonymNewtype <$ lexeme LexNEWTYPE)
   x <- typeid
 -- ; args <- many lexTypeVar
   lexeme LexASG
   tp <- ptype []
-  return [DeclTypeSynonym x (Export x) Nothing tp []] -- TODO: Handle type arguments
+  return [DeclTypeSynonym x (Export x) Nothing s tp []] -- TODO: Handle type arguments
 
 ----------------------------------------------------------------
 -- Custom

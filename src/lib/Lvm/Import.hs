@@ -72,14 +72,21 @@ lvmImportRenameMap = foldl' (flip insert) (emptyMap, emptyMap)
         -- using the actual declaration
         | isDeclInfix decl -> (valuesMap, typesMap)
         | declaresValue decl ->
-          let valuesMap' = insertMap alias name valuesMap
+          let valuesMap' = insertAssertMap alias name valuesMap
           in valuesMap' `seq` (valuesMap', typesMap)
         | otherwise ->
-          let typesMap' = insertMap alias name typesMap
+          let typesMap' = insertAssertMap alias name typesMap
           in typesMap' `seq` (valuesMap, typesMap')
       where
         name = declName decl
-        
+
+insertAssertMap :: (Show a, Eq a) => Id -> a -> IdMap a -> IdMap a
+insertAssertMap x a = insertMapWith x a f
+  where
+    f b
+      | a == b = b
+      | otherwise = error $ "insertAssertMap: current value " ++ show b ++ " for " ++ show x ++ " doesn't match new value " ++ show a
+
 -- Makes variable names quantified.
 lvmImportQualifyModule :: (IdMap Id, IdMap Id) -> CoreModule -> Bool -> CoreModule
 lvmImportQualifyModule (valuesMap, typesMap) (Module modName modMajor modMinor modImports modDecls) shouldRenameOwn

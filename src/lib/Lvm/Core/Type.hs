@@ -6,10 +6,11 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Type 
-   ( Type(..), Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..)
-   , ppTypeVar, ppType, showType, freshQuantorName, arityFromType, typeUnit, typeBool
+   ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..)
+   , ppTypeVar, ppType, showType, showTypeAtom, showTypeVar
+   , freshQuantorName, arityFromType, typeUnit, typeBool
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
-   , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeWeaken, typeApply
+   , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeReindex, typeWeaken, typeApply
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
    ) where
 
@@ -28,9 +29,11 @@ data Type = TAp !Type !Type
           -- may not be TStrict
           | TStrict !Type
           -- * We use Debruijn indices to identify type variables.
-          | TVar !Int
+          | TVar !TypeVar
           | TCon !TypeConstant
           deriving (Eq, Ord)
+
+type TypeVar = Int
 
 newtype Quantor
   = Quantor (Maybe String)
@@ -120,7 +123,10 @@ arityFromType tp
 ----------------------------------------------------------------
 
 showType :: QuantorNames -> Type -> String
-showType quantors tp = show $ ppType 5 quantors tp
+showType quantors tp = show $ ppType 0 quantors tp
+
+showTypeAtom :: QuantorNames -> Type -> String
+showTypeAtom quantors tp = show $ ppType 5 quantors tp
 
 instance Show Kind where
   show = show . pretty
@@ -144,9 +150,12 @@ instance Show TypeConstant where
   show = show . pretty
 
 ppTypeVar :: QuantorNames -> Int -> Doc
-ppTypeVar (q:_ ) 0 = text q
-ppTypeVar (_:qs) i = ppTypeVar qs (i - 1)
-ppTypeVar []     i = text $ "f$" ++ show i ++ ""
+ppTypeVar quantors idx = text $ showTypeVar quantors idx
+
+showTypeVar :: QuantorNames -> Int -> String
+showTypeVar (q:_ ) 0 = q
+showTypeVar (_:qs) i = showTypeVar qs (i - 1)
+showTypeVar []     i = "f$" ++ show i ++ ""
 
 freshQuantorName :: QuantorNames -> Quantor -> String
 freshQuantorName quantorNames (Quantor (Just name))
@@ -206,7 +215,7 @@ levelFromKind kind
       KStar{}   -> 2
 
 -- Reindexes the type variables in the type
-typeReindex :: (Int -> Int) -> Type -> Type
+typeReindex :: (TypeVar -> TypeVar) -> Type -> Type
 typeReindex k = go 0
   where
     -- n is the number of TForalls that we descended into.

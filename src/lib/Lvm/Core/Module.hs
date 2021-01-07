@@ -11,6 +11,7 @@ module Lvm.Core.Module
    , Custom(..)
    , DeclKind(..)
    , Field(..)
+   , TypeSynonymCoercions(..)
    , Arity
    , Tag
    , Access(..)
@@ -36,6 +37,7 @@ module Lvm.Core.Module
    , isDeclGlobal
    , isDeclInfix
    , findInfixOrigin
+   , typeSynonymTypeFromConstructorType
    )
 where
 
@@ -73,9 +75,18 @@ data Decl v
   -- TODO: We should remove DeclCustom. I think it is only used for data types, so we should instead add
   -- a new constructor just for data types.
   | DeclCustom    { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declKind :: !DeclKind, declCustoms :: ![Custom] }
-  | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declCustoms :: ![Custom] }
+  | DeclTypeSynonym { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declSynonym :: !TypeSynonymCoercions, declType :: !Type, declCustoms :: ![Custom] }
 
 newtype Field = Field { fieldName :: Id }
+
+data TypeSynonymCoercions
+  = TypeSynonymAlias   -- Implicit coercions in Haskell and Core
+  | TypeSynonymNewtype -- Explicit coercions in Haskell, implicit in Core
+-- Note that TypeSynonymNewtype can only be used for some newtypes. Recursive newtypes
+-- can create infinite types when handling them as type synonyms. Hence we represent
+-- those still as a data type. When compiling to LLVM we will still give them the same
+-- representation. If possible we want to use a type synonym however, as that may
+-- enable other optimizations. Hence we use this for all non-recursive newtypes.
 
 data Custom
   = CustomInt   !Int
@@ -202,7 +213,7 @@ instance Functor Decl where
       DeclExtern x ac md ar et el ec elib en cs ->
          DeclExtern x ac md ar et el ec elib en cs
       DeclCustom x ac md k cs      -> DeclCustom x ac md k cs
-      DeclTypeSynonym x ac md t cs -> DeclTypeSynonym x ac md t cs
+      DeclTypeSynonym x ac md s t cs -> DeclTypeSynonym x ac md s t cs
 
 ----------------------------------------------------------------
 -- Pretty printing
@@ -251,12 +262,17 @@ instance Pretty a => Pretty (Decl a) where
             <+> ppAttrs decl
             <$> text " :: "
             <+> pretty (declType decl)
-      DeclTypeSynonym name _ _ tp cs ->
-         text "type"
-            <+> ppVarId name
-            <+> ppAttrs decl
-            <+> text "="
-            <+> pretty tp
+      DeclTypeSynonym name _ _ s tp cs ->
+         let
+            keyword = case s of
+               TypeSynonymAlias -> text "type"
+               TypeSynonymNewtype -> text "newtype"
+         in
+            keyword
+               <+> ppVarId name
+               <+> ppAttrs decl
+               <+> text "="
+               <+> pretty tp
 
 instance Pretty LinkConv where
    pretty linkConv = case linkConv of
@@ -420,3 +436,10 @@ externNames m = setFromList [ declName d | d <- moduleDecls m, isDeclExtern d ]
 
 mapDecls :: (Decl v -> Decl w) -> Module v -> Module w
 mapDecls f m = m { moduleDecls = map f (moduleDecls m) }
+
+-- Given the type of the constructor of a newtype,
+-- returns the type of the field.
+typeSynonymTypeFromConstructorType :: Type -> Type
+typeSynonymTypeFromConstructorType (TForall q k tp) = TForall q k $ typeSynonymTypeFromConstructorType tp
+typeSynonymTypeFromConstructorType (TAp (TAp (TCon TConFun) tArg) _) = typeNotStrict tArg
+typeSynonymTypeFromConstructorType _ = error "typeSynonymTypeFromConstructorType: Expected a (possibly quantified) function type."

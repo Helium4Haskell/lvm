@@ -71,6 +71,7 @@ data Lexeme     = LexUnknown Char
                 | LexELSE
                 | LexDATA
                 | LexTYPE
+                | LexNEWTYPE
                 | LexMODULE
                 | LexIMPORT
                 | LexFORALL
