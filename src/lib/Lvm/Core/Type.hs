@@ -10,13 +10,14 @@ module Lvm.Core.Type
    , ppTypeVar, ppType, showType, showTypeAtom, showTypeVar
    , freshQuantorName, arityFromType, typeUnit, typeBool
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
-   , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeReindex, typeWeaken, typeApply
+   , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeReindex, typeReindexM, typeWeaken, typeApply
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
    ) where
 
 import Lvm.Common.Id
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.Leijen hiding ((<$>), (<*>))
 
+import Data.Functor.Identity
 import qualified Data.Set as S
 import qualified Data.Map as M
 
@@ -216,19 +217,21 @@ levelFromKind kind
 
 -- Reindexes the type variables in the type
 typeReindex :: (TypeVar -> TypeVar) -> Type -> Type
-typeReindex k = go 0
+typeReindex f tp = runIdentity $ typeReindexM (Identity . f) tp
+
+typeReindexM :: Applicative m => (TypeVar -> m TypeVar) -> Type -> m Type
+typeReindexM f = go 0
   where
     -- n is the number of TForalls that we descended into.
     -- That is an offset when calling `k`, as we shouldn't
     -- reindex any bound type variables
-    go :: Int -> Type -> Type
-    go n (TAp t1 t2) = TAp (go n t1) (go n t2)
-    go n (TForall q kind t) = TForall q kind $ go (n + 1) t
-    go n (TStrict t) = TStrict $ go n t
+    go n (TAp t1 t2) = TAp <$> go n t1 <*> go n t2
+    go n (TForall q kind t) = TForall q kind <$> go (n + 1) t
+    go n (TStrict t) = TStrict <$> go n t
     go n (TVar idx)
-      | idx < n = TVar idx
-      | otherwise = TVar $ n + k (idx - n)
-    go n (TCon c) = TCon c
+      | idx < n = pure $ TVar idx
+      | otherwise = TVar . (n +) <$> f (idx - n)
+    go n (TCon c) = pure $ TCon c
 
 -- Increases all Debruijn indices of free type variables
 typeWeaken :: Int -> Type -> Type

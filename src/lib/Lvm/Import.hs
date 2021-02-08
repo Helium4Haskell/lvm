@@ -31,7 +31,6 @@ import           Lvm.Core.Module
 import           Lvm.Core.Type
 import           Lvm.Core.Expr
 
-import           Debug.Trace
 import           Text.PrettyPrint.Leijen
 
 -- | Adds abstract declarations for all exported definitions of the imported
