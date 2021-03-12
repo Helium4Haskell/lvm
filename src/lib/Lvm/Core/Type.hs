@@ -6,7 +6,7 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Type 
-   ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..)
+   ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..), SAnn(..)
    , ppTypeVar, ppType, showType, showTypeAtom, showTypeVar
    , freshQuantorName, arityFromType, typeUnit, typeBool
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
@@ -29,10 +29,14 @@ data Type = TAp !Type !Type
           -- * The inner type should have kind *. The inner type
           -- may not be TStrict
           | TStrict !Type
+          -- * Only used in strictness analysis
+          | TAnn !SAnn !Type
           -- * We use Debruijn indices to identify type variables.
           | TVar !TypeVar
           | TCon !TypeConstant
           deriving (Eq, Ord)
+
+data SAnn = S | L | AnnVar !Id | Join SAnn SAnn | Meet SAnn SAnn deriving (Eq, Ord, Show)
 
 type TypeVar = Int
 
@@ -116,6 +120,7 @@ arityFromType tp
       TAp     _ _     -> 0 -- assumes saturated constructors!
       TForall _ _ t   -> arityFromType t
       TStrict t       -> arityFromType t
+      TAnn    _ t     -> arityFromType t 
       TVar    _       -> 0
       TCon    _       -> 0
 
@@ -175,6 +180,7 @@ ppType level quantorNames tp
         in text "forall" <+> text quantorName {- <> text ":" <+> pretty k -} <> text "."
             <+> ppType 0 (quantorName : quantorNames) t
       TStrict t       -> text "!" <> ppHi t
+      TAnn    a t     -> text (show a) <> ppHi t
       TVar    a       -> ppTypeVar quantorNames a
       TCon    a       -> pretty a
   where
@@ -206,6 +212,7 @@ levelFromType tp
       TAp (TAp (TCon TConFun) _) _ -> 3
       TAp{}     -> 4
       TStrict{} -> 5
+      TAnn{}    -> 5
       TVar{}    -> 6
       TCon{}    -> 6
 
@@ -228,6 +235,7 @@ typeReindexM f = go 0
     go n (TAp t1 t2) = TAp <$> go n t1 <*> go n t2
     go n (TForall q kind t) = TForall q kind <$> go (n + 1) t
     go n (TStrict t) = TStrict <$> go n t
+    go n (TAnn a t) = TAnn a <$> go n t
     go n (TVar idx)
       | idx < n = pure $ TVar idx
       | otherwise = TVar . (n +) <$> f (idx - n)
@@ -250,6 +258,7 @@ typeSubstitutions k tps = go k
     go k' (TAp t1 t2) = TAp (go k' t1) (go k' t2)
     go k' (TForall q kind t) = TForall q kind $ go (k' + 1) t
     go k' (TStrict t) = TStrict $ go k' t
+    go k' (TAnn a t) = TAnn a $ go k' t
     go k' (TVar idx) = substitute k' idx
     go k' (TCon c) = TCon c
 
