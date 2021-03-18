@@ -9,7 +9,7 @@ module Lvm.Core.Type
    ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..), SAnn(..)
    , ppTypeVar, ppType, showType, showTypeAtom, showTypeVar
    , freshQuantorName, arityFromType, typeUnit, typeBool
-   , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
+   , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeRemoveAnnotation, typeConFromString, typeFunction
    , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeReindex, typeReindexM, typeWeaken, typeApply
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
    ) where
@@ -36,7 +36,14 @@ data Type = TAp !Type !Type
           | TCon !TypeConstant
           deriving (Eq, Ord)
 
-data SAnn = S | L | AnnVar !Id | Join SAnn SAnn | Meet SAnn SAnn deriving (Eq, Ord, Show)
+data SAnn = S | L | AnnVar !Id | Join SAnn SAnn | Meet SAnn SAnn deriving (Eq, Ord)
+
+instance Show SAnn where
+  show S = "S"
+  show L = "L"
+  show (AnnVar a) = show a
+  show (Join l r) = show l ++ "&" ++ show r
+  show (Meet l r) = show l ++ "|" ++ show r
 
 type TypeVar = Int
 
@@ -95,6 +102,12 @@ typeIsStrict _ = False
 typeSetStrict :: Bool -> Type -> Type
 typeSetStrict True = typeToStrict
 typeSetStrict False = typeNotStrict
+
+typeRemoveAnnotation :: Type -> Type
+typeRemoveAnnotation (TAnn _ t) = t
+typeRemoveAnnotation (TForall q k t) = TForall q k $ typeRemoveAnnotation t
+typeRemoveAnnotation (TStrict t) = TStrict $ typeRemoveAnnotation t
+typeRemoveAnnotation t = t
 
 typeRemoveArgumentStrictness :: Type -> Type
 typeRemoveArgumentStrictness (TForall quantor kind tp) = TForall quantor kind $ typeRemoveArgumentStrictness tp
@@ -173,6 +186,7 @@ ppType level quantorNames tp
   = parenthesized $
     case tp of
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]" 
+      TAp (TAp (TCon TConFun) (TAnn a t1)) t2 -> ppHi t1 <+> text "-" <+> text (show a) <+> text ">" <+> ppEq t2
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
       TForall quantor k t   ->
