@@ -66,8 +66,8 @@ data Module v
 
 
 data Decl v
-  = DeclValue     { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, valueValue :: v, declCustoms :: ![Custom] }
-  | DeclAbstract  { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declArity :: !Arity, declType :: !Type, declCustoms :: ![Custom] }
+  = DeclValue     { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declAnn :: !Type, valueValue :: v, declCustoms :: ![Custom] }
+  | DeclAbstract  { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declArity :: !Arity, declType :: !Type, declAnn :: !Type, declCustoms :: ![Custom] }
   | DeclCon       { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declFields :: ![Field], declCustoms :: [Custom] }
   | DeclExtern    { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
@@ -207,8 +207,8 @@ instance Functor Module where
 
 instance Functor Decl where
    fmap f decl = case decl of
-      DeclValue    x ac md m  v  cs -> DeclValue x ac md m (f v) cs
-      DeclAbstract x ac md ar tp cs -> DeclAbstract x ac md ar tp cs
+      DeclValue    x ac md m ta v cs -> DeclValue x ac md m ta (f v) cs
+      DeclAbstract x ac md ar tp ta cs -> DeclAbstract x ac md ar tp ta cs
       DeclCon x ac md t fs cs       -> DeclCon x ac md t fs cs
       DeclExtern x ac md ar et el ec elib en cs ->
          DeclExtern x ac md ar et el ec elib en cs
@@ -234,6 +234,9 @@ instance Pretty a => Pretty (Decl a) where
          ppVarId (declName decl)
             <+> text "::"
             <+> pretty (declType decl)
+            -- <+> text "("
+            -- <+> pretty (declAnn decl)
+            -- <+> text ")"
             <+> ppAttrs decl
             <$> text "="
             <+> pretty (valueValue decl)
@@ -262,6 +265,9 @@ instance Pretty a => Pretty (Decl a) where
             <+> ppAttrs decl
             <$> text " :: "
             <+> pretty (declType decl)
+            -- <+> text "("
+            -- <+> pretty (declAnn decl)
+            -- <+> text ")"
       DeclTypeSynonym name _ _ s tp cs ->
          let
             keyword = case s of
