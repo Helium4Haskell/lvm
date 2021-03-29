@@ -13,7 +13,7 @@ module Lvm.Common.IdMap
    , mapMapWithId, unionMap, unionMapWith, updateMap
    -- exotic: used by core compiler
    , foldMap, deleteMap, filterMapWithId, mapFromList
-   , unionMaps, diffMap, unionlMap, foldMapWithId
+   , unionMaps, unionMapsWith, diffMap, unionlMap, foldMapWithId
    , isEmptyMap, sizeMap
    ) where
 
@@ -130,6 +130,9 @@ unionlMap (IdMap map1) (IdMap map2) = IdMap (map1 `IntMap.union` map2)
 
 unionMaps :: [IdMap a] -> IdMap a
 unionMaps = foldr unionMap emptyMap
+
+unionMapsWith :: (a->a->a) -> [IdMap a] -> IdMap a
+unionMapsWith f = foldr (unionMapWith f) emptyMap
 
 foldMapWithId :: (Id -> a -> b -> b) -> b -> IdMap a -> b
 foldMapWithId f z (IdMap m) = IntMap.foldrWithKey (f . idFromInt) z m
