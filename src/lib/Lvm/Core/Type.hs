@@ -6,7 +6,7 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Type 
-   ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..), SAnn(..)
+   ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..), SAnn(..), Ann
    , ppTypeVar, ppType, showType, showTypeAtom, showTypeVar
    , freshQuantorName, arityFromType, typeUnit, typeBool
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeRemoveAnnotation, typeConFromString, typeFunction
@@ -30,13 +30,14 @@ data Type = TAp !Type !Type
           -- may not be TStrict
           | TStrict !Type
           -- * Only used in strictness analysis
-          | TAnn !SAnn !Type
+          | TAnn !Ann !Type
           -- * We use Debruijn indices to identify type variables.
           | TVar !TypeVar
           | TCon !TypeConstant
           deriving (Eq, Ord)
 
 data SAnn = S | L | AnnVar !Id | Join SAnn SAnn | Meet SAnn SAnn deriving (Eq, Ord)
+type Ann = (SAnn, SAnn, SAnn) -- Left applicativeness, relevance, right applicativeness
 
 instance Show SAnn where
   show S = "S"
@@ -104,7 +105,7 @@ typeSetStrict True = typeToStrict
 typeSetStrict False = typeNotStrict
 
 typeRemoveAnnotation :: Type -> Type
-typeRemoveAnnotation (TAnn _ t) = t
+typeRemoveAnnotation (TAnn _ t) = typeRemoveAnnotation t
 typeRemoveAnnotation (TForall q k t) = TForall q k $ typeRemoveAnnotation t
 typeRemoveAnnotation (TStrict t) = TStrict $ typeRemoveAnnotation t
 typeRemoveAnnotation t = t
@@ -186,7 +187,7 @@ ppType level quantorNames tp
   = parenthesized $
     case tp of
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]" 
-      TAp (TAp (TCon TConFun) (TAnn a t1)) t2 -> ppHi t1 <+> text "-" <+> text (show a) <+> text ">" <+> ppEq t2
+      TAp (TAp (TCon TConFun) (TAnn a t1)) t2 -> ppHi t1 <+> text "-" <> ppAnn a <> text ">" <+> ppEq t2
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
       TForall quantor k t   ->
@@ -194,7 +195,7 @@ ppType level quantorNames tp
         in text "forall" <+> text quantorName {- <> text ":" <+> pretty k -} <> text "."
             <+> ppType 0 (quantorName : quantorNames) t
       TStrict t       -> text "!" <> ppHi t
-      TAnn    a t     -> text (show a) <> ppHi t
+      TAnn    a t     -> ppAnn a <+> ppHi t
       TVar    a       -> ppTypeVar quantorNames a
       TCon    a       -> pretty a
   where
@@ -204,6 +205,9 @@ ppType level quantorNames tp
       | otherwise         = parens doc
     ppHi  = ppType (tplevel+1) quantorNames
     ppEq = ppType tplevel quantorNames
+
+ppAnn :: Ann -> Doc
+ppAnn (a1, r, a2) = text (show a1) <+> text (show r) <+> text (show a2)
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind
