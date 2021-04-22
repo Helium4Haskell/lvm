@@ -14,7 +14,7 @@ module Lvm.Common.IdMap
    -- exotic: used by core compiler
    , foldMap, deleteMap, filterMapWithId, mapFromList
    , unionMaps, diffMap, unionlMap, foldMapWithId
-   , isEmptyMap, sizeMap
+   , isEmptyMap, sizeMap, updateMapWith
    ) where
 
 import Prelude hiding (foldMap)
@@ -76,6 +76,12 @@ insertMapWith x a f (IdMap m)
 updateMap :: Id -> a -> IdMap a -> IdMap a
 updateMap x a (IdMap m)
   = IdMap (IntMap.insertWith const (intFromId x) a m)
+
+updateMapWith :: Id -> (a -> a) -> IdMap a -> IdMap a
+updateMapWith x f (IdMap m)
+  = IdMap (IntMap.insertWith (const f) (intFromId x) err m)
+  where
+    err = error ("IdMap.updateMapWith: id " ++ show x ++ " not present")
 
 deleteMap :: Id -> IdMap a -> IdMap a
 deleteMap x(IdMap m)
