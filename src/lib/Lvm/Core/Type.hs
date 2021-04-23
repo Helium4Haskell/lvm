@@ -9,7 +9,7 @@ module Lvm.Core.Type
    ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..), SAnn(..), Ann
    , ppTypeVar, ppType, showType, showTypeAtom, showTypeVar
    , freshQuantorName, arityFromType, typeUnit, typeBool
-   , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeRemoveAnnotation, typeConFromString, typeFunction
+   , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeNotAnnotated, typeRemoveAnnotations, typeConFromString, typeFunction
    , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeReindex, typeReindexM, typeWeaken, typeApply
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
    ) where
@@ -90,10 +90,9 @@ typeToStrict (TForall quantor kind t) = TForall quantor kind $ typeToStrict t
 typeToStrict t@(TStrict _) = t
 typeToStrict t = TStrict t
 
-typeNotStrict :: Type -> Type
-typeNotStrict (TForall quantor kind t) = TForall quantor kind $ typeNotStrict t
-typeNotStrict (TStrict t) = typeNotStrict t
-typeNotStrict t = t
+typeNotAnnotated :: Type -> Type
+typeNotAnnotated (TAnn _ t) = t
+typeNotAnnotated t = t
 
 typeIsStrict :: Type -> Bool
 typeIsStrict (TForall _ _ t) = typeIsStrict t
@@ -104,11 +103,17 @@ typeSetStrict :: Bool -> Type -> Type
 typeSetStrict True = typeToStrict
 typeSetStrict False = typeNotStrict
 
-typeRemoveAnnotation :: Type -> Type
-typeRemoveAnnotation (TAnn _ t) = typeRemoveAnnotation t
-typeRemoveAnnotation (TForall q k t) = TForall q k $ typeRemoveAnnotation t
-typeRemoveAnnotation (TStrict t) = TStrict $ typeRemoveAnnotation t
-typeRemoveAnnotation t = t
+typeNotStrict :: Type -> Type
+typeNotStrict (TForall quantor kind t) = TForall quantor kind $ typeNotStrict t
+typeNotStrict (TStrict t) = typeNotStrict t
+typeNotStrict t = t
+
+typeRemoveAnnotations :: Type -> Type
+typeRemoveAnnotations (TAnn _ t) = typeRemoveAnnotations t
+typeRemoveAnnotations (TForall q k t) = TForall q k $ typeRemoveAnnotations t
+typeRemoveAnnotations (TStrict t) = TStrict $ typeRemoveAnnotations t
+typeRemoveAnnotations (TAp t1 t2) = TAp (typeRemoveAnnotations t1) (typeRemoveAnnotations t2)
+typeRemoveAnnotations t = t
 
 typeRemoveArgumentStrictness :: Type -> Type
 typeRemoveArgumentStrictness (TForall quantor kind tp) = TForall quantor kind $ typeRemoveArgumentStrictness tp

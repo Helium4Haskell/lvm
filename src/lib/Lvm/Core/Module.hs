@@ -66,8 +66,8 @@ data Module v
 
 
 data Decl v
-  = DeclValue     { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declAnn :: !Type, valueValue :: v, declCustoms :: ![Custom] }
-  | DeclAbstract  { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declArity :: !Arity, declType :: !Type, declAnn :: !Type, declCustoms :: ![Custom] }
+  = DeclValue     { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declAnn :: !(Maybe Type), valueValue :: v, declCustoms :: ![Custom] }
+  | DeclAbstract  { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declArity :: !Arity, declType :: !Type, declAnn :: !(Maybe Type), declCustoms :: ![Custom] }
   | DeclCon       { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declFields :: ![Field], declCustoms :: [Custom] }
   | DeclExtern    { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
@@ -234,9 +234,6 @@ instance Pretty a => Pretty (Decl a) where
          ppVarId (declName decl)
             <+> text "::"
             <+> pretty (declType decl)
-            -- <+> text "("
-            -- <+> pretty (declAnn decl)
-            -- <+> text ")"
             <+> ppAttrs decl
             <$> text "="
             <+> pretty (valueValue decl)
@@ -265,9 +262,6 @@ instance Pretty a => Pretty (Decl a) where
             <+> ppAttrs decl
             <$> text " :: "
             <+> pretty (declType decl)
-            -- <+> text "("
-            -- <+> pretty (declAnn decl)
-            -- <+> text ")"
       DeclTypeSynonym name _ _ s tp cs ->
          let
             keyword = case s of
