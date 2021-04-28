@@ -66,8 +66,8 @@ data Module v
 
 
 data Decl v
-  = DeclValue     { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declAnn :: !(Maybe Type), valueValue :: v, declCustoms :: ![Custom] }
-  | DeclAbstract  { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declArity :: !Arity, declType :: !Type, declAnn :: !(Maybe Type), declCustoms :: ![Custom] }
+  = DeclValue     { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, valueValue :: v, declCustoms :: ![Custom] }
+  | DeclAbstract  { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declArity :: !Arity, declType :: !Type, declCustoms :: ![Custom] }
   | DeclCon       { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type, declFields :: ![Field], declCustoms :: [Custom] }
   | DeclExtern    { declName :: Id, declAccess :: !Access, declModule :: !(Maybe Id), declType :: !Type
                   , externType :: !String, externLink :: !LinkConv,   externCall  :: !CallConv
@@ -94,6 +94,7 @@ data Custom
   | CustomName  Id
   | CustomLink  Id !DeclKind
   | CustomDecl  !DeclKind ![Custom]
+  | CustomType  !Type
   | CustomNothing
 
 data DeclKind
@@ -207,8 +208,8 @@ instance Functor Module where
 
 instance Functor Decl where
    fmap f decl = case decl of
-      DeclValue    x ac md m ta v cs -> DeclValue x ac md m ta (f v) cs
-      DeclAbstract x ac md ar tp ta cs -> DeclAbstract x ac md ar tp ta cs
+      DeclValue    x ac md m v cs -> DeclValue x ac md m (f v) cs
+      DeclAbstract x ac md ar tp cs -> DeclAbstract x ac md ar tp cs
       DeclCon x ac md t fs cs       -> DeclCon x ac md t fs cs
       DeclExtern x ac md ar et el ec elib en cs ->
          DeclExtern x ac md ar et el ec elib en cs
@@ -339,6 +340,7 @@ instance Pretty Custom where
       CustomBytes bs       -> dquotes (string (stringFromBytes bs))
       CustomLink x    kind -> text "custom" <+> pretty kind <+> ppId x
       CustomDecl kind cs   -> text "custom" <+> pretty kind <+> pretty cs
+      CustomType t         -> pretty t
       CustomNothing        -> text "nothing"
 
    prettyList customs | null customs = empty
