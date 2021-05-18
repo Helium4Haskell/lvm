@@ -6,10 +6,10 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Type 
-   ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..), SAnn(..), Ann
+   ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..), SAnn(..)
    , ppTypeVar, ppType, showType, showTypeAtom, showTypeVar
    , freshQuantorName, arityFromType, typeUnit, typeBool
-   , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeNotAnnotated, typeRemoveAnnotations, typeConFromString, typeFunction
+   , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
    , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeReindex, typeReindexM, typeWeaken, typeApply
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
    ) where
@@ -30,14 +30,13 @@ data Type = TAp !Type !Type
           -- may not be TStrict
           | TStrict !Type
           -- * Only used in strictness analysis
-          | TAnn !Ann !Type
+          | TAnn !SAnn
           -- * We use Debruijn indices to identify type variables.
           | TVar !TypeVar
           | TCon !TypeConstant
           deriving (Eq, Ord)
 
 data SAnn = S | L | AnnVar !Id | Join SAnn SAnn | Meet SAnn SAnn deriving (Eq, Ord)
-type Ann = (SAnn, SAnn, SAnn) -- Left applicativeness, relevance, right applicativeness
 
 instance Show SAnn where
   show S = "S"
@@ -75,6 +74,7 @@ instance Show IntType where
 
 data Kind = KFun !Kind !Kind
           | KStar
+          | KAnn
           deriving (Eq, Ord)
 
 typeConFromString :: String -> TypeConstant
@@ -90,10 +90,6 @@ typeToStrict (TForall quantor kind t) = TForall quantor kind $ typeToStrict t
 typeToStrict t@(TStrict _) = t
 typeToStrict t = TStrict t
 
-typeNotAnnotated :: Type -> Type
-typeNotAnnotated (TAnn _ t) = t
-typeNotAnnotated t = t
-
 typeIsStrict :: Type -> Bool
 typeIsStrict (TForall _ _ t) = typeIsStrict t
 typeIsStrict (TStrict _) = True
@@ -108,18 +104,12 @@ typeNotStrict (TForall quantor kind t) = TForall quantor kind $ typeNotStrict t
 typeNotStrict (TStrict t) = typeNotStrict t
 typeNotStrict t = t
 
-typeRemoveAnnotations :: Type -> Type
-typeRemoveAnnotations (TAnn _ t) = typeRemoveAnnotations t
-typeRemoveAnnotations (TForall q k t) = TForall q k $ typeRemoveAnnotations t
-typeRemoveAnnotations (TStrict t) = TStrict $ typeRemoveAnnotations t
-typeRemoveAnnotations (TAp t1 t2) = TAp (typeRemoveAnnotations t1) (typeRemoveAnnotations t2)
-typeRemoveAnnotations t = t
-
 typeRemoveArgumentStrictness :: Type -> Type
 typeRemoveArgumentStrictness (TForall quantor kind tp) = TForall quantor kind $ typeRemoveArgumentStrictness tp
 typeRemoveArgumentStrictness (TAp (TAp (TCon TConFun) tArg) tReturn) =
   TAp (TAp (TCon TConFun) $ typeNotStrict tArg) $ typeRemoveArgumentStrictness tReturn
 typeRemoveArgumentStrictness (TStrict tp) = TStrict $ typeRemoveArgumentStrictness tp
+typeRemoveArgumentStrictness (TAp (TAnn a) tp) = TAp (TAnn a) $ typeRemoveArgumentStrictness tp
 typeRemoveArgumentStrictness tp = tp 
 
 typeUnit :: Type
@@ -130,6 +120,7 @@ typeBool = TCon $ TConDataType $ idFromString "Bool"
 
 typeFunction :: [Type] -> Type -> Type
 typeFunction [] ret = ret
+typeFunction ((TForall q KAnn a):as) ret = TForall q KAnn $ typeFunction (a:as) ret
 typeFunction (a:as) ret = TAp (TAp (TCon TConFun) a) $ typeFunction as ret
 
 arityFromType :: Type -> Int
@@ -139,7 +130,7 @@ arityFromType tp
       TAp     _ _     -> 0 -- assumes saturated constructors!
       TForall _ _ t   -> arityFromType t
       TStrict t       -> arityFromType t
-      TAnn    _ t     -> arityFromType t 
+      TAnn    _       -> 0
       TVar    _       -> 0
       TCon    _       -> 0
 
@@ -192,15 +183,17 @@ ppType level quantorNames tp
   = parenthesized $
     case tp of
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]" 
-      TAp (TAp (TCon TConFun) (TAnn a t1)) t2 -> ppHi t1 <+> text "-" <> ppAnn a <> text ">" <+> ppEq t2
+      TAp (TAp (TCon TConFun) (TAp (TAnn a1) (TAp (TAnn r) (TAp (TAnn a2) t1)))) t2 ->
+        ppHi t1 <+> text "-" <+> text (show a1) <+> text (show r) <+> text (show a2) <+> text ">" <+> ppEq t2
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
+      TAp (TAnn a) t  -> text (show a) <+> ppEq t
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
       TForall quantor k t   ->
         let quantorName = freshQuantorName quantorNames quantor
         in text "forall" <+> text quantorName {- <> text ":" <+> pretty k -} <> text "."
             <+> ppType 0 (quantorName : quantorNames) t
       TStrict t       -> text "!" <> ppHi t
-      TAnn    a t     -> ppAnn a <+> ppHi t
+      TAnn    a       -> text (show a)
       TVar    a       -> ppTypeVar quantorNames a
       TCon    a       -> pretty a
   where
@@ -210,9 +203,6 @@ ppType level quantorNames tp
       | otherwise         = parens doc
     ppHi  = ppType (tplevel+1) quantorNames
     ppEq = ppType tplevel quantorNames
-
-ppAnn :: Ann -> Doc
-ppAnn (a1, r, a2) = text (show a1) <+> text (show r) <+> text (show a2)
 
 ppKind :: Int -> Kind -> Doc
 ppKind level kind
@@ -235,7 +225,7 @@ levelFromType tp
       TAp (TAp (TCon TConFun) _) _ -> 3
       TAp{}     -> 4
       TStrict{} -> 5
-      TAnn{}    -> 5
+      TAnn{}    -> 6
       TVar{}    -> 6
       TCon{}    -> 6
 
@@ -244,6 +234,7 @@ levelFromKind kind
   = case kind of
       KFun{}    -> 1
       KStar{}   -> 2
+      KAnn{}    -> 0
 
 -- Reindexes the type variables in the type
 typeReindex :: (TypeVar -> TypeVar) -> Type -> Type
@@ -258,7 +249,7 @@ typeReindexM f = go 0
     go n (TAp t1 t2) = TAp <$> go n t1 <*> go n t2
     go n (TForall q kind t) = TForall q kind <$> go (n + 1) t
     go n (TStrict t) = TStrict <$> go n t
-    go n (TAnn a t) = TAnn a <$> go n t
+    go n (TAnn a) = pure $ TAnn a
     go n (TVar idx)
       | idx < n = pure $ TVar idx
       | otherwise = TVar . (n +) <$> f (idx - n)
@@ -281,7 +272,7 @@ typeSubstitutions k tps = go k
     go k' (TAp t1 t2) = TAp (go k' t1) (go k' t2)
     go k' (TForall q kind t) = TForall q kind $ go (k' + 1) t
     go k' (TStrict t) = TStrict $ go k' t
-    go k' (TAnn a t) = TAnn a $ go k' t
+    go k' (TAnn a) = TAnn a
     go k' (TVar idx) = substitute k' idx
     go k' (TCon c) = TCon c
 
@@ -319,6 +310,7 @@ typeExtractFunction (TAp (TAp (TCon TConFun) t1) t2) = (t1 : args, ret)
 typeExtractFunction tp = ([], tp)
 
 typeApply :: Type -> Type -> Type
+typeApply (TForall q KAnn t1) t2 = TForall q KAnn $ typeApply t1 t2
 typeApply (TForall _ _ t1) t2 = typeSubstitute 0 t2 t1
 typeApply t1 t2 = TAp t1 t2
 
@@ -329,6 +321,7 @@ typeApplyList tp args = go tp args []
     go :: Type -> [Type] -> [Type] -> Type
     go tp [] [] = tp
     go tp [] substitution = typeSubstitutions 0 substitution tp
+    go (TForall q KAnn tp) args substitution = TForall q KAnn $ go tp args substitution
     go (TForall _ _ tp) (arg:args) substitution = go tp args (arg:substitution)
     go tp args [] = foldl TAp tp args
     go tp args substitution = go (typeSubstitutions 0 substitution tp) args []
