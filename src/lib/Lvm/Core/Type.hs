@@ -6,12 +6,13 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Lvm.Core.Type 
-   ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..), SAnn(..)
+   ( Type(..), TypeVar, Kind(..), TypeConstant(..), Quantor(..), QuantorNames, IntType(..)
    , ppTypeVar, ppType, showType, showTypeAtom, showTypeVar
    , freshQuantorName, arityFromType, typeUnit, typeBool
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
    , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeReindex, typeReindexM, typeWeaken, typeApply
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
+   , SAnn(..), join, meet, typeNotAnnotated, substitueAnn
    ) where
 
 import Lvm.Common.Id
@@ -36,6 +37,7 @@ data Type = TAp !Type !Type
           | TCon !TypeConstant
           deriving (Eq, Ord)
 
+-- Strictness annotations
 data SAnn = S | L | AnnVar !Id | Join SAnn SAnn | Meet SAnn SAnn deriving (Eq, Ord)
 
 instance Show SAnn where
@@ -325,3 +327,29 @@ typeApplyList tp args = go tp args []
     go (TForall _ _ tp) (arg:args) substitution = go tp args (arg:substitution)
     go tp args [] = foldl TAp tp args
     go tp args substitution = go (typeSubstitutions 0 substitution tp) args []
+
+-- Strictness methods
+join, meet :: SAnn -> SAnn -> SAnn
+join L _ = L
+join _ L = L
+join S x = x
+join x S = x
+join l r | l == r    = l
+         | otherwise = Join l r
+
+meet S _ = S
+meet _ S = S
+meet L x = x
+meet x L = x
+meet l r | l == r    = l
+         | otherwise = Meet l r
+
+typeNotAnnotated :: Type -> Type
+typeNotAnnotated (TAp (TAnn _) t) = typeNotAnnotated t
+typeNotAnnotated t = t
+
+substitueAnn :: SAnn -> String -> SAnn -> SAnn
+substitueAnn (AnnVar x) id a | stringFromId x == id = a
+substitueAnn (Join x y) id a = join (substitueAnn x id a) (substitueAnn y id a)
+substitueAnn (Meet x y) id a = meet (substitueAnn x id a) (substitueAnn y id a)
+substitueAnn ann        _  _ = ann
