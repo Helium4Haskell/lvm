@@ -1,3 +1,4 @@
+cabal-version:  2.0
 name:           lvmlib
 version:        1.9
 synopsis:           The Lazy Virtual Machine (LVM).
@@ -21,7 +22,6 @@ maintainer:         helium4haskell@gmail.com
 stability:          provisional
 extra-source-files:     CREDITS.txt
 build-type:         Simple
-cabal-version:      >= 2
 tested-with:        GHC == 8.4.4
 
 source-repository head
