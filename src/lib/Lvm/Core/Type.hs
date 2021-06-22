@@ -12,7 +12,7 @@ module Lvm.Core.Type
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
    , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeReindex, typeReindexM, typeWeaken, typeApply
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
-   , SAnn(..), join, meet, typeNotAnnotated, substitueAnn
+   , SAnn(..), join, meet, typeNotAnnotated, typeRemoveAnnotations, substitueAnn
    ) where
 
 import Lvm.Common.Id
@@ -38,7 +38,7 @@ data Type = TAp !Type !Type
           deriving (Eq, Ord)
 
 -- Strictness annotations
-data SAnn = S | L | AnnVar !Id | Join SAnn SAnn | Meet SAnn SAnn deriving (Eq, Ord)
+data SAnn = S | L | AnnVar !Id | Join !SAnn !SAnn | Meet !SAnn !SAnn deriving (Eq, Ord)
 
 instance Show SAnn where
   show S = "S"
@@ -347,6 +347,15 @@ meet l r | l == r    = l
 typeNotAnnotated :: Type -> Type
 typeNotAnnotated (TAp (TAnn _) t) = typeNotAnnotated t
 typeNotAnnotated t = t
+
+typeRemoveAnnotations :: Type -> Type
+typeRemoveAnnotations (TAp (TAnn _) t1) = typeRemoveAnnotations t1
+typeRemoveAnnotations (TAp t1 t2) = TAp (typeRemoveAnnotations t1) (typeRemoveAnnotations t2)
+typeRemoveAnnotations (TForall _ KAnn t) = typeRemoveAnnotations t
+typeRemoveAnnotations (TForall q k t) = TForall q k $ typeRemoveAnnotations t
+typeRemoveAnnotations (TStrict t) = TStrict $ typeRemoveAnnotations t
+typeRemoveAnnotations (TAnn a) = error $ "Annotation " ++ show a ++ " occurs outside application"
+typeRemoveAnnotations t = t
 
 substitueAnn :: SAnn -> String -> SAnn -> SAnn
 substitueAnn (AnnVar x) id a | stringFromId x == id = a

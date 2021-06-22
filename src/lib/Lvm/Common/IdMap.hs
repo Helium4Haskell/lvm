@@ -12,8 +12,8 @@ module Lvm.Common.IdMap
    , insertMapWith, lookupMap, findMap, filterMap, listFromMap
    , mapMapWithId, unionMap, unionMapWith, updateMap
    -- exotic: used by core compiler
-   , foldMap, deleteMap, filterMapWithId, mapFromList
-   , unionMaps, unionMapsWith, diffMap, unionlMap, foldMapWithId
+   , foldMap, deleteMap, filterMapWithId, partitionMap, partitionMapWithId
+   , mapFromList, unionMaps, unionMapsWith, diffMap, unionlMap, foldMapWithId
    , isEmptyMap, sizeMap
    ) where
 
@@ -96,6 +96,18 @@ filterMap p (IdMap m)
 filterMapWithId :: (Id -> a -> Bool) -> IdMap a -> IdMap a
 filterMapWithId p (IdMap m)
   = IdMap (IntMap.filterWithKey (\i x -> p (idFromInt i) x) m)
+
+partitionMap :: (a -> Bool) -> IdMap a -> (IdMap a, IdMap a)
+partitionMap p (IdMap m)
+  = (IdMap l, IdMap r)
+  where
+    (l, r) = IntMap.partition p m
+
+partitionMapWithId :: (Id -> a -> Bool) -> IdMap a -> (IdMap a, IdMap a)
+partitionMapWithId p (IdMap m)
+  = (IdMap l, IdMap r)
+  where
+    (l, r) = IntMap.partitionWithKey (\i x -> p (idFromInt i) x) m
 
 findMap :: Id -> IdMap a -> a
 findMap x = fromMaybe (error msg) . lookupMap x
