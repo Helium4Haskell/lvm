@@ -185,8 +185,12 @@ ppType level quantorNames tp
   = parenthesized $
     case tp of
       TAp (TCon a) t2 | a == TConDataType (idFromString "[]") -> text "[" <> ppType 0 quantorNames t2 <> text "]" 
+      -- Pretty printing of annotations in triple system
       TAp (TAp (TCon TConFun) (TAp (TAnn a1) (TAp (TAnn r) (TAp (TAnn a2) t1)))) t2 ->
         ppHi t1 <+> text "-" <+> text (show a1) <+> text (show r) <+> text (show a2) <+> text ">" <+> ppEq t2
+      -- Pretty printing of annotations in single system
+      TAp (TAp (TCon TConFun) (TAp (TAnn r) t1)) t2 ->
+        ppHi t1 <+> text "-" <+> text (show r) <+> text ">" <+> ppEq t2
       TAp (TAp (TCon TConFun) t1) t2 -> ppHi t1 <+> text "->" <+> ppEq t2
       TAp (TAnn a) t  -> text (show a) <+> ppEq t
       TAp     t1 t2   -> ppEq t1 <+> ppHi t2
