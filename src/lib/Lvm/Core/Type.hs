@@ -12,7 +12,7 @@ module Lvm.Core.Type
    , typeToStrict, typeNotStrict, typeIsStrict, typeSetStrict, typeConFromString, typeFunction
    , typeSubstitute, typeTupleElements, typeRemoveArgumentStrictness, typeReindex, typeReindexM, typeWeaken, typeApply
    , typeSubstitutions, typeExtractFunction, typeApply, typeApplyList, dictionaryDataTypeName
-   , SAnn(..), join, meet, typeNotAnnotated, typeRemoveAnnotations, substitueAnn
+   , SAnn(..), join, meet, typeNotAnnotated, typeRemoveAnnotations, substitueAnn, removeVar
    ) where
 
 import Lvm.Common.Id
@@ -44,8 +44,8 @@ instance Show SAnn where
   show S = "S"
   show L = "L"
   show (AnnVar a) = show a
-  show (Join l r) = show l ++ "&" ++ show r
-  show (Meet l r) = show l ++ "|" ++ show r
+  show (Join l r) = "(" ++ show l ++ "&" ++ show r ++ ")"
+  show (Meet l r) = "(" ++ show l ++ "|" ++ show r ++ ")"
 
 type TypeVar = Int
 
@@ -338,6 +338,16 @@ join L _ = L
 join _ L = L
 join S x = x
 join x S = x
+join (AnnVar x) y
+  | y == z = Join (AnnVar x) y
+  | otherwise = join (AnnVar x) z
+    where
+      z = removeVar x S y
+join x (AnnVar y)
+  | x == z = Join (AnnVar y) x
+  | otherwise = join (AnnVar y) z
+    where
+      z = removeVar y S x
 join l r | l == r    = l
          | otherwise = Join l r
 
@@ -345,6 +355,16 @@ meet S _ = S
 meet _ S = S
 meet L x = x
 meet x L = x
+meet (AnnVar x) y
+  | y == z = Meet (AnnVar x) y
+  | otherwise = meet (AnnVar x) z
+    where
+      z = removeVar x L y
+meet x (AnnVar y)
+  | x == z = Meet (AnnVar y) x
+  | otherwise = meet (AnnVar y) z
+    where
+      z = removeVar y L x
 meet l r | l == r    = l
          | otherwise = Meet l r
 
@@ -366,3 +386,9 @@ substitueAnn (AnnVar x) id a | stringFromId x == id = a
 substitueAnn (Join x y) id a = join (substitueAnn x id a) (substitueAnn y id a)
 substitueAnn (Meet x y) id a = meet (substitueAnn x id a) (substitueAnn y id a)
 substitueAnn ann        _  _ = ann
+
+removeVar :: Id -> SAnn -> SAnn -> SAnn
+removeVar x v (AnnVar y) | x == y = v
+removeVar x v (Join l r) = join (removeVar x v l) (removeVar x v r)
+removeVar x v (Meet l r) = meet (removeVar x v l) (removeVar x v r)
+removeVar _ _ a          = a
