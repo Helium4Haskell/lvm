@@ -20,6 +20,6 @@
 
 value alloc_bytes( asize_t size );
 value bytes_of_string( value s );
-struct custom_operations bytes_ops;
+extern struct custom_operations bytes_ops;
 
 #endif /* _bytes_ */
