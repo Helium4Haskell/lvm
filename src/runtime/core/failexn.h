@@ -78,7 +78,7 @@ struct exception_frame {
                    } \
                  }
 
-struct exception_frame* global_exn_frame;
+extern struct exception_frame* global_exn_frame;
 
 
 #endif /* _failexn_h */
