@@ -5,3 +5,10 @@ topsolver
 *.html
 *.css
 *.gif
+
+dist-newstyle/
+m.h
+makefile
+s.h
+lvmrun
+.stack-work

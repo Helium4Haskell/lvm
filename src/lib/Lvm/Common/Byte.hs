@@ -67,11 +67,13 @@ max32 = 2^(32::Int) -1 -- Bastiaan (Todo: check)
   Byte lists
 ----------------------------------------------------------------}
 
+instance Semigroup Bytes where
+  bs <> Nil = bs
+  Nil <> cs = cs
+  bs <> cs  = Cat bs cs
+
 instance Monoid Bytes where
-   mempty  = Nil
-   mappend bs  Nil = bs 
-   mappend Nil cs  = cs
-   mappend bs  cs  = Cat bs cs     
+   mempty  = Nil  
 
 isEmpty :: Bytes -> Bool
 isEmpty Nil         = True
