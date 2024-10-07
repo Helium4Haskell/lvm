@@ -1,5 +1,5 @@
 name:           lvmlib
-version:        1.9
+version:        1.9.1
 synopsis:           The Lazy Virtual Machine (LVM).
 homepage:           https://github.com/Helium4Haskell/lvm
 description:
