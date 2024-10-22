@@ -1,0 +1,15 @@
+module NFib where
+
+instruction primadd "addint" :: Int! -> Int! -> Int!
+instruction primsub "subint" :: Int! -> Int! -> Int!
+
+main  = nfib 27
+
+-- strict nfib
+nfib n  = case n of
+            0  -> 1
+            1  -> 1
+            n  -> let! x = let! x2 = (let! n2 = primsub n 2 in nfib n2)
+                                x1 = (let! n1 = primsub n 1 in nfib n1)
+                           in primadd x1 x2
+                  in primadd 1 x

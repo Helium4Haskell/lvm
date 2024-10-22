@@ -1,0 +1,14 @@
+-- test round
+module FloatRound where
+
+extern float "float_of_string" :: "Fz"
+extern round "fp_round" :: "FF"
+extern setRoundMode "fp_set_round" :: "ii"
+
+data RoundMode = RoundNear | RoundUp | RoundDown | RoundZero
+
+main = let! m = setRoundMode RoundZero
+            x = float "3.5"
+            y = round x
+       in y
+

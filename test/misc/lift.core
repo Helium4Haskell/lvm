@@ -1,0 +1,38 @@
+module Lift where {
+-- example from Mark Jones to test lambda-lifting
+lift1 = let f x y = let const x y = x
+                        g z  = let hz = h z in const hz x
+                        h z  = let gz = g z in const y gz
+                        in g 3
+        in f 2 1;   -- == 1
+
+
+-- test passing function with free vars
+lift2 = let liftfv fv = let const x y   = x
+                            constfv x y = const y fv
+                            apply y f x = f x y
+                        in apply 1 constfv 0
+        in liftfv 3;  --== 1 (not 0!)
+
+
+-- examples from Johnson
+lift3 = let i   = 0
+            f x = f i
+        in f i; -- does not terminate
+
+
+-- hard for the renamer
+lift4a = let x   = 1
+             f y = x
+             g y = f x
+         in g f; -- = 1
+
+-- nice for the renamer
+lift4b = let a = 1
+             b = 2
+             f y = a
+             g z = f b
+        in g f; -- = 1
+
+--lift5 = let ones = @1 1 ones in ones;
+}

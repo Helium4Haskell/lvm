@@ -1,0 +1,13 @@
+-- discriminant
+module Discriminant where
+
+instruction primAddInt  "addint" :: Int! -> Int! -> Int!
+instruction primMulInt  "mulint" :: Int! -> Int! -> Int!
+
+discriminant a b c = let! ac  = primMulInt a c
+                          four= 4
+                          ac4 = primMulInt ac four 
+                          b2  = primMulInt b b                          
+                     in primAddInt b2 ac4 
+
+main  = discriminant 1 2 3

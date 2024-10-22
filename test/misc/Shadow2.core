@@ -1,0 +1,8 @@
+{- naar aanleiding van een bug van Arjan van IJzendoorn -}
+module Shadow2 where
+
+main = piet
+f x  = 0
+piet = let g x = let f x = 1 in f 0
+           f x = let f x = 42 in f 1
+       in f g -- 42

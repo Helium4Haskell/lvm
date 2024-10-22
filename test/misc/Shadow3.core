@@ -1,0 +1,8 @@
+{- naar aanleiding van een bug van Arjan van IJzendoorn
+xss en primRemInt hebben dezelfde hash!
+-}
+module Shadow3 where
+
+main = piet 2
+primRemInt x y = x
+piet xss = primRemInt 42 xss

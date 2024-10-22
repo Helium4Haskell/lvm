@@ -1,0 +1,6 @@
+module Math0 where
+
+instruction div "divint" :: Int! -> Int! -> Int!
+
+-- test on divide by zero error
+main   = div 1 0

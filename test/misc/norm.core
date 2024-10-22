@@ -1,0 +1,12 @@
+module Norm where
+
+data List a  = Nil | Cons a (List a)
+
+-- let binding in application
+norm1 f g
+  = (let x = (let x = g in x) f in x) 2
+
+-- case in application + partial constructor
+norm2 f
+  = f (case (\x -> Cons x ) of Cons x xx -> (\x y -> x ) x xx
+      )

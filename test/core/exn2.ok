@@ -1,0 +1,2 @@
+exception at "Exn2.*":
+  integer overflow.

@@ -1,0 +1,9 @@
+module Overlap where
+
+data List a = Nil
+            | Cons a (List a)
+
+
+main = case Nil of
+        Nil -> 1
+        Nil -> 0

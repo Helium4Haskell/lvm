@@ -1,0 +1,6 @@
+-- nested let bindings
+module Normalize1 where
+
+f x  = let g = let f x = 42 in f x in g
+
+main  = f 2

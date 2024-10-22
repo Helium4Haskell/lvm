@@ -1,0 +1,10 @@
+module Math1 where
+
+instruction primadd "addint" :: Int! -> Int! -> Int!
+instruction primsub "subint" :: Int! -> Int! -> Int!
+
+add x y = case x of x -> case y of y -> primadd x y
+sub x y = case x of x -> case y of y -> primsub x y
+
+-- test simple addition & substraction
+main   = sub 44 (add 1 1)

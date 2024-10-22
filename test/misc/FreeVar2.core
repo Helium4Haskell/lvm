@@ -1,0 +1,13 @@
+module FreeVar2 where
+
+instruction primAdd "addint" :: Int! -> Int! -> Int!
+
+data Unit = Unit
+
+bind x f = f Unit
+return x = x
+
+main = let x = primAdd 96 1
+       in let f = \_ -> let g = \_ -> case Unit of Unit -> return Unit
+                        in bind x g
+          in bind x f

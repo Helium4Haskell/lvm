@@ -1,0 +1,10 @@
+{- raises inexact exception -}
+module FloatInexactExn where
+
+extern float        "float_of_string" :: "Fz"
+instruction div "divfloat":: Float -> Float -> Float
+
+main = let! x    = float "1.0"
+            y    = float "0.0"
+            z    = div x y
+       in z

@@ -1,0 +1,13 @@
+{- update with smaller partial application -}
+module Update where
+
+main = test 43
+
+const x y
+  = y
+
+const3 a b c
+  = const a
+
+test x
+  = let f = const3 x 2 3 in case f of f' -> f 42

@@ -1,0 +1,12 @@
+module FreeVar1 where
+
+data Unit = Unit
+
+bind x f  = f Unit
+return x  = x
+putChar x = x
+
+main = let x = putChar 97
+       in let f = \_ -> let g = \_ -> case Unit of Unit -> return 42
+                        in bind x g
+          in bind x f

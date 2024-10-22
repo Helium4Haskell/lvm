@@ -1,0 +1,20 @@
+----------------------------------------------------------------
+-- Daan Leijen (c) 2001
+--
+-- $Revision$
+-- $Author$
+-- $Date$
+----------------------------------------------------------------
+module NestedLet where
+
+data List a = Nil
+            | Cons a (List a)
+
+data Bool   = False
+            | True
+
+
+head xs = case xs of Cons x xx -> x
+
+main    = let xs = (let ys = Cons (head xs) ys in Cons 42 ys) 
+          in head xs

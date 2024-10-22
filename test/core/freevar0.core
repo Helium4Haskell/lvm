@@ -1,0 +1,10 @@
+{- naar aanleiding van een bug van Arjan van IJzendoorn -}
+module FreeVar0 where
+
+data List a = Nil | Cons a (List a)
+
+head xs = case xs of Cons x xx -> x
+
+main    = let x = (Cons 42 (Cons 98 Nil)) in
+          let f = \_ -> head x in
+          f 3

@@ -1,0 +1,6 @@
+module Exn0 where
+
+import LvmLang
+
+-- test on divide by zero error
+main   = (/) 1 0

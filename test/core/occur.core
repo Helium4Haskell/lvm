@@ -1,0 +1,22 @@
+----------------------------------------------------------------
+-- Daan Leijen (c) 2001
+--
+-- $Revision$
+-- $Author$
+-- $Date$
+----------------------------------------------------------------
+module Occur where
+
+data List a = Nil
+            | Cons a (List a)
+
+data Bool   = False
+            | True
+
+
+head xs = case xs of Cons x xx -> x
+
+main    = let xs = (let ys = Cons 2 Nil in Cons 1 ys) 
+              ys = Cons (head xs) Nil
+              zs = Cons (head xs) Nil
+          in head ys

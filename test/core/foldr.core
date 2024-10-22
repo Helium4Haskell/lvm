@@ -1,0 +1,15 @@
+module Foldr where
+
+data List a   = Nil | Cons a (List a)
+
+foldr f z xs
+  = case xs of
+      Nil -> z
+      Cons x xx -> f x (foldr f z xx)
+
+head xs
+  = case xs of
+      Cons x xx -> x
+
+main 
+  = head (foldr Cons Nil (Cons 42 Nil))

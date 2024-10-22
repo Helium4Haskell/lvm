@@ -6,7 +6,7 @@
 --  $Id: Data.hs 250 2012-08-22 10:59:40Z bastiaan $
 
 module Helium.Lvm.Core.Utils
-  ( module Helium.Lvm.Core.Module
+  ( module Lvm.Core.Module
   , listFromBinds
   , mapBinds
   , mapAccumBinds

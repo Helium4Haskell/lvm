@@ -1,0 +1,15 @@
+{- update with smaller constructor -}
+module UpdateCon where
+
+data List a = Nil | Cons a (List a)
+
+main = test 42
+
+list x y z
+  = Cons x (Cons y (Cons z Nil))
+
+test x
+  = let xs = list 1 2 3 in
+    case xs of
+      _  -> case xs of
+              Cons y ys -> x

@@ -1,0 +1,24 @@
+{- a truly terrible lifting example from the Clean book:
+  'functional programming and parallel graph rewriting'
+-}
+module Lift0 where
+
+instruction primAddInt "addint" :: Int! -> Int! -> Int!
+instruction primNegInt "negint" :: Int! -> Int!
+
+(+) x y 
+  = let! x = x in let! y = y in primAddInt x y
+
+neg x
+  = let! x = x in primNegInt x
+
+main = f 0 1 (neg 2)
+
+f x y z = let s      = let r = (+) y z in (+) r (k r)
+              g a b  = let h d e = case d of
+                                     0 -> (+) 10 t
+                                     _ -> g ((+) b e) ((+) y 1)
+                           t     = (+) a x
+                       in (+) (h a a) (k t)
+              k q    = (+) q z
+          in g s s

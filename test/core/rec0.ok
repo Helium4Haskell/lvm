@@ -1,0 +1,2 @@
+exception at "Rec0.main":
+  infinite value recursion at Rec0.main.

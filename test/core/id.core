@@ -1,0 +1,5 @@
+-- identity
+module Id where
+
+id x  = x
+main  = id 1

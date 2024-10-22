@@ -1,0 +1,20 @@
+{- import/export -}
+module Use where
+
+instruction primadd "addint" :: Int! -> Int! -> Int!
+instruction primlt  "ltint" :: Int! -> Int! -> Bool!
+
+data Bool   = False | True
+data List a = Nil | Cons a (List a)
+
+addint x y = let! x = x in let! y = y in primadd x y
+
+last' z xs
+  = case xs of
+      Cons x xx -> last' x xx
+      Nil -> z
+
+last xs  = last' 0 xs
+
+main  = last (Cons 1 Nil) -- (fromTo 2 100))
+

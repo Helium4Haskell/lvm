@@ -1,0 +1,36 @@
+----------------------------------------------------------------
+-- Daan Leijen (c) 2001
+--
+-- $Revision$
+-- $Author$
+-- $Date$
+----------------------------------------------------------------
+module Prelude where
+
+import LvmLang
+
+length :: [a] -> Int
+length xs
+  = let len n xs  = case xs of
+                      [] -> n
+                      (:) x xx -> len ((+) n 1) xx
+    in len 0 xs
+
+fromTo :: Int -> Int -> [Int]
+fromTo i n
+  = case (<=) i n of
+      False -> []
+      True  -> (:) i (fromTo ((+) i 1) n)
+
+map :: (a -> b) -> [a] -> [b]
+map f xs
+  = case xs of
+      [] -> []
+      (:) x xx -> (:) (f x) (map f xx)
+
+foldlStrict :: (a -> b -> a) -> a -> [b] -> [a]
+foldlStrict f z xs
+  = case xs of
+      [] -> z
+      (:) x xx -> case f z x of
+                    y -> foldlStrict f y xx

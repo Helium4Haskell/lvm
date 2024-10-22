@@ -1,0 +1,6 @@
+exception at "Exn3.head":
+  pattern match failed at Exn3.head.
+
+trace:
+  demanded from "Exn3.+"
+  demanded from "Exn3.main"

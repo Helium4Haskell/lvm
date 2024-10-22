@@ -1,0 +1,9 @@
+module Test12 where
+
+data List a = Nil | Cons a (List a)
+
+-- test case with function result
+main    = (case Nil of
+             Nil -> \x y -> x
+             Cons x xx -> \x y -> y
+          ) 1 2

@@ -1,0 +1,58 @@
+module Sieve where
+
+instruction primNe    "neint" :: Int! -> Int! -> Bool!
+instruction primMod   "modint" :: Int! -> Int! -> Int!
+instruction primAdd   "addint" :: Int! -> Int! -> Int!
+instruction primSub   "subint" :: Int! -> Int! -> Int!
+
+data Bool   = False
+            | True
+
+data List a = Nil
+            | Cons a (List a)
+
+ne  x y = case y of y -> case x of x-> primNe x y
+mod x y = case y of y -> case x of x-> primMod x y
+add x y = case y of y -> case x of x-> primAdd x y
+sub x y = case y of y -> case x of x-> primSub x y
+
+filter p xs
+        = case xs of
+           Nil -> Nil
+           Cons x xx -> case p x of
+                          True  -> Cons x (filter p xx)
+                          False -> filter p xx
+
+take n xs
+        = case n of
+            0 -> Nil
+            n -> case xs of
+                   Cons x xx -> Cons x (take (sub n 1) xx)
+
+last xs = let test x xs  = case xs of
+                             Nil -> x
+                             Cons y ys -> test y ys
+          in case xs of
+               Cons x xx -> test x xx
+
+
+odds    = let build n   = Cons n (build (add n 2))
+          in build 3
+
+noDiv x y
+        = ne (mod y x) 0
+
+primes  = let sieve xs  = case xs of
+                             Cons x xs -> Cons x (sieve (filter (noDiv x) xs))
+          in sieve odds
+
+
+main    = last (take 1000 primes)
+
+
+{-
+primes  = sieve [3,5..]
+        where
+          sieve (x:xs)  = x:sieve (filter (noDiv x) xs)
+          noDiv x y     = (y `mod` x /= 0)
+-}

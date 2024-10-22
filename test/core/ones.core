@@ -1,0 +1,12 @@
+-- inifinite lists and letrec
+module Ones where
+
+data List a = Nil
+            | Cons a (List a)
+
+
+main = let ones = Cons 1 ones
+       in head ones
+
+head xs
+  = case xs of Cons x xx -> x

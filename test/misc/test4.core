@@ -1,0 +1,8 @@
+module Test4 where
+
+-- example from Mark Jones to test lambda-lifting
+main  = let f x y = let const x y = x
+                        g z  = let hz = h z in const hz x
+                        h z  = let gz = g z in const y gz
+                        in g 3
+        in f 2 1;   -- == 1

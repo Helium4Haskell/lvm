@@ -1,0 +1,6 @@
+{- gaat renaming goed bij stricte bindings ?
+-}
+module Shadow4 where
+
+const x y = x
+main = let x = 1 in let! x = const 42 x in x

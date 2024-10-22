@@ -1,0 +1,7 @@
+-- compiler loops when code records are shared.
+module LvmShare where
+
+main = b  
+b = c 
+c = 42
+

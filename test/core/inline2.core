@@ -1,0 +1,12 @@
+-- inline
+module Inline2 where
+
+data List a = Nil | Cons a (List a)
+
+head xs = case xs of
+            Cons x xx -> x
+
+f     = let y = Cons 2 Nil 
+            x = Cons 1 y 
+        in    x
+main  = head f

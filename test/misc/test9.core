@@ -1,0 +1,8 @@
+module Test9 where
+
+data List a  = Nil | Cons a (List a)
+
+-- test case expression on constructors
+main  = case Nil of
+          Nil   -> 0
+          other -> 1
