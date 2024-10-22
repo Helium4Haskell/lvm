@@ -1,4 +1,0 @@
--- nested let bindings
-module Normalise1 where
-
-f x  = let g = let f x = 10 in f x in g

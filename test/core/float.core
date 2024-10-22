@@ -1,5 +1,0 @@
-module Float where
-
-extern float "float_of_string" :: "Fz"
-
-main = float "42.0"

@@ -1,2 +1,0 @@
-exception at "ExnStackOverflow.f":
-  stack overflow (200k).

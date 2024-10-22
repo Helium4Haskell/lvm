@@ -1,6 +1,0 @@
-module Test6 where
-
-data Bool = False | True
-
--- test constructor expression
-main  = True

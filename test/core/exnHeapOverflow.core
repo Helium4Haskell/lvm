@@ -1,8 +1,0 @@
--- overflow
-module ExnHeapOverflow where
-
-main  = f 42
-
-f x   = f (id x)
-
-id x  = x

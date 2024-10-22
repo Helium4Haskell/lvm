@@ -1,5 +1,0 @@
-module Extern0 where
-
-extern dynamic stdcall showInt "lvmutil" decorate "showInt" :: "vi"
-
-main = showInt 42

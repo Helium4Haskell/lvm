@@ -1,4 +1,0 @@
-module Extern3 where
-
-extern tickCount "getTickCount" :: "i"
-main = tickCount

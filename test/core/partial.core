@@ -1,7 +1,0 @@
--- partial application
-module Partial where
-
-id x     = x
-cons x y = x
-swap x f = f x
-main     = swap cons (cons id)

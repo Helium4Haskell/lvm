@@ -1,3 +1,0 @@
-module Rec3 where
--- recursion that uses heap
-main = let f x = f (f x) in f 2

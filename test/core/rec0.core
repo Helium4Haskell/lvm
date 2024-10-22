@@ -1,3 +1,0 @@
-module Rec0 where
--- infinite recursion on local
-main = let x = x in x
